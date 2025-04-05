@@ -1,0 +1,138 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Mod info -->
+  <PropertyGroup>
+    <ModName>Overhaul Library</ModName>
+    <ModType>code</ModType>
+    <ModVersion>0.0.1</ModVersion>
+    <ModId>overhaullib</ModId>
+    <Description></Description>
+    <Side>Universal</Side>
+    <RequiredOnClient>true</RequiredOnClient>
+    <RequiredOnServer>true</RequiredOnServer>
+  </PropertyGroup>
+
+  <!-- Authors -->
+  <ItemGroup>
+    <ModInfoAuthors Include="Maltiez" />
+  </ItemGroup>
+
+  <!-- Translators -->
+
+  <!-- Project settings -->
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Paths -->
+  <PropertyGroup>
+    <ProjectDir>$(MSBuildProjectDirectory)</ProjectDir>
+    <OutputDir>bin\$(Configuration)\Mods</OutputDir>
+    <OutputPath>$(OutputDir)\$(ModId)</OutputPath>
+    <GameDirectory>$(VINTAGE_STORY)</GameDirectory>
+    <AssetsDir>$(ProjectDir)\resources\assets</AssetsDir>
+    <ModIconFile>$(ProjectDir)\resources\modicon.png</ModIconFile>
+    <ReleasesDir>$(ProjectDir)\Releases</ReleasesDir>
+    <ReleaseFile>$(ModId)_$(ModVersion)</ReleaseFile>
+    <ReleasePath>$(ReleasesDir)\$(ReleaseFile).zip</ReleasePath>
+    <ReleasePathDev>$(ReleasesDir)\$(ReleaseFile)_dev.zip</ReleasePathDev>
+  </PropertyGroup>
+
+  <!-- Startup settings -->
+  <PropertyGroup>
+    <DataFolderName>VintagestoryDataDev</DataFolderName>               
+    <DataFolder>$(AppData)\$(DataFolderName)</DataFolder>
+    <AditionalModsFolder>$(AppData)\$(DataFolderName)\Mods</AditionalModsFolder>
+    <WorldName>test_$(ModId)</WorldName>
+    <ModDir>$(ProjectDir)\$(OutputDir)</ModDir>
+  </PropertyGroup>
+
+  <!-- Formatting JSON files -->
+  <PropertyGroup>
+    <Scripts>$(ProjectDir)\scripts</Scripts>
+    <Formatter>$(Scripts)\formatter.py</Formatter>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssetsToFormat Include="$(AssetsDir)\$(ModId)\blocktypes" />
+    <AssetsToFormat Include="$(AssetsDir)\$(ModId)\itemtypes" />
+    <AssetsToFormat Include="$(AssetsDir)\$(ModId)\patches" />
+    <AssetsToFormat Include="$(AssetsDir)\$(ModId)\entities" />
+    <AssetsToFormat Include="$(AssetsDir)\$(ModId)\config\animations" />
+    <AssetsToFormat Include="$(AssetsDir)\game\itemtypes" />
+  </ItemGroup>
+
+  <!-- References to libraries that are being used in project -->
+  <ItemGroup>
+    <PackageReference Include="VSImGui" Version="0.0.6" />
+    <Reference Include="$(GameDirectory)/**/*.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- Forces rebuild -->
+  <Target Name="ForceRebuild" BeforeTargets="BeforeBuild">
+    <Touch Files="@(Compile)" AlwaysCreate="true" />
+  </Target>
+
+  <!-- Creates/updates modinfo.json file in build directory -->
+  <Target Name="ModInfo" BeforeTargets="CopyFilesToOutput">
+    <PropertyGroup>
+      <ModInfo>
+{
+  "type": "$(ModType)",
+  "name": "$(ModName)",
+  "modid": "$(ModId)",
+  "version": "$(ModVersion)",
+
+  "description": "$(Description)",
+  "authors": [ @(ModInfoAuthors->'"%(Identity)"', ', ') ],
+  "translation": [ @(ModInfoTranslators->'"%(Identity)"', ', ') ],
+
+  "dependencies": {
+    @(Dependencies->'"%(Identity)": "%(Version)"', ', ')
+  },
+
+  "side" : "$(Side)",
+  "requiredOnClient": $(RequiredOnClient),
+  "requiredOnServer": $(RequiredOnServer)
+}
+      </ModInfo>
+    </PropertyGroup>
+    <!-- Remove all folders in output directory to get rid of builds from bullseye branch -->
+    <RemoveDir Directories="$(OutputDir)" />
+    <Message Text="Generating modinfo.json" Importance="high" />
+    <WriteLinesToFile File="$(OutputPath)/modinfo.json" Lines="$(ModInfo)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- Formats asssets files -->
+  <Target Name="Format" AfterTargets="ModInfo" BeforeTargets="CopyFilesToOutput">
+    <Exec Command="python $(Formatter) -a -d %(AssetsToFormat.Identity)" />
+  </Target>
+
+  <!-- Copies modicon, assets folder and native libraries if they exist into output directory -->
+  <Target Name="CopyFilesToOutput" AfterTargets="Format" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <AssetsFolder Include="$(AssetsDir)\**\*.*" />
+      <ModIcon Include="$(ModIconFile)" />
+    </ItemGroup>
+    <Message Text="Clearing assets folder in build directory" Importance="high" />
+    <RemoveDir Directories="$(OutputPath)assets" />
+    <Message Text="Copying assets to build directory" Importance="high" />
+    <Copy SourceFiles="@(AssetsFolder)" DestinationFiles="@(AssetsFolder->'$(OutputPath)assets\%(RecursiveDir)%(Filename)%(Extension)')" Condition="Exists('$(AssetsDir)')" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="@(ModIcon)" DestinationFolder="$(OutputPath)" Condition="Exists('$(ModIconFile)')" OverwriteReadOnlyFiles="true" />
+  </Target>
+
+  <!-- Archives output directory into zip and puts it into Releases folder -->
+  <Target Name="ZipFiles" AfterTargets="Build" Condition=" '$(Configuration)' == 'Release' ">
+    <Message Text="Pachaging into '$(ReleaseFile)'" Importance="high" />
+    <MakeDir Directories="$(ReleasesDir)" />
+    <Delete Files="$(ReleasePath)" />
+    <ZipDirectory SourceDirectory="$(OutputPath)" DestinationFile="$(ReleasePath)" />
+  </Target>
+  <Target Name="ZipFilesDev" AfterTargets="Build" Condition=" '$(Configuration)' == 'Debug' ">
+    <Message Text="Pachaging into '$(ReleaseFile)'" Importance="high" />
+    <MakeDir Directories="$(ReleasesDir)" />
+    <Delete Files="$(ReleasePathDev)" />
+    <ZipDirectory SourceDirectory="$(OutputPath)" DestinationFile="$(ReleasePathDev)" />
+  </Target>
+</Project>
