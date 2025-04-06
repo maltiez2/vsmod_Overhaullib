@@ -44,6 +44,8 @@ public sealed class Settings
     public bool HandsYawSmoothing { get; set; } = false;
 
     public bool DoVanillaActionsWhileBlocking { get; set; } = true;
+
+    public float CollisionRadius { get; set; } = 16f;
 }
 
 public sealed class ArmorConfig

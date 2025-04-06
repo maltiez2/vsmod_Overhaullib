@@ -9,5 +9,6 @@
   "PrintPlayerBeingHit": true,
   "DirectionsControllerSensitivity": 1.0,
   "DirectionsControllerInvert": false,
-  "DoVanillaActionsWhileBlocking": true
+  "DoVanillaActionsWhileBlocking": true,
+  "CollisionRadius": 16
 }

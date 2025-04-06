@@ -113,6 +113,7 @@ public sealed class ProjectileSystemClient : ProjectileSystemBase
 
         _api = api;
         _entityPartitioning = entityPartitioning;
+        _combatOverhaulSystem = _api.ModLoader.GetModSystem<CombatOverhaulSystem>();
     }
 
     public void Collide(Guid id, Entity target, Vector3d point, Vector3d velocity, double relativeSpeed, string collider, ProjectileCollisionCheckRequest packet)
@@ -134,14 +135,14 @@ public sealed class ProjectileSystemClient : ProjectileSystemBase
     private readonly ICoreClientAPI _api;
     private readonly IClientNetworkChannel _clientChannel;
     private readonly EntityPartitioning _entityPartitioning;
-    private const float _entityCollisionRadius = 5;
+    private readonly CombatOverhaulSystem _combatOverhaulSystem;
 
     private void HandleRequest(ProjectileCollisionCheckRequest packet)
     {
         Entity[] entities = _api.World.GetEntitiesAround(
             new Vec3d(packet.CurrentPosition[0], packet.CurrentPosition[1], packet.CurrentPosition[2]),
-            _entityCollisionRadius + packet.Radius,
-            _entityCollisionRadius + packet.Radius);
+            _combatOverhaulSystem.Settings.CollisionRadius + packet.Radius,
+            _combatOverhaulSystem.Settings.CollisionRadius + packet.Radius);
 
         Vector3d currentPosition = new(packet.CurrentPosition[0], packet.CurrentPosition[1], packet.CurrentPosition[2]);
         Vector3d previousPosition = new(packet.PreviousPosition[0], packet.PreviousPosition[1], packet.PreviousPosition[2]);
@@ -288,7 +289,7 @@ public sealed class ProjectileSystemServer : ProjectileSystemBase
             CurrentPosition = new double[3] { projectile.ServerPos.X, projectile.ServerPos.Y, projectile.ServerPos.Z },
             PreviousPosition = new double[3] { projectile.PreviousPosition.X, projectile.PreviousPosition.Y, projectile.PreviousPosition.Z },
             Velocity = new double[3] { projectile.PreviousVelocity.X, projectile.PreviousVelocity.Y, projectile.PreviousVelocity.Z },
-            Radius = projectile.ColliderRadius,
+            Radius =projectile.ColliderRadius,
             PenetrationDistance = projectile.PenetrationDistance,
             CollideWithShooter = false,
             IgnoreEntities = projectile.CollidedWith.ToArray(),

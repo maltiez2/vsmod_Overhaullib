@@ -38,6 +38,7 @@ public sealed class MeleeAttack
         DamageTypes = stats.DamageTypes.Select(stats => stats.ToDamageType()).ToArray();
 
         _meleeSystem = api.ModLoader.GetModSystem<CombatOverhaulSystem>().ClientMeleeSystem ?? throw new Exception();
+        _combatOverhaulSystem = _api.ModLoader.GetModSystem<CombatOverhaulSystem>();
     }
 
     public void Start(IPlayer player)
@@ -127,6 +128,7 @@ public sealed class MeleeAttack
     private readonly ICoreClientAPI _api;
     private readonly Dictionary<long, HashSet<long>> _attackedEntities = new();
     private readonly MeleeSystemClient _meleeSystem;
+    private readonly CombatOverhaulSystem _combatOverhaulSystem;
 
     private IEnumerable<(Block block, Vector3d point)> CheckTerrainCollision(out double parameter)
     {
@@ -163,7 +165,7 @@ public sealed class MeleeAttack
             return Array.Empty<(Entity entity, Vector3d point)>();
         }
 
-        Entity[] entities = _api.World.GetEntitiesAround(player.Entity.Pos.XYZ, MaxReach, MaxReach);
+        Entity[] entities = _api.World.GetEntitiesAround(player.Entity.Pos.XYZ, _combatOverhaulSystem.Settings.CollisionRadius + MaxReach, _combatOverhaulSystem.Settings.CollisionRadius + MaxReach);
 
         List<(Entity entity, Vector3d point)> entitiesCollisions = new();
 
