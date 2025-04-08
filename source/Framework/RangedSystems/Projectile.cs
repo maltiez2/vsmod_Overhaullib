@@ -379,7 +379,7 @@ public class ProjectileBehavior : CollectibleBehavior
 
             dsc.AppendLine(Lang.Get(
             "combatoverhaul:iteminfo-projectile",
-            Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier,
+            $"{Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier:F1}",
             Lang.Get($"combatoverhaul:damage-type-{Stats.DamageStats.DamageType}"),
             $"{(1 - Stats.DropChance * projectileStackStats.DropChanceMultiplier) * 100:F1}"));
 

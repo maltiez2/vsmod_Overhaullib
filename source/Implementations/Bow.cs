@@ -640,7 +640,7 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAni
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(inSlot.Itemstack);
 
-        dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-range-weapon-damage", _stats.ArrowDamageMultiplier * stackStats.DispersionMultiplier, _stats.ArrowDamageTier + stackStats.DamageTierBonus));
+        dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-range-weapon-damage", $"{_stats.ArrowDamageMultiplier * stackStats.DispersionMultiplier:F1}", _stats.ArrowDamageTier + stackStats.DamageTierBonus));
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot)

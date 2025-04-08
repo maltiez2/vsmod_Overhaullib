@@ -1296,7 +1296,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
         string damageType = damageTypes.Select(element => Lang.Get($"combatoverhaul:damage-type-{element}")).Aggregate((first, second) => $"{first}, {second}");
 
-        return Lang.Get(descriptionLangCode, damage, tier, damageType);
+        return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType);
     }
 }
 

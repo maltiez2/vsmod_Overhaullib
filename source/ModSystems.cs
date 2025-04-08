@@ -241,7 +241,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         DamageResistData.MaxArmorTier = armorConfigObj.MaxArmorTier;
         DamageResistData.DamageReduction = armorConfigObj.DamageReduction;
 
-        ArmorAutoPatcher.Patch(api);
+        //ArmorAutoPatcher.Patch(api);
 
         if (api is ICoreServerAPI serverApi)
         {
