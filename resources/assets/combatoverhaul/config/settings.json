@@ -10,5 +10,6 @@
   "DirectionsControllerSensitivity": 1.0,
   "DirectionsControllerInvert": false,
   "DoVanillaActionsWhileBlocking": true,
-  "CollisionRadius": 16
+  "CollisionRadius": 16,
+  "DefaultColliderPenetrationResistance": 5
 }

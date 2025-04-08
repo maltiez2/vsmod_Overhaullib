@@ -70,6 +70,9 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     public override string PropertyName() => "combatoverhaul:colliders";
     internal ClientAnimator? Animator { get; set; }
     static public bool RenderColliders { get; set; } = false;
+    public float DefaultPenetrationResistance { get; set; } = 5f;
+    public Dictionary<string, float> PenetrationResistances { get; set; } = new();
+    public bool ResistantCollidersStopProjectiles { get; set; } = true;
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
@@ -115,6 +118,21 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
             UnprocessedElementsLeft = true;
             HasOBBCollider = true;
+
+            if (attributes.KeyExists("defaultPenetrationResistance"))
+            {
+                DefaultPenetrationResistance = attributes["defaultPenetrationResistance"].AsFloat(5f);
+            }
+
+            if (attributes.KeyExists("penetrationResistances"))
+            {
+                PenetrationResistances = attributes["penetrationResistances"].AsObject<Dictionary<string, float>>();
+            }
+
+            if (attributes.KeyExists("resistantCollidersStopProjectiles"))
+            {
+                ResistantCollidersStopProjectiles = attributes["resistantCollidersStopProjectiles"].AsBool(true);
+            }
 
         }
         catch (Exception exception)
@@ -282,10 +300,10 @@ public sealed class CollidersEntityBehavior : EntityBehavior
             }
         }
 
-        Vector3d thisTickOriginAdjustedForPenetration = firstIntersection + Vector3d.Normalize(thisTickOrigin - previousTickOrigin) * penetrationDistance;
-
         if (foundIntersection)
         {
+            Vector3d thisTickOriginAdjustedForPenetration = firstIntersection + Vector3d.Normalize(thisTickOrigin - previousTickOrigin) * penetrationDistance;
+
             foundIntersection = false;
             foreach ((string key, ShapeElementCollider shapeElementCollider) in Colliders)
             {
@@ -315,6 +333,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
         { ColliderTypes.Resistant, ColorUtil.ColorFromRgba(255, 0, 255, 255 ) } // Magenta
     };
     private bool _reportedMissingColliders = false;
+    private readonly CombatOverhaulSystem _combatOverhaulSystem;
 
     private void SetColliderElement(ShapeElement element)
     {

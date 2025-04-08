@@ -1,10 +1,10 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Implementations;
 using OpenTK.Mathematics;
 using ProtoBuf;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -65,11 +65,24 @@ public class MeleeDamageType : IHasLineCollider
         if (maximumParameter < parameter) return false;
         if (!collided) return false;
 
-        bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType);
+        bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, new ItemStackMeleeWeaponStats());
 
         return received;
     }
-    public bool Attack(Entity attacker, Entity target, Vector3d position, string collider, out MeleeDamagePacket packet, bool mainHand, ColliderTypes colliderType)
+    public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats)
+    {
+        bool collided = Collide(target, out collider, out collisionPoint, out double parameter, out ColliderTypes colliderType);
+
+        packet = new();
+
+        if (maximumParameter < parameter) return false;
+        if (!collided) return false;
+
+        bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, stats);
+
+        return received;
+    }
+    public bool Attack(Entity attacker, Entity target, Vector3d position, string collider, out MeleeDamagePacket packet, bool mainHand, ColliderTypes colliderType, ItemStackMeleeWeaponStats stats)
     {
         packet = new();
 
@@ -84,26 +97,30 @@ public class MeleeDamageType : IHasLineCollider
         {
             damage *= attacker.Stats.GetBlended("mechanicalsDamage");
         }
+        damage += stats.DamageBonus;
+        damage *= stats.DamageMultiplier;
+
+        DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus);
 
         bool damageReceived = target.ReceiveDamage(new DirectionalTypedDamageSource()
         {
             Source = attacker is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity,
             SourceEntity = attacker,
             CauseEntity = attacker,
-            DamageTypeData = DamageTypeData,
+            DamageTypeData = damageTypeData,
             Position = position,
             Collider = collider,
-            KnockbackStrength = Knockback
+            KnockbackStrength = Knockback * stats.KnockbackMultiplier
         }, damage);
 
         bool received = damageReceived || Damage > 0;
 
         packet = new()
         {
-            DamageType = DamageTypeData.DamageType.ToString(),
-            Strength = DamageTypeData.Tier,
+            DamageType = damageTypeData.DamageType.ToString(),
+            Strength = damageTypeData.Tier,
             Damage = damage,
-            Knockback = Knockback,
+            Knockback = Knockback * stats.KnockbackMultiplier,
             Position = new double[3] { position.X, position.Y, position.Z },
             Collider = collider,
             ColliderType = (int)colliderType,

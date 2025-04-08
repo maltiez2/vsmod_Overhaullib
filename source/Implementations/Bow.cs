@@ -50,6 +50,48 @@ public sealed class BowStats : WeaponStats
     public float[] DispersionMOA { get; set; } = new float[] { 0, 0 };
 }
 
+public readonly struct ItemStackRangedStats
+{
+    public readonly float ReloadSpeed;
+    public readonly float DamageMultiplier;
+    public readonly int DamageTierBonus;
+    public readonly float ProjectileSpeed;
+    public readonly float DispersionMultiplier;
+    public readonly float AimingDifficulty;
+
+    public ItemStackRangedStats(float reloadSpeed, float damageMultiplier, int damageTierBonus, float projectileSpeed, float dispersionMultiplier, float aimingDifficulty)
+    {
+        ReloadSpeed = reloadSpeed;
+        DamageMultiplier = damageMultiplier;
+        DamageTierBonus = damageTierBonus;
+        ProjectileSpeed = projectileSpeed;
+        DispersionMultiplier = dispersionMultiplier;
+        AimingDifficulty = aimingDifficulty;
+    }
+
+    public ItemStackRangedStats()
+    {
+        ReloadSpeed = 1;
+        DamageMultiplier = 1;
+        DamageTierBonus = 0;
+        ProjectileSpeed = 1;
+        DispersionMultiplier = 1;
+        AimingDifficulty = 0;
+    }
+
+    public static ItemStackRangedStats FromItemStack(ItemStack stack)
+    {
+        float reloadSpeed = stack.Attributes.GetFloat("reloadSpeed", 1);
+        float damageMultiplier = stack.Attributes.GetFloat("damageMultiplier", 1);
+        int damageTierBonus = stack.Attributes.GetInt("damageTierBonus", 0);
+        float projectileSpeed = stack.Attributes.GetFloat("projectileSpeed", 1);
+        float dispersionMultiplier = stack.Attributes.GetFloat("dispersionMultiplier", 1);
+        float aimingDifficulty = stack.Attributes.GetFloat("aimingDifficulty", 1);
+
+        return new ItemStackRangedStats(reloadSpeed, damageMultiplier, damageTierBonus, projectileSpeed, dispersionMultiplier, aimingDifficulty);
+    }
+}
+
 public class BowClient : RangeWeaponClient
 {
     public BowClient(ICoreClientAPI api, Item item, AmmoSelector ammoSelector) : base(api, item)
@@ -115,12 +157,14 @@ public class BowClient : RangeWeaponClient
 
         if (arrowSlot == null) return false;
 
+        ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
+
         Attachable.SetAttachment(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
         AttachmentSystem.SendAttachPacket(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
         RangedWeaponSystem.Reload(slot, arrowSlot, 1, mainHand, ReloadCallback);
 
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: LoadAnimationCallback);
-        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat));
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, callback: LoadAnimationCallback);
+        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed);
 
         AimingSystem.ResetAim();
         AimingSystem.StartAiming(AimingStats);
@@ -179,7 +223,9 @@ public class BowClient : RangeWeaponClient
     {
         if (state != (int)BowState.Loaded || eventData.AltPressed || !CheckForOtherHandEmpty(mainHand, player)) return false;
 
-        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat), 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
+        ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
+
+        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
         AnimationBehavior?.Play(request, mainHand);
         TpAnimationBehavior?.Play(request, mainHand);
 
@@ -189,7 +235,10 @@ public class BowClient : RangeWeaponClient
 
         if (!AimingSystem.Aiming)
         {
-            AimingSystem.StartAiming(AimingStats);
+            AimingStats aimingStats = AimingStats.Clone();
+            aimingStats.AimDifficulty *= stackStats.AimingDifficulty;
+
+            AimingSystem.StartAiming(aimingStats);
             AimingSystem.AimingState = WeaponAimingState.Blocked;
 
             AimingAnimationController?.Play(mainHand);
@@ -395,7 +444,7 @@ public class BowServer : RangeWeaponServer
 
         if (arrowSlot?.Itemstack == null || arrowSlot.Itemstack.StackSize < 1) return false;
 
-        ProjectileStats? stats = arrowSlot.Itemstack.Item.GetCollectibleBehavior<ProjectileBehavior>(true)?.Stats;
+        ProjectileStats? stats = arrowSlot.Itemstack.Item.GetCollectibleBehavior<ProjectileBehavior>(true)?.GetStats(arrowSlot.Itemstack);
 
         if (stats == null)
         {
@@ -403,13 +452,15 @@ public class BowServer : RangeWeaponServer
             return false;
         }
 
+        ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
+
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
-            DamageMultiplier = Stats.ArrowDamageMultiplier,
-            DamageStrength = Stats.ArrowDamageTier,
+            DamageMultiplier = Stats.ArrowDamageMultiplier * stackStats.DamageMultiplier,
+            DamageStrength = Stats.ArrowDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
-            Velocity = GetDirectionWithDispersion(packet.Velocity, Stats.DispersionMOA) * Stats.ArrowVelocity
+            Velocity = GetDirectionWithDispersion(packet.Velocity, new float[2] { Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier }) * Stats.ArrowVelocity * stackStats.ProjectileSpeed
         };
 
         ProjectileSystem.Spawn(packet.ProjectileId[0], stats, spawnStats, arrowSlot.TakeOut(1), slot.Itemstack, shooter);
@@ -587,7 +638,9 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAni
 
         if (_stats == null) return;
 
-        dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-range-weapon-damage", _stats.ArrowDamageMultiplier, _stats.ArrowDamageTier));
+        ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(inSlot.Itemstack);
+
+        dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-range-weapon-damage", _stats.ArrowDamageMultiplier * stackStats.DispersionMultiplier, _stats.ArrowDamageTier + stackStats.DamageTierBonus));
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot)

@@ -102,6 +102,35 @@ public class AimingStats
     public float AnimationFollowY { get; set; } = 0f;
     public float AnimationOffsetX { get; set; } = 0f;
     public float AnimationOffsetY { get; set; } = 0f;
+
+    public AimingStats Clone()
+    {
+        return new AimingStats()
+        {
+            AimDifficulty = AimDifficulty,
+            CursorType = CursorType,
+            InvertMouseYAxis = InvertMouseYAxis,
+            VerticalAccuracyMultiplier = VerticalAccuracyMultiplier,
+            HorizontalAccuracyMultiplier = HorizontalAccuracyMultiplier,
+            AimDriftFrequency = AimDriftFrequency,
+            AimDrift = AimDrift,
+            AimTwitch = AimTwitch,
+            HorizontalLimit = HorizontalLimit,
+            VerticalLimit = VerticalLimit,
+            VerticalOffset = VerticalOffset,
+            AimTwitchDuration = AimTwitchDuration,
+            AllowSprint = AllowSprint,
+            MoveSpeedPenalty = MoveSpeedPenalty,
+            AccuracyOvertime = AccuracyOvertime,
+            AccuracyMovePenalty = AccuracyMovePenalty,
+            CursorTextureReady = CursorTextureReady,
+            CursorTextureNotReady = CursorTextureNotReady,
+            AnimationFollowX = AnimationFollowX,
+            AnimationFollowY = AnimationFollowY,
+            AnimationOffsetX = AnimationOffsetX,
+            AnimationOffsetY = AnimationOffsetY
+        };
+    }
 }
 
 public sealed class ClientAimingSystem : IDisposable

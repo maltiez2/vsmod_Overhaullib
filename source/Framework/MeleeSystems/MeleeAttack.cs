@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Colliders;
+using CombatOverhaul.Implementations;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -55,6 +56,20 @@ public sealed class MeleeAttack
         }
     }
 
+    public void Start(IPlayer player, ItemStackMeleeWeaponStats stats)
+    {
+        long entityId = player.Entity.EntityId;
+
+        if (_attackedEntities.TryGetValue(entityId, out HashSet<long>? value))
+        {
+            value.Clear();
+        }
+        else
+        {
+            _attackedEntities[entityId] = new();
+        }
+    }
+
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions)
     {
         terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
@@ -71,7 +86,25 @@ public sealed class MeleeAttack
             //if (collidedWithTerrain && StopOnTerrainHit) return;
         }
 
-        TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter);
+        TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, new ItemStackMeleeWeaponStats());
+    }
+    public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
+    {
+        terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
+        entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
+
+        PrepareColliders(player, slot, mainHand);
+
+        double parameter = 1f;
+
+        if (CollideWithTerrain)
+        {
+            bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
+
+            //if (collidedWithTerrain && StopOnTerrainHit) return;
+        }
+
+        TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
     }
     public void PrepareColliders(IPlayer player, ItemSlot slot, bool mainHand)
     {
@@ -83,9 +116,9 @@ public sealed class MeleeAttack
 
         return terrainCollisions.Any();
     }
-    public bool TryAttackEntities(IPlayer player, ItemSlot slot, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, bool mainHand, double maximumParameter)
+    public bool TryAttackEntities(IPlayer player, ItemSlot slot, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats)
     {
-        entitiesCollisions = CollideWithEntities(player, out IEnumerable<MeleeDamagePacket> damagePackets, mainHand, maximumParameter);
+        entitiesCollisions = CollideWithEntities(player, out IEnumerable<MeleeDamagePacket> damagePackets, mainHand, maximumParameter, stats);
 
         if (damagePackets.Any()) _meleeSystem.SendPackets(damagePackets);
 
@@ -149,7 +182,7 @@ public sealed class MeleeAttack
 
         return terrainCollisions;
     }
-    private IEnumerable<(Entity entity, Vector3d point)> CollideWithEntities(IPlayer player, out IEnumerable<MeleeDamagePacket> packets, bool mainHand, double maximumParameter)
+    private IEnumerable<(Entity entity, Vector3d point)> CollideWithEntities(IPlayer player, out IEnumerable<MeleeDamagePacket> packets, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats)
     {
         long entityId = player.Entity.EntityId;
         long mountedOn = player.Entity.MountedOn?.Entity?.EntityId ?? 0;
@@ -181,7 +214,7 @@ public sealed class MeleeAttack
                     .Where(entity => entity.EntityId != entityId && entity.EntityId != mountedOn)
                     .Where(entity => !_attackedEntities[entityId].Contains(entity.EntityId)))
             {
-                attacked = damageType.TryAttack(player, entity, out string collider, out Vector3d point, out MeleeDamagePacket packet, mainHand, maximumParameter);
+                attacked = damageType.TryAttack(player, entity, out string collider, out Vector3d point, out MeleeDamagePacket packet, mainHand, maximumParameter, stats);
 
                 if (!attacked) continue;
 

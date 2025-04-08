@@ -5,6 +5,7 @@ using CombatOverhaul.Integration;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
+using ImPlotNET;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -102,6 +103,69 @@ public class MeleeWeaponStats : WeaponStats
     public ThrowWeaponStats? ThrowAttack { get; set; } = null;
     public bool RenderingOffset { get; set; } = false;
     public float AnimationStaggerOnHitDurationMs { get; set; } = 100;
+}
+
+public readonly struct ItemStackMeleeWeaponStats
+{
+    public readonly float DamageMultiplier;
+    public readonly float DamageBonus;
+    public readonly int DamageTierBonus;
+    public readonly float AttackSpeed;
+    public readonly int BlockTierBonus;
+    public readonly int ParryTierBonus;
+    public readonly float ThrownDamageMultiplier;
+    public readonly int ThrownDamageTierBonus;
+    public readonly float ThrownAimingDifficulty;
+    public readonly float ThrownProjectileSpeedMultiplier;
+    public readonly float KnockbackMultiplier;
+
+    public ItemStackMeleeWeaponStats(float damageMultiplier, float damageBonus, int damageTierBonus, float attackSpeed, int blockTierBonus, int parryTierBonus, float thrownDamageMultiplier, int thrownDamageTierBonus, float thrownAimingDifficulty, float thrownProjectileSpeedMultiplier, float knockbackMultiplier)
+    {
+        DamageMultiplier = damageMultiplier;
+        DamageBonus = damageBonus;
+        DamageTierBonus = damageTierBonus;
+        AttackSpeed = attackSpeed;
+        BlockTierBonus = blockTierBonus;
+        ParryTierBonus = parryTierBonus;
+        ThrownDamageMultiplier = thrownDamageMultiplier;
+        ThrownDamageTierBonus = thrownDamageTierBonus;
+        ThrownAimingDifficulty = thrownAimingDifficulty;
+        ThrownProjectileSpeedMultiplier = thrownProjectileSpeedMultiplier;
+        KnockbackMultiplier = knockbackMultiplier;
+    }
+
+    public ItemStackMeleeWeaponStats()
+    {
+        DamageMultiplier = 1;
+        DamageBonus = 0;
+        DamageTierBonus = 0;
+        AttackSpeed = 1;
+        BlockTierBonus = 0;
+        ParryTierBonus = 0;
+        ThrownDamageMultiplier = 1;
+        ThrownDamageTierBonus = 0;
+        ThrownAimingDifficulty = 1;
+        ThrownProjectileSpeedMultiplier = 1;
+        KnockbackMultiplier = 1;
+    }
+
+    public static ItemStackMeleeWeaponStats FromItemStack(ItemStack stack)
+    {
+        float damageMultiplier = stack.Attributes.GetFloat("damageMultiplier", 1);
+        float damageBonus = stack.Attributes.GetFloat("damageBonus", 0);
+        int damageTierBonus = stack.Attributes.GetInt("damageTierBonus", 0);
+        float attackSpeed = stack.Attributes.GetFloat("attackSpeed", 1);
+        int blockTierBonus = stack.Attributes.GetInt("blockTierBonus", 0);
+        int parryTierBonus = stack.Attributes.GetInt("parryTierBonus", 0);
+        float thrownDamageMultiplier = stack.Attributes.GetFloat("thrownDamageMultiplier", 1);
+        int thrownDamageTierBonus = stack.Attributes.GetInt("thrownDamageTierBonus", 0);
+        float thrownAimingDifficulty = stack.Attributes.GetFloat("thrownAimingDifficulty", 1);
+        float thrownProjectileSpeedMultiplier = stack.Attributes.GetFloat("thrownProjectileSpeedMultiplier", 1);
+        float knockbackMultiplier = stack.Attributes.GetFloat("knockbackMultiplier", 1);
+
+        return new ItemStackMeleeWeaponStats(damageMultiplier, damageBonus, damageTierBonus, attackSpeed, blockTierBonus, parryTierBonus, thrownDamageMultiplier, thrownDamageTierBonus, thrownAimingDifficulty, thrownProjectileSpeedMultiplier, knockbackMultiplier);
+    }
+    public static float GetAttackSpeed(ItemStack stack) => stack.Attributes.GetFloat("attackSpeed", 1);
 }
 
 public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, IOnGameTick, IRestrictAction
@@ -324,39 +388,41 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     {
         if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageTypes.Length > 0)
         {
-            string description = GetAttackStatsDescription(Stats.OneHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-onehanded");
+            string description = GetAttackStatsDescription(inSlot, Stats.OneHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-onehanded");
             dsc.AppendLine(description);
         }
         else if (Stats.OneHandedStance?.DirectionalAttacks != null && Stats.OneHandedStance.DirectionalAttacks.Count > 0)
         {
             IEnumerable<DamageDataJson> damageTypes = Stats.OneHandedStance.DirectionalAttacks.Values.SelectMany(element => element.DamageTypes).Select(element => element.Damage);
-            string description = GetAttackStatsDescription(damageTypes, "combatoverhaul:iteminfo-melee-weapon-onehanded");
+            string description = GetAttackStatsDescription(inSlot, damageTypes, "combatoverhaul:iteminfo-melee-weapon-onehanded");
             dsc.AppendLine(description);
         }
 
         if (Stats.TwoHandedStance?.Attack != null && Stats.TwoHandedStance.Attack.DamageTypes.Length > 0)
         {
-            string description = GetAttackStatsDescription(Stats.TwoHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-twohanded");
+            string description = GetAttackStatsDescription(inSlot, Stats.TwoHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-twohanded");
             dsc.AppendLine(description);
         }
         else if (Stats.TwoHandedStance?.DirectionalAttacks != null && Stats.TwoHandedStance.DirectionalAttacks.Count > 0)
         {
             IEnumerable<DamageDataJson> damageTypes = Stats.TwoHandedStance.DirectionalAttacks.Values.SelectMany(element => element.DamageTypes).Select(element => element.Damage);
-            string description = GetAttackStatsDescription(damageTypes, "combatoverhaul:iteminfo-melee-weapon-twohanded");
+            string description = GetAttackStatsDescription(inSlot, damageTypes, "combatoverhaul:iteminfo-melee-weapon-twohanded");
             dsc.AppendLine(description);
         }
 
         if (Stats.OffHandStance?.Attack != null && Stats.OffHandStance.Attack.DamageTypes.Length > 0)
         {
-            string description = GetAttackStatsDescription(Stats.OffHandStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-offhanded");
+            string description = GetAttackStatsDescription(inSlot, Stats.OffHandStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-offhanded");
             dsc.AppendLine(description);
         }
         else if (Stats.OffHandStance?.DirectionalAttacks != null && Stats.OffHandStance.DirectionalAttacks.Count > 0)
         {
             IEnumerable<DamageDataJson> damageTypes = Stats.OffHandStance.DirectionalAttacks.Values.SelectMany(element => element.DamageTypes).Select(element => element.Damage);
-            string description = GetAttackStatsDescription(damageTypes, "combatoverhaul:iteminfo-melee-weapon-offhanded");
+            string description = GetAttackStatsDescription(inSlot, damageTypes, "combatoverhaul:iteminfo-melee-weapon-offhanded");
             dsc.AppendLine(description);
         }
+
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
 
         if (Stats.OneHandedStance?.Block?.BlockTier != null)
         {
@@ -364,7 +430,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.OneHandedStance.Block.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.BlockTierBonus;
             }
 
             string bodyParts = Stats.OneHandedStance.Block.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.OneHandedStance.Block.Zones
@@ -380,7 +446,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.OneHandedStance.Parry.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.ParryTierBonus;
             }
 
             string bodyParts = Stats.OneHandedStance.Parry.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.OneHandedStance.Parry.Zones
@@ -396,7 +462,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.TwoHandedStance.Block.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.BlockTierBonus;
             }
 
             string bodyParts = Stats.TwoHandedStance.Block.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.TwoHandedStance.Block.Zones
@@ -412,7 +478,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.TwoHandedStance.Parry.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.ParryTierBonus;
             }
 
             string bodyParts = Stats.TwoHandedStance.Parry.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.TwoHandedStance.Parry.Zones
@@ -428,7 +494,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.OffHandStance.Block.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.BlockTierBonus;
             }
 
             string bodyParts = Stats.OffHandStance.Block.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.OffHandStance.Block.Zones
@@ -444,7 +510,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             float blockTier = 0;
             foreach ((string damageType, float tier) in Stats.OffHandStance.Parry.BlockTier)
             {
-                blockTier = Math.Max(blockTier, tier);
+                blockTier = Math.Max(blockTier, tier) + stackStats.ParryTierBonus;
             }
 
             string bodyParts = Stats.OffHandStance.Parry.Zones.Length == 12 ? Lang.Get("combatoverhaul:detailed-damage-zone-All") : Stats.OffHandStance.Parry.Zones
@@ -545,6 +611,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                     }
                     tpAttackAnimation ??= "";
 
+                    float animationSpeed = ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack);
                     MeleeBlockSystem.StopBlock(mainHand);
                     SetState(MeleeWeaponState.WindingUp, mainHand);
                     attack.Start(player.Player);
@@ -552,14 +619,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                     AnimationBehavior?.Play(
                         mainHand,
                         attackAnimation,
-                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * animationSpeed,
                         category: AnimationCategory(mainHand),
                         callback: () => AttackAnimationCallback(mainHand),
                         callbackHandler: code => AttackAnimationCallbackHandler(code, mainHand));
                     TpAnimationBehavior?.Play(
                         mainHand,
                         attackAnimation,
-                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * animationSpeed,
                         category: AnimationCategory(mainHand));
                     if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(tpAttackAnimation, mainHand);
 
@@ -588,6 +655,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     }
     protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand)
     {
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
+
         if (handle != null)
         {
             handle.Attack(
@@ -595,7 +664,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                         slot,
                         mainHand,
                         out IEnumerable<(Block block, Vector3d point)> handleTerrainCollision,
-                        out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision);
+                        out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
+                        stackStats);
 
             if (!HandleHitTerrain && handleTerrainCollision.Any())
             {
@@ -611,7 +681,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             slot,
             mainHand,
             out IEnumerable<(Block block, Vector3d point)> terrainCollision,
-            out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision);
+            out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision,
+            stackStats);
 
         if (handle != null) handle.AddAttackedEntities(attack);
 
@@ -690,8 +761,25 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         if (ActionRestricted(player, mainHand)) return handleEvent;
 
         StanceStats? stats = GetStanceStats(mainHand);
-        DamageBlockJson? parryStats = stats?.Parry;
-        DamageBlockJson? blockStats = stats?.Block;
+        DamageBlockJson? parryStats = stats?.Parry?.Clone();
+        DamageBlockJson? blockStats = stats?.Block?.Clone();
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
+
+        if (parryStats?.BlockTier != null)
+        {
+            foreach ((string damageType, float tier) in parryStats.BlockTier)
+            {
+                parryStats.BlockTier[damageType] += stackStats.ParryTierBonus;
+            }
+        }
+
+        if (blockStats?.BlockTier != null)
+        {
+            foreach ((string damageType, float tier) in blockStats.BlockTier)
+            {
+                blockStats.BlockTier[damageType] += stackStats.BlockTierBonus;
+            }
+        }
 
         if (CanParry(mainHand) && parryStats != null && stats != null)
         {
@@ -704,7 +792,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 animationSpeed: PlayerBehavior?.ManipulationSpeed ?? 1,
                 category: AnimationCategory(mainHand),
                 callback: () => BlockAnimationCallback(mainHand, player),
-                callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand));
+                callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats));
             TpAnimationBehavior?.Play(
                 mainHand,
                 stats.BlockAnimation,
@@ -724,7 +812,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
                 category: AnimationCategory(mainHand),
                 callback: () => BlockAnimationCallback(mainHand, player),
-                callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand));
+                callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats));
             TpAnimationBehavior?.Play(
                 mainHand,
                 stats.BlockAnimation,
@@ -737,15 +825,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
         return handleEvent;
     }
-    protected virtual void BlockAnimationCallbackHandler(string callbackCode, bool mainHand)
+    protected virtual void BlockAnimationCallbackHandler(string callbackCode, bool mainHand, DamageBlockJson? blockStats, DamageBlockJson? parryStats)
     {
         switch (callbackCode)
         {
             case "startParry":
                 {
-                    StanceStats? stats = GetStanceStats(mainHand);
-                    DamageBlockJson? parryStats = stats?.Parry;
-
                     if (CanParry(mainHand) && parryStats != null)
                     {
                         SetState(MeleeWeaponState.Parrying, mainHand);
@@ -755,8 +840,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 break;
             case "stopParry":
                 {
-                    StanceStats? stats = GetStanceStats(mainHand);
-                    DamageBlockJson? blockStats = stats?.Block;
                     if (CanBlock(mainHand) && blockStats != null)
                     {
                         SetState(MeleeWeaponState.Blocking, mainHand);
@@ -861,6 +944,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         SetState(MeleeWeaponState.StartingAim, mainHand);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
         AimingAnimationController?.Play(mainHand);
+
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
+        AimingStats stats = AimingStats.Clone();
+        stats.AimDifficulty *= stackStats.ThrownAimingDifficulty;
+
         AimingSystem.StartAiming(AimingStats);
 
         AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => AimAnimationCallback(slot, mainHand));
@@ -1181,19 +1269,23 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 #endif
     }
 
-    protected static string GetAttackStatsDescription(IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
+    protected static string GetAttackStatsDescription(ItemSlot inSlot, IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
     {
         float damage = 0;
         float tier = 0;
         HashSet<string> damageTypes = new();
 
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
+
         foreach (DamageDataJson attack in damageTypesData)
         {
-            if (attack.Damage > damage)
+            float attackDamage = attack.Damage * stackStats.DamageMultiplier;
+
+            if (attackDamage > damage)
             {
-                damage = attack.Damage;
+                damage = attackDamage;
             }
-            float currentTier = Math.Max(attack.Strength, attack.Tier);
+            float currentTier = Math.Max(attack.Strength, attack.Tier) + stackStats.DamageTierBonus;
             if (currentTier > tier)
             {
                 tier = currentTier;
@@ -1227,7 +1319,8 @@ public class MeleeWeaponServer : RangeWeaponServer
     {
         if (slot?.Itemstack == null || slot.Itemstack.StackSize < 1) return false;
 
-        ProjectileStats? stats = slot.Itemstack.Item.GetCollectibleBehavior<ProjectileBehavior>(true)?.Stats;
+        ProjectileStats? stats = slot.Itemstack.Item.GetCollectibleBehavior<ProjectileBehavior>(true)?.GetStats(slot.Itemstack);
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
 
         if (stats == null)
         {
@@ -1237,10 +1330,10 @@ public class MeleeWeaponServer : RangeWeaponServer
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
-            DamageMultiplier = 1,
-            DamageStrength = Stats.ThrowAttack?.DamageStrength ?? 0,
+            DamageMultiplier = 1 * stackStats.ThrownDamageMultiplier,
+            DamageStrength = Stats.ThrowAttack?.DamageStrength ?? 0 + stackStats.ThrownDamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
-            Velocity = Vector3d.Normalize(new Vector3d(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2])) * (Stats.ThrowAttack?.Velocity ?? 1)
+            Velocity = Vector3d.Normalize(new Vector3d(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2])) * (Stats.ThrowAttack?.Velocity ?? 1) * stackStats.ThrownProjectileSpeedMultiplier
         };
 
         AssetLocation projectileCode = slot.Itemstack.Item.Code.Clone();

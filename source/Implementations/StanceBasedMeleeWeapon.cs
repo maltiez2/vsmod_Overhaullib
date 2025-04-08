@@ -555,6 +555,7 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
     protected virtual void TryAttack(MeleeAttack? attack, MeleeAttack? handle, GripSpecificStats stats, ItemSlot slot, EntityPlayer player, bool mainHand)
     {
         StanceBasedMeleeWeaponAttackStats? attackStats = stats.CurrentAttackStats;
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
 
         if (handle != null)
         {
@@ -563,7 +564,8 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
                         slot,
                         mainHand,
                         out IEnumerable<(Block block, Vector3d point)> handleTerrainCollision,
-                        out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision);
+                        out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
+                        stackStats);
 
             if (!stats.HandleHitTerrain && handleTerrainCollision.Any())
             {
@@ -581,7 +583,8 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
             slot,
             mainHand,
             out IEnumerable<(Block block, Vector3d point)> terrainCollision,
-            out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision);
+            out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision,
+            stackStats);
 
         if (handle != null) handle.AddAttackedEntities(attack);
 

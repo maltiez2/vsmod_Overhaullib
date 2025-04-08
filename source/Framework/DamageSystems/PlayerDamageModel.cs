@@ -513,6 +513,18 @@ public sealed class DamageBlockJson
             CanBlockProjectiles = CanBlockProjectiles
         };
     }
+
+    public DamageBlockJson Clone()
+    {
+        return new()
+        {
+            Zones = Zones,
+            Directions = Directions,
+            Sound = Sound,
+            BlockTier = BlockTier?.ToDictionary(entry => entry.Key, entry => entry.Value),
+            CanBlockProjectiles = CanBlockProjectiles
+        };
+    }
 }
 
 public sealed class MeleeBlockSystemClient : MeleeSystem

@@ -46,6 +46,8 @@ public sealed class Settings
     public bool DoVanillaActionsWhileBlocking { get; set; } = true;
 
     public float CollisionRadius { get; set; } = 16f;
+
+    public float DefaultColliderPenetrationResistance { get; set; } = 5f;
 }
 
 public sealed class ArmorConfig

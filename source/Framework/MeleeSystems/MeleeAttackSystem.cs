@@ -86,7 +86,7 @@ public sealed class MeleeSystemServer : MeleeSystem
         string targetName = target.GetName();
 
         IServerPlayer? serverPlayer = (attacker as EntityPlayer)?.Player as IServerPlayer;
-        if (serverPlayer != null)
+        if (serverPlayer != null && packet.DamageType != "Heal")
         {
             if (target is EntityPlayer && (!_api.Server.Config.AllowPvP || !serverPlayer.HasPrivilege("attackplayers")))
             {

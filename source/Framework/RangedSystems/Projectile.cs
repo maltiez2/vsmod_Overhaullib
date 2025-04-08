@@ -1,5 +1,7 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Implementations;
+using ImPlotNET;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Common;
@@ -35,16 +37,30 @@ public sealed class ProjectileServer
 
         if (receiver == null) return;
 
+        float initialPenetrationStrength = _entity.PenetrationStrength;
+        _entity.PenetrationStrength = Math.Max(0, _entity.PenetrationStrength - packet.PenetrationStrengthLoss);
+
         Vector3d collisionPoint = new(packet.CollisionPoint[0], packet.CollisionPoint[1], packet.CollisionPoint[2]);
 
         bool hit = Attack(_shooter, receiver, collisionPoint, packet.Collider, packet.RelativeSpeed);
 
         if (hit) PlaySound(_shooter);
 
-        _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
-        _entity.ServerPos.Motion.X = receiver.ServerPos.Motion.X;
-        _entity.ServerPos.Motion.Y = receiver.ServerPos.Motion.Y;
-        _entity.ServerPos.Motion.Z = receiver.ServerPos.Motion.Z;
+        if (_entity.PenetrationStrength == 0)
+        {
+            _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
+            _entity.ServerPos.Motion.X = receiver.ServerPos.Motion.X;
+            _entity.ServerPos.Motion.Y = receiver.ServerPos.Motion.Y;
+            _entity.ServerPos.Motion.Z = receiver.ServerPos.Motion.Z;
+        }
+        else
+        {
+            _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
+            float speedReduction = _entity.PenetrationStrength / initialPenetrationStrength;
+            _entity.ServerPos.Motion.X *= speedReduction;
+            _entity.ServerPos.Motion.Y *= speedReduction;
+            _entity.ServerPos.Motion.Z *= speedReduction;
+        }
 
         _entity.OnCollisionWithEntity(receiver, packet.Collider);
     }
@@ -64,7 +80,6 @@ public sealed class ProjectileServer
 
     private bool Attack(Entity attacker, Entity target, Vector3d position, string collider, double relativeSpeed)
     {
-        if (!CheckPermissions(attacker, target)) return false;
         if (relativeSpeed < _stats.SpeedThreshold) return false;
         if (!target.Alive) return false;
 
@@ -74,6 +89,8 @@ public sealed class ProjectileServer
         float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier;
         int damageTierBonus = _stats.DamageTierBonus;
         DamageData damageData = new(Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType), Math.Max(1, _spawnStats.DamageStrength + damageTierBonus));
+
+        if (!CheckPermissions(attacker, target) && damageData.DamageType != EnumDamageType.Heal) return false;
 
         DirectionalTypedDamageSource damageSource = new()
         {
@@ -137,10 +154,12 @@ public class ProjectileEntity : Entity
     public Action<Guid>? ClearCallback { get; set; }
     public float ColliderRadius { get; set; }
     public float PenetrationDistance { get; set; }
+    public float PenetrationStrength { get; set; }
     public long ShooterId { get; set; }
     public Vec3d PreviousPosition { get; private set; } = new(0, 0, 0);
     public Vec3d PreviousVelocity { get; private set; } = new(0, 0, 0);
     public List<long> CollidedWith { get; set; } = new();
+    
     public bool Stuck
     {
         get => StuckInternal;
@@ -336,19 +355,37 @@ public class ProjectileBehavior : CollectibleBehavior
         Stats = properties["stats"].AsObject<ProjectileStats>();
     }
 
+    public ProjectileStats GetStats(ItemStack stack)
+    {
+        ItemStackProjectileStats stackStats = ItemStackProjectileStats.FromItemStack(stack);
+
+        ProjectileStats stats = Stats.Clone();
+        stats.DamageStats.Damage *= stackStats.DamageMultiplier;
+        stats.DamageTierBonus += stackStats.DamageTierBonus;
+        stats.DropChance = Math.Max(0, Math.Min(1, stats.DropChance * stackStats.DropChanceMultiplier));
+        stats.Knockback *= stackStats.KnockbackMultiplier;
+        stats.PenetrationBonus = Math.Max(0, stackStats.PenetrationBonus + stats.PenetrationBonus);
+        stats.AdditionalDurabilityCost = Math.Max(0, stackStats.AdditionalDurabilityCost + stats.AdditionalDurabilityCost);
+
+        return stats;
+    }
+
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
         if (Stats != null)
         {
+            ItemStackMeleeWeaponStats weaponStackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
+            ItemStackProjectileStats projectileStackStats = ItemStackProjectileStats.FromItemStack(inSlot.Itemstack);
+
             dsc.AppendLine(Lang.Get(
             "combatoverhaul:iteminfo-projectile",
-            Stats.DamageStats.Damage,
+            Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier,
             Lang.Get($"combatoverhaul:damage-type-{Stats.DamageStats.DamageType}"),
-            $"{(1 - Stats.DropChance) * 100:F1}"));
+            $"{(1 - Stats.DropChance * projectileStackStats.DropChanceMultiplier) * 100:F1}"));
 
             if (Stats.DamageTierBonus != 0)
             {
-                dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-bonus-damagetier", Stats.DamageTierBonus));
+                dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-bonus-damagetier", Stats.DamageTierBonus + weaponStackStats.DamageTierBonus + projectileStackStats.DamageTierBonus));
             }
         }
 
