@@ -304,6 +304,9 @@ public sealed class ArmorInventory : InventoryCharacter
 
     public override int Count => _totalSlotsNumber;
 
+    public event Action? OnSlotModified;
+    public event Action? OnArmorSlotModified;
+
     public override void FromTreeAttributes(ITreeAttribute tree)
     {
         _slots = GenEmptySlots(_totalSlotsNumber);
@@ -524,8 +527,6 @@ public sealed class ArmorInventory : InventoryCharacter
     internal static readonly int _vanillaSlots = _clothesSlotsCount + _clothesArmorSlots;
     internal static readonly int _moddedArmorSlotsCount = (Enum.GetValues<ArmorLayers>().Length - 1) * (Enum.GetValues<DamageZone>().Length - 1);
     internal static readonly int _totalSlotsNumber = _clothesSlotsCount + _clothesArmorSlots + _moddedArmorSlotsCount;
-    internal event Action? OnSlotModified;
-    internal event Action? OnArmorSlotModified;
     private static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
 

@@ -138,8 +138,6 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterBlockEntityClass("CombatOverhaul:GenericDisplayBlockEntity", typeof(GenericDisplayBlockEntity));
         api.RegisterBlockClass("CombatOverhaul:GenericDisplayBlock", typeof(GenericDisplayBlock));
 
-        api.RegisterBlockBehaviorClass("CombatOverhaul:Splittable", typeof(Splittable));
-
         new Harmony("CombatOverhaulAuto").PatchAll();
 
         InInventoryPlayerBehavior._reportedEntities.Clear();
