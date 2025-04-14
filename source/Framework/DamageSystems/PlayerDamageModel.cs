@@ -366,9 +366,6 @@ public sealed class PlayerDamageModel
     {
         IEnumerable<DamageZoneStats> zones = direction == null ? DamageZones : DamageZones.Where(zone => zone.Directions.Check(direction.Value));
 
-        Trace.WriteLine(direction);
-        Trace.WriteLine(zones.Select(zone => zone.ZoneType.ToString()).Aggregate((zone1, zone2) => $"{zone1}, {zone2}"));
-
         foreach ((PlayerBodyPart zone, _) in _weights)
         {
             _weights[zone] = 0;

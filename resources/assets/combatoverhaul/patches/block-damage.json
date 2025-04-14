@@ -1,0 +1,26 @@
+[
+  {
+    "file": "game:blocktypes/locustnest/metalspikes",
+    "op": "replace",
+    "path": "/attributes/sprintIntoDamage",
+    "value": 0
+  },
+  {
+    "file": "game:blocktypes/locustnest/metalspikes",
+    "op": "replace",
+    "path": "/attributes/fallIntoDamageMul",
+    "value": 0
+  },
+  {
+    "file": "game:blocktypes/plant/slivertorchcactus",
+    "op": "replace",
+    "path": "/attributes/sprintIntoDamage",
+    "value": 0
+  },
+  {
+    "file": "game:blocktypes/plant/slivertorchcactus",
+    "op": "replace",
+    "path": "/attributes/fallIntoDamageMul",
+    "value": 0
+  }
+]
