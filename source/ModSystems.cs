@@ -48,6 +48,8 @@ public sealed class Settings
     public float CollisionRadius { get; set; } = 16f;
 
     public float DefaultColliderPenetrationResistance { get; set; } = 5f;
+
+    public bool AlternativeDirectionControls { get; set; } = false;
 }
 
 public sealed class ArmorConfig
@@ -224,6 +226,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         {
             DirectionController.Sensitivity = Settings.DirectionsControllerSensitivity;
             DirectionController.Invert = Settings.DirectionsControllerInvert;
+            DirectionController.AlternativeDirectionControls = Settings.AlternativeDirectionControls;
         }
 
         HarmonyPatches.YawSmoothing = Settings.HandsYawSmoothing;

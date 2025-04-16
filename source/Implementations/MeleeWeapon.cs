@@ -5,7 +5,6 @@ using CombatOverhaul.Integration;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
-using ImPlotNET;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -101,6 +100,8 @@ public class MeleeWeaponStats : WeaponStats
     public StanceStats? TwoHandedStance { get; set; } = null;
     public StanceStats? OffHandStance { get; set; } = null;
     public ThrowWeaponStats? ThrowAttack { get; set; } = null;
+    public float ScreenShakeStrength { get; set; } = 0.25f;
+    public float ThrowScreenShakeStrength { get; set; } = 0.15f;
     public bool RenderingOffset { get; set; } = false;
     public float AnimationStaggerOnHitDurationMs { get; set; } = 100;
 }
@@ -694,6 +695,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         if (entitiesCollision.Any() && Stats.AnimationStaggerOnHitDurationMs > 0)
         {
             AnimationBehavior?.SetSpeedModifier(AttackImpactFunction);
+            Api.World.AddCameraShake(Stats.ScreenShakeStrength);
         }
     }
     protected virtual bool AttackImpactFunction(TimeSpan duration, ref TimeSpan delta)
@@ -751,7 +753,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     protected virtual bool Block(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
         bool handleEvent = !Settings.DoVanillaActionsWhileBlocking;
-        
+
         if (eventData.AltPressed) return false;
         if (!CanBlock(mainHand) && !CanParry(mainHand)) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle, MeleeWeaponState.WindingUp, MeleeWeaponState.Cooldown)) return handleEvent;
@@ -994,6 +996,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         RangedWeaponSystem.Shoot(slot, 1, new Vector3((float)position.X, (float)position.Y, (float)position.Z), new Vector3(targetDirection.X, targetDirection.Y, targetDirection.Z), mainHand, _ => { });
 
         slot.TakeOut(1);
+
+        Api.World.AddCameraShake(Stats.ThrowScreenShakeStrength);
 
         return true;
     }

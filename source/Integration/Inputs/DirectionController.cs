@@ -50,6 +50,7 @@ public sealed class DirectionController
     public AttackDirection CurrentDirection { get; private set; }
     public AttackDirection CurrentDirectionWithInversion => Invert ? _inversionMapping[CurrentDirection] : CurrentDirection;
     public int CurrentDirectionNormalized { get; private set; }
+    public bool AlternativeDirectionControls { get; set; } = false;
 
     public static readonly Dictionary<DirectionsConfiguration, List<int>> Configurations = new()
     {
@@ -95,15 +96,29 @@ public sealed class DirectionController
 
         MouseMovementData previous = _directionQueue.Dequeue();
 
-        int direction = CalculateDirectionWithInversion(previous.Yaw - yaw, previous.Pitch - pitch, (int)DirectionsConfiguration);
-
-        float delta = _directionQueue.Last().DeltaPitch * _directionQueue.Last().DeltaPitch + _directionQueue.Last().DeltaYaw * _directionQueue.Last().DeltaYaw;
-
-        if (forceNewDirection || delta > _sensitivityFactor / Sensitivity)
+        if (AlternativeDirectionControls)
         {
-            CurrentDirectionNormalized = direction;
-            CurrentDirection = (AttackDirection)Configurations[DirectionsConfiguration][CurrentDirectionNormalized];
-            _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+            AttackDirection direction = CalculateDirectionWithAltenrativeControls(out bool changeDirection);
+
+            if (changeDirection)
+            {
+                CurrentDirectionNormalized = (int)direction;
+                CurrentDirection = direction;
+                _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+            }
+        }
+        else
+        {
+            int direction = CalculateDirectionWithInversion(previous.Yaw - yaw, previous.Pitch - pitch, (int)DirectionsConfiguration);
+
+            float delta = _directionQueue.Last().DeltaPitch * _directionQueue.Last().DeltaPitch + _directionQueue.Last().DeltaYaw * _directionQueue.Last().DeltaYaw;
+
+            if (forceNewDirection || delta > _sensitivityFactor / Sensitivity)
+            {
+                CurrentDirectionNormalized = direction;
+                CurrentDirection = (AttackDirection)Configurations[DirectionsConfiguration][CurrentDirectionNormalized];
+                _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+            }
         }
     }
 
@@ -112,7 +127,7 @@ public sealed class DirectionController
     private readonly ICoreClientAPI _api;
     private readonly Queue<MouseMovementData> _directionQueue = new();
     private readonly DirectionCursorRenderer _directionCursorRenderer;
-    
+
     private readonly Dictionary<DirectionsConfiguration, List<int>> _invertedConfigurations = new();
     private readonly Dictionary<AttackDirection, AttackDirection> _inversionMapping = new()
     {
@@ -147,5 +162,64 @@ public sealed class DirectionController
                 _invertedConfigurations[configuration].Add((int)_inversionMapping[(AttackDirection)direction]);
             }
         }
+    }
+
+    private AttackDirection CalculateDirectionWithAltenrativeControls(out bool changeDirection)
+    {
+        Vintagestory.API.Common.EntityControls controls = _api.World.Player.Entity.Controls;
+        bool forward = controls.Forward;
+        bool backward = controls.Backward;
+        bool left = controls.Left;
+        bool right = controls.Right;
+
+        changeDirection = true;
+
+        switch (DirectionsConfiguration)
+        {
+            case DirectionsConfiguration.None:
+                return 0;
+            case DirectionsConfiguration.TopBottom:
+                if (forward) return AttackDirection.Top;
+                if (backward) return AttackDirection.Bottom;
+                changeDirection = false;
+                break;
+            case DirectionsConfiguration.Triangle:
+                if (forward) return AttackDirection.Top;
+                if (right) return AttackDirection.BottomRight;
+                if (left) return AttackDirection.BottomLeft;
+                changeDirection = false;
+                break;
+            case DirectionsConfiguration.Square:
+                if (forward) return AttackDirection.Top;
+                if (backward) return AttackDirection.Bottom;
+                if (left) return AttackDirection.Left;
+                if (right) return AttackDirection.Right;
+                changeDirection = false;
+                break;
+            case DirectionsConfiguration.Star:
+                if (forward) return AttackDirection.Top;
+                if (left && !backward) return AttackDirection.TopLeft;
+                if (right && !backward) return AttackDirection.TopRight;
+                if (left) return AttackDirection.BottomLeft;
+                if (right) return AttackDirection.BottomRight;
+                changeDirection = false;
+                break;
+            case DirectionsConfiguration.Eight:
+                if (forward && left) return AttackDirection.TopLeft;
+                if (forward && right) return AttackDirection.TopRight;
+                if (backward && left) return AttackDirection.BottomLeft;
+                if (backward && right) return AttackDirection.BottomRight;
+                if (forward) return AttackDirection.Top;
+                if (backward) return AttackDirection.Bottom;
+                if (left) return AttackDirection.Left;
+                if (right) return AttackDirection.Right;
+                changeDirection = false;
+                break;
+            default:
+                changeDirection = false;
+                break;
+        }
+
+        return 0;
     }
 }

@@ -48,6 +48,7 @@ public sealed class BowStats : WeaponStats
     public string ArrowWildcard { get; set; } = "*arrow-*";
     public float Zeroing { get; set; } = 1.5f;
     public float[] DispersionMOA { get; set; } = new float[] { 0, 0 };
+    public float ScreenShakeStrength { get; set; } = 0.2f;
 }
 
 public readonly struct ItemStackRangedStats
@@ -298,6 +299,8 @@ public class BowClient : RangeWeaponClient
 
         AnimationBehavior?.PlayReadyAnimation(mainHand);
         TpAnimationBehavior?.PlayReadyAnimation(mainHand);
+
+        Api.World.AddCameraShake(Stats.ScreenShakeStrength);
 
         return true;
     }
