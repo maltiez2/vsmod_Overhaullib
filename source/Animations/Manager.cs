@@ -76,7 +76,9 @@ public sealed class AnimationsManager
 
                 Animation animation = animationJson.AsObject<AnimationJson>().ToAnimation();
 
-                result.Add($"{domain}:{code}", animation);
+                string animationCode = code.Contains(':') ? code : $"{domain}:{code}";
+
+                result.Add(animationCode, animation);
             }
             catch (Exception exception)
             {

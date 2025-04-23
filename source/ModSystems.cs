@@ -241,18 +241,6 @@ public sealed class CombatOverhaulSystem : ModSystem
         DamageResistData.MaxAttackTier = armorConfigObj.MaxAttackTier;
         DamageResistData.MaxArmorTier = armorConfigObj.MaxArmorTier;
         DamageResistData.DamageReduction = armorConfigObj.DamageReduction;
-
-        //ArmorAutoPatcher.Patch(api);
-
-        if (api is ICoreServerAPI serverApi)
-        {
-            CheckStatusServerSide(serverApi);
-        }
-
-        if (api is ICoreClientAPI clientApi)
-        {
-            CheckStatusClientSide(clientApi);
-        }
     }
     public override void Dispose()
     {
@@ -340,53 +328,6 @@ public sealed class CombatOverhaulSystem : ModSystem
     private void CheckStatusServerSide(ICoreServerAPI api)
     {
 
-    }
-    private void CheckStatusClientSide(ICoreClientAPI api)
-    {
-        // May be move to CO
-        /* IInventory? gearInventory = GetGearInventory(api.World.Player.Entity);
-        if (gearInventory is not ArmorInventory)
-        {
-            string className = gearInventory == null ? "null" : LoggerUtil.GetCallerTypeName(gearInventory);
-            LoggerUtil.Error(api, this, $"Gear inventory class was replaced by some other mod, with {className}");
-            ThrowException(api, $"(Combat Overhaul) Gear inventory class was replaced with '{className}' by some other mod, shutting down the client. Report this issue into Combat Overhaul thread with client-main logs attached.");
-        }
-
-        bool immersiveFirstPersonMode = api.Settings.Bool["immersiveFpMode"];
-        if (immersiveFirstPersonMode)
-        {
-            LoggerUtil.Error(api, this, $"Immersive first person mode is enabled. It is not supported. Turn this setting off.");
-            AnnoyPlayer(api, "(Combat Overhaul) Immersive first person mode is enabled. It is not supported. Turn this setting off to prevent this message.", () => api.Settings.Bool["immersiveFpMode"]);
-        }*/
-    }
-
-    private static IInventory? GetBackpackInventory(ICoreClientAPI api)
-    {
-        return api.World.Player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName);
-    }
-    private static InventoryBase? GetGearInventory(Entity entity)
-    {
-        return entity.GetBehavior<EntityBehaviorPlayerInventory>().Inventory;
-    }
-    private static void ThrowException(ICoreAPI api, string message)
-    {
-        api.World.RegisterCallback(_ => throw new Exception(message), 1);
-    }
-    private void AnnoyPlayer(ICoreClientAPI api, string message, System.Func<bool> continueDelegate)
-    {
-        api.World.RegisterCallback(_ =>
-        {
-            api.TriggerIngameError(this, "error", message);
-            if (!Disposed && continueDelegate()) AnnoyPlayer(api, message, continueDelegate);
-        }, 5000);
-    }
-    private void PrintInChat(ICoreClientAPI api, string message)
-    {
-        api.World.RegisterCallback(_ =>
-        {
-            api.SendChatMessage(message);
-            if (!Disposed) PrintInChat(api, message);
-        }, 5000);
     }
 }
 

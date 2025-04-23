@@ -86,7 +86,17 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     public void Play(AnimationRequestByCode requestByCode, bool mainHand = true)
     {
         if (_animationsManager == null) return;
-        if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out Animation? animation)) return;
+
+        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
+
+        if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + modelPrefix, out Animation? animation))
+        {
+
+        }
+        else if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
+        {
+            return;
+        }
 
         AnimationRequest request = new(animation, requestByCode);
 
@@ -613,12 +623,24 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
     public void Play(AnimationRequestByCode requestByCode, bool mainHand = true)
     {
         if (_animationsManager == null) return;
-        if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp", out Animation? animation))
+        
+        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':','-');
+
+        if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp" + modelPrefix, out Animation? animation))
         {
-            if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
-            {
-                return;
-            }
+
+        }
+        else if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + modelPrefix, out animation))
+        {
+
+        }
+        else if(_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp", out animation))
+        {
+            
+        }
+        else if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
+        {
+            return;
         }
 
         AnimationRequest request = new(animation, requestByCode);
