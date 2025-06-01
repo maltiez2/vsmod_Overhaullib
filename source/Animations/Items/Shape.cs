@@ -336,7 +336,7 @@ internal class AnimatableShapeRenderer
 
         shaderProgram.UniformMatrices4x3(
             "elementTransforms",
-            GlobalConstants.MaxAnimatedElements,
+            elementTransforms.Count / 12,
             elementTransforms.ToArray()
         );
     }
