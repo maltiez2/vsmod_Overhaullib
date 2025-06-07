@@ -334,11 +334,10 @@ internal class AnimatableShapeRenderer
 
         ZeroTransformCorrection(elementTransforms);
 
-        shaderProgram.UniformMatrices4x3(
-            "elementTransforms",
-            GlobalConstants.MaxAnimatedElements,
-            elementTransforms.ToArray()
-        );
+        float[] elementTransformsArray = elementTransforms.ToArray();
+        int count = Int32.Min(elementTransformsArray.Length / (4 * 3), GlobalConstants.MaxAnimatedElements);
+
+        shaderProgram.UniformMatrices4x3("elementTransforms", count, elementTransformsArray);
     }
 
     private static void FillShaderValues(IShaderProgram shaderProgram, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMatrix, IWorldAccessor world)
