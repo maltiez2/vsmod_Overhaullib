@@ -62,7 +62,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     public override string PropertyName() => "PlayerDamageModel";
 
     public PlayerDamageModel DamageModel { get; private set; } = new(Array.Empty<DamageZoneStatsJson>());
-    public readonly Dictionary<string, PlayerBodyPart> CollidersToBodyParts = new()
+    public Dictionary<string, PlayerBodyPart> CollidersToBodyParts { get; private set; } = new()
     {
         { "LowerTorso", PlayerBodyPart.Torso },
         { "UpperTorso", PlayerBodyPart.Torso },
@@ -77,7 +77,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         { "LowerFootL", PlayerBodyPart.LeftFoot },
         { "LowerFootR", PlayerBodyPart.RightFoot }
     };
-    public readonly Dictionary<PlayerBodyPart, DamageZone> BodyPartsToZones = new()
+    public Dictionary<PlayerBodyPart, DamageZone> BodyPartsToZones { get; private set; } = new()
     {
         { PlayerBodyPart.None, DamageZone.None },
         { PlayerBodyPart.Head, DamageZone.Head },
@@ -94,7 +94,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         { PlayerBodyPart.RightFoot, DamageZone.Feet }
 
     };
-    public readonly List<EnumDamageType> DamageTypesToProcess = new()
+    public List<EnumDamageType> DamageTypesToProcess { get; private set; } = new()
     {
         EnumDamageType.PiercingAttack,
         EnumDamageType.SlashingAttack,

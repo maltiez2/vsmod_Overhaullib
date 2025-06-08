@@ -334,9 +334,11 @@ internal class AnimatableShapeRenderer
 
         ZeroTransformCorrection(elementTransforms);
 
+        int animatedElementsCount = Math.Min(elementTransforms.Count / (4 * 3), GlobalConstants.MaxAnimatedElements);
+
         shaderProgram.UniformMatrices4x3(
             "elementTransforms",
-            GlobalConstants.MaxAnimatedElements,
+            animatedElementsCount,
             elementTransforms.ToArray()
         );
     }
