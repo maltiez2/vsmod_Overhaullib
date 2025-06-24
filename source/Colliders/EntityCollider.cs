@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -326,11 +327,13 @@ public sealed class ShapeElementCollider
 
     public EntityShapeRenderer? Renderer { get; set; } = null;
     public bool HasRenderer { get; set; } = false;
+    public string ShapeElementName { get; set; } = "";
 
     public ShapeElementCollider(ShapeElement element)
     {
         JointId = element.JointId;
         SetElementVertices(element);
+        ShapeElementName = element.Name;
     }
 
     public void Transform(float[] transformMatrixAll, ICoreClientAPI api)
@@ -486,7 +489,7 @@ public sealed class ShapeElementCollider
 
         return index + offset;
     }
-    private static double[] GetTransformMatrix(int jointId, float[] TransformationMatrices4x4)
+    private double[] GetTransformMatrix(int jointId, float[] TransformationMatrices4x4)
     {
         double[] transformMatrix = new double[16];
         Mat4d.Identity(transformMatrix);
@@ -495,6 +498,11 @@ public sealed class ShapeElementCollider
             int? transformMatricesIndex = GetIndex(jointId, elementIndex);
             if (transformMatricesIndex != null)
             {
+                if (transformMatricesIndex.Value >= TransformationMatrices4x4.Length)
+                {
+                    return transformMatrix;
+                }
+
                 transformMatrix[elementIndex] = TransformationMatrices4x4[transformMatricesIndex.Value];
             }
         }

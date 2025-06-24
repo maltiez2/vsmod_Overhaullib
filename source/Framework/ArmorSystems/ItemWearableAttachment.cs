@@ -38,6 +38,8 @@ public class WearableAttachment : Item, IContainedMeshSource, IAttachableToEntit
 
     public Size2i AtlasSize => curAtlas.Size;
 
+    public int RequiresBehindSlots { get; set; }
+
     public virtual TextureAtlasPosition this[string textureCode]
     {
         get

@@ -351,7 +351,7 @@ internal static class HarmonyPatches
             AddLight(ref __result, slot.Itemstack.Collectible.GetCollectibleInterface<IWearableLightSource>().GetLightHsv(__instance, slot));
         }
 
-        foreach (ItemSlot slot in gearInventory.Where(slot => slot?.Empty == false).Where(slot => slot.Itemstack?.Collectible?.LightHsv?[2] > 0))
+        foreach (ItemSlot slot in gearInventory.Where(slot => slot?.Empty == false).Where(slot => slot.Itemstack?.Collectible?.LightHsv[2] > 0))
         {
             AddLight(ref __result, slot.Itemstack.Collectible.LightHsv);
         }
@@ -369,7 +369,7 @@ internal static class HarmonyPatches
                 AddLight(ref __result, slot.Itemstack.Collectible.GetCollectibleInterface<IWearableLightSource>().GetLightHsv(__instance, slot));
             }
 
-            if (slot?.Empty == false && slot.Itemstack?.Collectible?.LightHsv?[2] > 0)
+            if (slot?.Empty == false && slot.Itemstack?.Collectible?.LightHsv[2] > 0)
             {
                 AddLight(ref __result, slot.Itemstack.Collectible.LightHsv);
             }

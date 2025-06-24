@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ModName>Overhaul Library</ModName>
     <ModType>code</ModType>
-    <ModVersion>0.2.8</ModVersion>
+    <ModVersion>0.3.1</ModVersion>
     <ModId>overhaullib</ModId>
     <Description></Description>
     <Side>Universal</Side>
@@ -20,7 +20,7 @@
 
   <!-- Project settings -->
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ImplicitUsings>enable</ImplicitUsings>
