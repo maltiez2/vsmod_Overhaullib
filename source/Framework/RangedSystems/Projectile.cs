@@ -1,7 +1,6 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
-using ImPlotNET;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Common;
@@ -103,7 +102,8 @@ public sealed class ProjectileServer
             DamageTypeData = damageData,
             DamageTier = (int)damageData.Tier,
             KnockbackStrength = _stats.Knockback,
-            Weapon = _entity.WeaponStack
+            Weapon = _entity.WeaponStack,
+            IngoreInvFrames = _entity.IgnoreInvFrames,
         };
 
         _system.OnDealDamage(target, damageSource, _entity.WeaponStack, ref damage);
@@ -159,7 +159,9 @@ public class ProjectileEntity : Entity
     public Vec3d PreviousPosition { get; private set; } = new(0, 0, 0);
     public Vec3d PreviousVelocity { get; private set; } = new(0, 0, 0);
     public List<long> CollidedWith { get; set; } = new();
-    
+    public bool IgnoreInvFrames { get; set; } = true;
+
+
     public bool Stuck
     {
         get => StuckInternal;

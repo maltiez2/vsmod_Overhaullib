@@ -231,7 +231,7 @@ public readonly struct DirectionOffset
 
     public static DirectionOffset GetDirection(Entity receiver, Entity source)
     {
-        Vec3f sourceEyesPosition = source.SidedPos.XYZFloat.Add(0, (float)source.LocalEyePos.Y, 0);
+        Vec3f sourceEyesPosition = source.PreviousServerPos.XYZFloat.Add(0, (float)source.LocalEyePos.Y, 0);
         Vec3f receiverEyesPosition = receiver.SidedPos.XYZFloat.Add(0, (float)receiver.LocalEyePos.Y, 0);
         Vec3f attackDirection = sourceEyesPosition - receiverEyesPosition;
         Vec3f playerViewDirection = EntityPos.GetViewVector(receiver.SidedPos.Pitch, receiver.SidedPos.Yaw);
@@ -241,7 +241,7 @@ public readonly struct DirectionOffset
     }
     public static DirectionOffset GetDirectionWithRespectToCamera(Entity receiver, Entity source)
     {
-        Vec3f sourceEyesPosition = source.SidedPos.XYZFloat.Add(0, (float)source.LocalEyePos.Y, 0);
+        Vec3f sourceEyesPosition = source.PreviousServerPos.XYZFloat.Add(0, (float)source.LocalEyePos.Y, 0);
         Vec3f receiverEyesPosition = receiver.SidedPos.XYZFloat.Add(0, (float)receiver.LocalEyePos.Y, 0);
         Vec3f attackDirection = sourceEyesPosition - receiverEyesPosition;
         Vec3f playerViewDirection = EntityPos.GetViewVector(receiver.SidedPos.Pitch, receiver.SidedPos.Yaw);
