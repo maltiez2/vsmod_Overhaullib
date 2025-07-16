@@ -6,7 +6,7 @@
     <ModVersion>0.3.2</ModVersion>
     <ModId>overhaullib</ModId>
     <Description></Description>
-    <Side>Universal</Side>
+    <Side>universal</Side>
     <RequiredOnClient>true</RequiredOnClient>
     <RequiredOnServer>true</RequiredOnServer>
   </PropertyGroup>
