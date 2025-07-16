@@ -103,7 +103,7 @@ public sealed class ProjectileServer
             DamageTier = (int)damageData.Tier,
             KnockbackStrength = _stats.Knockback,
             Weapon = _entity.WeaponStack,
-            IngoreInvFrames = _entity.IgnoreInvFrames,
+            IgnoreInvFrames = _entity.IgnoreInvFrames,
         };
 
         _system.OnDealDamage(target, damageSource, _entity.WeaponStack, ref damage);

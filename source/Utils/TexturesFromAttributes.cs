@@ -10,7 +10,7 @@ namespace CombatOverhaul;
 
 public class TextureFromAttributes : CollectibleBehavior, IContainedMeshSource
 {
-    private Dictionary<int, MultiTextureMeshRef> Meshrefs => ObjectCacheUtil.GetOrCreate(_api, "TextureFromAttributesMeshrefs", () => new Dictionary<int, MultiTextureMeshRef>());
+    private Dictionary<int, MultiTextureMeshRef> Meshrefs => ObjectCacheUtil.GetOrCreate(_api, "CombatOverhaul:TextureFromAttributesMeshrefs", () => new Dictionary<int, MultiTextureMeshRef>());
     private ICoreClientAPI? _clientAPI;
     private ICoreAPI? _api;
     private readonly Item _item;
@@ -171,7 +171,7 @@ public class TexturesFromAttributesProperties
 
 public class TexturesFromAttributes : CollectibleBehavior, IContainedMeshSource
 {
-    private Dictionary<int, MultiTextureMeshRef> Meshrefs => ObjectCacheUtil.GetOrCreate(_api, "TextureFromAttributesMeshrefs", () => new Dictionary<int, MultiTextureMeshRef>());
+    private Dictionary<int, MultiTextureMeshRef> Meshrefs => ObjectCacheUtil.GetOrCreate(_api, "CombatOverhaul:TexturesFromAttributesMeshrefs", () => new Dictionary<int, MultiTextureMeshRef>());
     private ICoreClientAPI? _clientAPI;
     private ICoreAPI? _api;
     private readonly Item _item;

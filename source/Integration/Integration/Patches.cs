@@ -61,15 +61,15 @@ internal static class HarmonyPatches
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(HarmonyPatches.OnFallToGround)))
             );
 
-        new Harmony(harmonyId).Patch(
+        /*new Harmony(harmonyId).Patch(
                 typeof(BlockDamageOnTouch).GetMethod("OnEntityInside", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(OnEntityInside)))
-            );
+            );*/
 
-        new Harmony(harmonyId).Patch(
+        /*new Harmony(harmonyId).Patch(
                 typeof(BlockDamageOnTouch).GetMethod("OnEntityCollide", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(OnEntityCollide)))
-            );
+            );*/
 
         new Harmony(harmonyId).Patch(
                 typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all),
@@ -93,8 +93,8 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetMethod("updateEyeHeight", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityInside", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityCollide", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        //new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityInside", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        //new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityCollide", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
 
@@ -246,7 +246,7 @@ internal static class HarmonyPatches
     private const string _fallDamageThresholdMultiplierStat = "fallDamageThreshold";
     private const float _fallDamageMultiplier = 0.2f;
     private const float _fallDamageSpeedThreshold = 0.1f;
-    private static bool OnFallToGround(EntityBehaviorHealth __instance, ref Vec3d positionBeforeFalling, ref double withYMotion)
+    private static bool OnFallToGround(EntityBehaviorHealth __instance, ref double withYMotion)
     {
         if ((__instance.entity as EntityAgent)?.ServerControls.Gliding == true)
         {
@@ -257,6 +257,8 @@ internal static class HarmonyPatches
         {
             return true;
         }
+
+        Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
 
         double fallDistance = (positionBeforeFalling.Y - player.Pos.Y) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
 
@@ -269,13 +271,14 @@ internal static class HarmonyPatches
         player.ReceiveDamage(new DamageSource()
         {
             Source = EnumDamageSource.Fall,
-            Type = EnumDamageType.Gravity
+            Type = EnumDamageType.Gravity,
+            IgnoreInvFrames = true,
         }, (float)fallDamage);
 
         return false;
     }
 
-    private static readonly FieldInfo? _immuneCreatures = typeof(BlockDamageOnTouch).GetField("immuneCreatures", BindingFlags.NonPublic | BindingFlags.Instance);
+    /*private static readonly FieldInfo? _immuneCreatures = typeof(BlockDamageOnTouch).GetField("immuneCreatures", BindingFlags.NonPublic | BindingFlags.Instance);
     private static bool OnEntityInside(BlockDamageOnTouch __instance, IWorldAccessor world, Entity entity, BlockPos pos)
     {
         if (world.Side == EnumAppSide.Server && entity is EntityAgent && (entity as EntityAgent).ServerControls.Sprint && entity.ServerPos.Motion.LengthSq() > 0.001)
@@ -308,7 +311,7 @@ internal static class HarmonyPatches
         }
 
         return false;
-    }
+    }*/
 
     private static void ReloadBagInventory(BagInventory __instance, ref InventoryBase parentinv, ref ItemSlot[] bagSlots)
     {
