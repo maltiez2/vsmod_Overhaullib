@@ -13,7 +13,6 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.Client.NoObf;
-using VSImGui.Debug;
 
 namespace CombatOverhaul.Implementations;
 
@@ -47,8 +46,9 @@ public sealed class BowStats : WeaponStats
     public float ArrowVelocity { get; set; } = 1;
     public string ArrowWildcard { get; set; } = "*arrow-*";
     public float Zeroing { get; set; } = 1.5f;
-    public float[] DispersionMOA { get; set; } = new float[] { 0, 0 };
+    public float[] DispersionMOA { get; set; } = [0, 0];
     public float ScreenShakeStrength { get; set; } = 0.2f;
+    public bool TwoHanded { get; set; } = true;
 }
 
 public readonly struct ItemStackRangedStats
@@ -105,6 +105,7 @@ public class BowClient : RangeWeaponClient
         Stats = item.Attributes.AsObject<BowStats>();
         AimingStats = Stats.Aiming.ToStats();
         AmmoSelector = ammoSelector;
+        TwoHanded = Stats.TwoHanded;
 
         api.ModLoader.GetModSystem<CombatOverhaulSystem>().SettingsLoaded += settings =>
         {
@@ -113,8 +114,8 @@ public class BowClient : RangeWeaponClient
             AimingStats.HorizontalLimit = settings.BowsAimingHorizontalLimit;
         };
 
-        //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followX", () => AimingStats.AnimationFollowX, (value) => AimingStats.AnimationFollowX = value);
-        //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followY", () => AimingStats.AnimationFollowY, (value) => AimingStats.AnimationFollowY = value);
+        //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followX", () => AimingStats.AnimationFollowX, (value) => AimingStats.AnimationFollowX = value)
+        //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followY", () => AimingStats.AnimationFollowY, (value) => AimingStats.AnimationFollowY = value)
     }
 
     public override void OnSelected(ItemSlot slot, EntityPlayer player, bool mainHand, ref int state)

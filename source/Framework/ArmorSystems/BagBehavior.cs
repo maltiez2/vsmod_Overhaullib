@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using System.Diagnostics;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -11,13 +12,15 @@ namespace CombatOverhaul.Armor;
 
 public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
 {
-    public string[] CanHoldWildcard { get; private set; }
     public ItemStack SourceBag { get; set; }
+    public ItemTagRule CanHoldItemTags { get; set; } = ItemTagRule.Empty;
+    public BlockTagRule CanHoldBlockTags { get; set; } = BlockTagRule.Empty;
+    public string[] CanHoldWildcard { get; set; } = [];
 
-    public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, string? color, string[] canHoldWildcard) : base(inventory, BagIndex, SlotIndex, storageType)
+    public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
     {
-        CanHoldWildcard = canHoldWildcard;
         HexBackgroundColor = color;
+        SourceBag = sourceBag;
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge)
@@ -37,7 +40,17 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
             bool matchWithoutDomain = WildcardUtil.Match(CanHoldWildcard, sourceSlot.Itemstack.Collectible.Code.Path);
             bool matchWithDomain = WildcardUtil.Match(CanHoldWildcard, sourceSlot.Itemstack.Collectible.Code.ToString());
 
-            return matchWithoutDomain || matchWithDomain;
+            bool matchWithTags = false;
+            if (sourceSlot.Itemstack?.Item != null && CanHoldItemTags != ItemTagRule.Empty)
+            {
+                matchWithTags = CanHoldItemTags.Intersects(sourceSlot.Itemstack.Item.Tags);
+            }
+            if (sourceSlot.Itemstack?.Block != null && CanHoldBlockTags != BlockTagRule.Empty)
+            {
+                matchWithTags = CanHoldBlockTags.Intersects(sourceSlot.Itemstack.Block.Tags);
+            }
+
+            return matchWithoutDomain || matchWithDomain || matchWithTags;
         }
 
         return false;
@@ -46,12 +59,30 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
 
 public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteractions
 {
-    public string[] CanHoldWildcard { get; private set; } = new string[] { "*" };
+    public ItemTagRule CanHoldItemTags { get; set; } = ItemTagRule.Empty;
+    public BlockTagRule CanHoldBlockTags { get; set; } = BlockTagRule.Empty;
+    public string[] CanHoldWildcard { get; private set; } = ["*"];
     public string? SlotColor { get; private set; } = null;
     public int SlotsNumber { get; private set; } = 0;
 
+    protected ICoreAPI? Api;
+    protected string[] ItemTags = [];
+    protected string[] BlockTags = [];
+
     public GearEquipableBag(CollectibleObject collObj) : base(collObj)
     {
+    }
+
+    public override void OnLoaded(ICoreAPI api)
+    {
+        base.OnLoaded(api);
+        Api = api;
+
+        CanHoldItemTags = new(Api, ItemTags);
+        CanHoldBlockTags = new(Api, BlockTags);
+
+        ItemTags = [];
+        BlockTags = [];
     }
 
     public override void Initialize(JsonObject properties)
@@ -61,6 +92,9 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         CanHoldWildcard = properties["canHoldWildcards"].AsArray().Select(element => element.AsString("*")).ToArray();
         SlotsNumber = properties["slotsNumber"].AsInt(0);
         SlotColor = properties["color"].AsString(null);
+
+        ItemTags = properties["canHoldItemTags"].AsArray<string>([]);
+        BlockTags = properties["canHoldBlockTags"].AsArray<string>([]);
     }
 
     public void Clear(ItemStack backPackStack)
@@ -132,17 +166,18 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         return bagstack.ItemAttributes["backpack"]["slotBgColor"].AsString(null);
     }
 
-    const int defaultFlags = (int)(EnumItemStorageFlags.General | EnumItemStorageFlags.Agriculture | EnumItemStorageFlags.Alchemy | EnumItemStorageFlags.Jewellery | EnumItemStorageFlags.Metallurgy | EnumItemStorageFlags.Outfit);
+    const int _defaultFlags = (int)(EnumItemStorageFlags.General | EnumItemStorageFlags.Agriculture | EnumItemStorageFlags.Alchemy | EnumItemStorageFlags.Jewellery | EnumItemStorageFlags.Metallurgy | EnumItemStorageFlags.Outfit);
+    
     public virtual EnumItemStorageFlags GetStorageFlags(ItemStack bagstack)
     {
-        return (EnumItemStorageFlags)defaultFlags;
+        return (EnumItemStorageFlags)_defaultFlags;
     }
 
     public List<ItemSlotBagContent?> GetOrCreateSlots(ItemStack bagstack, InventoryBase parentinv, int bagIndex, IWorldAccessor world)
     {
         List<ItemSlotBagContent?> bagContents = new();
 
-        EnumItemStorageFlags flags = (EnumItemStorageFlags)defaultFlags;
+        EnumItemStorageFlags flags = (EnumItemStorageFlags)_defaultFlags;
         int quantitySlots = SlotsNumber;
 
         ITreeAttribute stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
@@ -153,8 +188,12 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
             for (int slotIndex = 0; slotIndex < quantitySlots; slotIndex++)
             {
-                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, SlotColor, CanHoldWildcard);
-                slot.SourceBag = bagstack;
+                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+                {
+                    CanHoldWildcard = CanHoldWildcard,
+                    CanHoldItemTags = CanHoldItemTags,
+                    CanHoldBlockTags = CanHoldBlockTags
+                };
                 bagContents.Add(slot);
                 slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
             }
@@ -169,8 +208,12 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
             foreach (KeyValuePair<string, IAttribute> val in slotsTree)
             {
                 int slotIndex = val.Key.Split("-")[1].ToInt();
-                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, SlotColor, CanHoldWildcard);
-                slot.SourceBag = bagstack;
+                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+                {
+                    CanHoldWildcard = CanHoldWildcard,
+                    CanHoldItemTags = CanHoldItemTags,
+                    CanHoldBlockTags = CanHoldBlockTags
+                };
 
                 if (val.Value?.GetValue() != null)
                 {

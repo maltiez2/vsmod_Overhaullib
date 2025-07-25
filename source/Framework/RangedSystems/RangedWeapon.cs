@@ -49,6 +49,7 @@ public class RangeWeaponClient : IClientWeaponLogic
     protected FirstPersonAnimationsBehavior? AnimationBehavior;
     protected ThirdPersonAnimationsBehavior? TpAnimationBehavior;
     protected ActionsManagerPlayerBehavior? PlayerBehavior;
+    protected bool TwoHanded = true;
     
     protected static bool CheckState<TState>(int state, params TState[] statesToCheck)
         where TState : struct, Enum
@@ -78,6 +79,8 @@ public class RangeWeaponClient : IClientWeaponLogic
     }
     protected bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
     {
+        if (!TwoHanded) return true;
+        
         if (mainHand && !player.LeftHandItemSlot.Empty)
         {
             (player.World.Api as ICoreClientAPI)?.TriggerIngameError(this, "offhandShouldBeEmpty", Lang.Get("combatoverhaul:message-offhand-empty"));

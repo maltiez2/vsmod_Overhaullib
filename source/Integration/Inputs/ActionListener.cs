@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+﻿using System.Diagnostics;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 
 namespace CombatOverhaul.Inputs;
@@ -90,8 +91,8 @@ public sealed class ActionListener : IDisposable
         _clientApi = api;
         api.Input.InWorldAction += OnEntityAction;
         api.World.RegisterGameTickListener(dt => TickListener(), 1000 / 30);
-        api.Event.MouseDown += ev => HandleMouseEvents(ev, true);
-        api.Event.MouseUp += ev => HandleMouseEvents(ev, false);
+        api.Event.MouseDown += HandleMouseDownEvents;
+        api.Event.MouseUp += HandleMouseUpEvents;
 
         foreach (EnumEntityAction action in Enum.GetValues<EnumEntityAction>())
         {
@@ -146,6 +147,8 @@ public sealed class ActionListener : IDisposable
     public void Dispose()
     {
         _clientApi.Input.InWorldAction -= OnEntityAction;
+        _clientApi.Event.MouseDown -= HandleMouseDownEvents;
+        _clientApi.Event.MouseUp -= HandleMouseUpEvents;
     }
     public static bool AltPressed(ICoreClientAPI api) => (api?.Input.KeyboardKeyState[(int)GlKeys.AltLeft] ?? false) || (api?.Input.KeyboardKeyState[(int)GlKeys.AltRight] ?? false);
 
@@ -171,9 +174,12 @@ public sealed class ActionListener : IDisposable
     private bool _suppressLMB = false;
     private bool _suppressRMB = false;
 
-
+    private void HandleMouseDownEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, true);
+    private void HandleMouseUpEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, true);
     private void HandleMouseEvents(MouseEvent mouseEvent, bool on)
     {
+        Debug.WriteLine($"HandleMouseEvents: {mouseEvent.Button} - {on}");
+
         if (!_clientApi.Input.MouseGrabbed)
         {
             on = false;
@@ -184,7 +190,6 @@ public sealed class ActionListener : IDisposable
         switch (mouseEvent.Button)
         {
             case EnumMouseButton.Left:
-
                 OnEntityAction(EnumEntityAction.LeftMouseDown, on, mouseEvent);
                 if (on && mouseEvent.Handled) _suppressLMB = true;
                 if (!on) _suppressLMB = false;
@@ -207,16 +212,28 @@ public sealed class ActionListener : IDisposable
     {
         if (!_clientApi.Input.MouseGrabbed) return;
 
-        if (_clientApi.Input.MouseButton.Left)
+        switch (_actionStates[EnumEntityAction.LeftMouseDown])
         {
-            _actionStates[EnumEntityAction.LeftMouseDown] = SwitchState(EnumEntityAction.LeftMouseDown, true);
-            CallSubscriptions(EnumEntityAction.LeftMouseDown);
+            case ActionState.Inactive:
+            case ActionState.Active:
+            case ActionState.Hold:
+                CallSubscriptions(EnumEntityAction.LeftMouseDown);
+                break;
+            case ActionState.Pressed:
+            case ActionState.Released:
+                break;
         }
 
-        if (_clientApi.Input.MouseButton.Right)
+        switch (_actionStates[EnumEntityAction.RightMouseDown])
         {
-            _actionStates[EnumEntityAction.RightMouseDown] = SwitchState(EnumEntityAction.RightMouseDown, true);
-            CallSubscriptions(EnumEntityAction.RightMouseDown);
+            case ActionState.Inactive:
+            case ActionState.Active:
+            case ActionState.Hold:
+                CallSubscriptions(EnumEntityAction.RightMouseDown);
+                break;
+            case ActionState.Pressed:
+            case ActionState.Released:
+                break;
         }
     }
 
@@ -313,6 +330,8 @@ public sealed class ActionListener : IDisposable
     private bool CallSubscriptions(EnumEntityAction action)
     {
         ActionState state = _actionStates[action];
+
+        if (state != ActionState.Inactive) Debug.WriteLine($"{action} - {state}");
 
         bool handled = CallSubscriptionsForState(action, state);
 

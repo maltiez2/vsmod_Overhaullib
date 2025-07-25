@@ -1,8 +1,10 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
+using CombatOverhaul.Compatibility;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
+using PlayerModelLib;
 using ProtoBuf;
 using System.Diagnostics;
 using Vintagestory.API.Client;
@@ -49,6 +51,14 @@ public enum PlayerBodyPart
 }
 
 public delegate void OnPlayerReceiveDamageDelegate(ref float damage, DamageSource damageSource, PlayerBodyPart bodyPart);
+
+public class PlayerDamageModelConfig
+{
+    public PlayerDamageModelJson DamageModel { get; set; } = new();
+    public Dictionary<string, PlayerBodyPart> BodyParts { get; set; } = [];
+    public float SecondChanceCooldownSec { get; set; } = 300;
+    public bool SecondChanceAvailable { get; set; } = true;
+}
 
 public sealed class PlayerDamageModelBehavior : EntityBehavior
 {
@@ -108,34 +118,20 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
-        if (attributes.KeyExists("damageModel"))
-        {
-            PlayerDamageModelJson stats = attributes["damageModel"].AsObject<PlayerDamageModelJson>();
+        _defaultConfig = attributes.AsObject<PlayerDamageModelConfig>();
 
-            DamageModel = new(stats.Zones);
-        }
-
-        if (attributes.KeyExists("bodyParts"))
-        {
-            CollidersToBodyParts.Clear();
-            foreach (JToken token in attributes["bodyParts"].Token)
-            {
-                if (token is not JProperty property) continue;
-
-                JsonObject value = new(property.Value);
-
-                CollidersToBodyParts.Add(property.Name, Enum.Parse<PlayerBodyPart>(value.AsString("Torso")));
-            }
-        }
-
-        SecondDefaultChanceCooldown = TimeSpan.FromSeconds(attributes["secondChanceCooldownSec"].AsFloat(60 * 5));
-        SecondChanceAvailable = attributes["secondChanceAvailable"].AsBool(true);
+        ApplyConfig(_defaultConfig);
     }
 
     public override void AfterInitialized(bool onFirstSpawn)
     {
         _colliders = entity.GetBehavior<CollidersEntityBehavior>();
         entity.GetBehavior<EntityBehaviorHealth>().onDamaged += OnReceiveDamageHandler;
+
+        if (entity.Api.ModLoader.IsModEnabled(CollidersEntityBehavior.PlayerModelLibId))
+        {
+            SubscribeOnModelChange();
+        }
     }
 
     public override void OnGameTick(float deltaTime)
@@ -148,6 +144,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     private readonly bool _printIntoChat = false;
     private CollidersEntityBehavior? _colliders;
     private float _healthAfterSecondChance = 1;
+    private PlayerDamageModelConfig _defaultConfig;
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
@@ -344,6 +341,39 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         Entity? causeEntity = damageSource.CauseEntity;
 
         return sourceEntity != null && causeEntity != null && sourceEntity != causeEntity;
+    }
+    private void ApplyConfig(PlayerDamageModelConfig config)
+    {
+        DamageModel = new(config.DamageModel.Zones);
+        CollidersToBodyParts = config.BodyParts;
+        SecondDefaultChanceCooldown = TimeSpan.FromSeconds(config.SecondChanceCooldownSec);
+        SecondChanceAvailable = config.SecondChanceAvailable;
+    }
+    private void SubscribeOnModelChange()
+    {
+        PlayerSkinBehavior? skinBehavior = entity.GetBehavior<PlayerSkinBehavior>();
+
+        if (skinBehavior != null)
+        {
+            skinBehavior.OnModelChanged += ReloadConfigForCustomModel;
+        }
+    }
+    private void ReloadConfigForCustomModel(string modelCode)
+    {
+        PlayerModelLibCompatibilitySystem? system = entity.Api?.ModLoader.GetModSystem<PlayerModelLibCompatibilitySystem>();
+
+        if (system == null) return;
+
+        if (!system.CustomModelConfigs.TryGetValue(modelCode, out PlayerModelConfig? customModelConfig) || customModelConfig.DamageModel == null)
+        {
+            ApplyConfig(_defaultConfig);
+            return;
+        }
+
+        DamageModel = new(customModelConfig.DamageModel.DamageModel.Zones);
+        CollidersToBodyParts = customModelConfig.DamageModel.BodyParts;
+        SecondDefaultChanceCooldown = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceCooldownSec);
+        SecondChanceAvailable = customModelConfig.DamageModel.SecondChanceAvailable;
     }
 }
 public sealed class PlayerDamageModel

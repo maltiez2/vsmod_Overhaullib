@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ModName>Overhaul Library</ModName>
     <ModType>code</ModType>
-    <ModVersion>0.3.2</ModVersion>
+    <ModVersion>0.3.7</ModVersion>
     <ModId>overhaullib</ModId>
     <Description></Description>
     <Side>universal</Side>
@@ -38,6 +38,7 @@
     <ReleaseFile>$(ModId)_$(ModVersion)</ReleaseFile>
     <ReleasePath>$(ReleasesDir)\$(ReleaseFile).zip</ReleasePath>
     <ReleasePathDev>$(ReleasesDir)\$(ReleaseFile)_dev.zip</ReleasePathDev>
+    <ExternalLibs>$(ProjectDir)\external</ExternalLibs>
   </PropertyGroup>
 
   <!-- Startup settings -->
@@ -67,6 +68,7 @@
   <ItemGroup>
     <PackageReference Include="VSImGui" Version="0.0.6" />
     <Reference Include="$(GameDirectory)/**/*.dll" Private="false" />
+    <Reference Include="$(ExternalLibs)/**/*.dll" Private="false" />
   </ItemGroup>
 
   <!-- Forces rebuild -->
@@ -86,7 +88,6 @@
 
   "description": "$(Description)",
   "authors": [ @(ModInfoAuthors->'"%(Identity)"', ', ') ],
-  "translation": [ @(ModInfoTranslators->'"%(Identity)"', ', ') ],
 
   "dependencies": {
     @(Dependencies->'"%(Identity)": "%(Version)"', ', ')

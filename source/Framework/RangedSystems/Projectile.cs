@@ -380,14 +380,19 @@ public class ProjectileBehavior : CollectibleBehavior
             ItemStackProjectileStats projectileStackStats = ItemStackProjectileStats.FromItemStack(inSlot.Itemstack);
 
             dsc.AppendLine(Lang.Get(
-            "combatoverhaul:iteminfo-projectile",
-            $"{Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier:F1}",
-            Lang.Get($"combatoverhaul:damage-type-{Stats.DamageStats.DamageType}"),
-            $"{(1 - Stats.DropChance * projectileStackStats.DropChanceMultiplier) * 100:F1}"));
+                "combatoverhaul:iteminfo-projectile",
+                $"{Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier:F1}",
+                Lang.Get($"combatoverhaul:damage-type-{Stats.DamageStats.DamageType}"),
+                $"{(1 - Stats.DropChance * projectileStackStats.DropChanceMultiplier) * 100:F1}"));
 
             if (Stats.DamageTierBonus != 0)
             {
                 dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-bonus-damagetier", Stats.DamageTierBonus + weaponStackStats.DamageTierBonus + projectileStackStats.DamageTierBonus));
+            }
+
+            if (Stats.AdditionalDurabilityCost != 0)
+            {
+                dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-durability-cost", Stats.AdditionalDurabilityCost));
             }
         }
 

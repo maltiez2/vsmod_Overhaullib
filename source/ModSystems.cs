@@ -233,7 +233,6 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         SettingsLoaded?.Invoke(Settings);
 
-
         IAsset armorConfigAsset = api.Assets.Get("combatoverhaul:config/armor-config.json");
         JsonObject armorConfig = JsonObject.FromJson(armorConfigAsset.ToText());
         ArmorConfig armorConfigObj = armorConfig.AsObject<ArmorConfig>();
