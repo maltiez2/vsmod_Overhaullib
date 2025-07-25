@@ -5,7 +5,7 @@ using Vintagestory.API.Common;
 namespace CombatOverhaul.Inputs;
 
 /// <summary>
-/// Represents <see cref="EnumEntityAction"/> status for a on client side for the player running this client.
+/// Represents <see cref="EnumEntityAction"/> status on client side for the player running this client.
 /// </summary>
 public enum ActionState
 {
@@ -178,8 +178,6 @@ public sealed class ActionListener : IDisposable
     private void HandleMouseUpEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, true);
     private void HandleMouseEvents(MouseEvent mouseEvent, bool on)
     {
-        Debug.WriteLine($"HandleMouseEvents: {mouseEvent.Button} - {on}");
-
         if (!_clientApi.Input.MouseGrabbed)
         {
             on = false;
