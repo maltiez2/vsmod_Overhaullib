@@ -151,6 +151,7 @@ public sealed class ActionListener : IDisposable
         _clientApi.Event.MouseUp -= HandleMouseUpEvents;
     }
     public static bool AltPressed(ICoreClientAPI api) => (api?.Input.KeyboardKeyState[(int)GlKeys.AltLeft] ?? false) || (api?.Input.KeyboardKeyState[(int)GlKeys.AltRight] ?? false);
+    public IEnumerable<EnumEntityAction> GetModifiers() => _modifiers.Where(IsActive);
 
     private readonly Dictionary<ActionEventId, List<System.Func<ActionEventData, bool>>> _subscriptions = new();
     private readonly HashSet<EnumEntityAction> _tyronDecidedToMakeTheseActionsInconsistent_ThanksTyron = new()

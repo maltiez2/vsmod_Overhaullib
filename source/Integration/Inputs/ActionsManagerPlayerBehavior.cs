@@ -3,6 +3,7 @@ using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Inputs;
@@ -13,6 +14,29 @@ public class ActionEventHandlerAttribute : Attribute
     public ActionEventId Event { get; }
 
     public ActionEventHandlerAttribute(EnumEntityAction action, ActionState state) => Event = new(action, state);
+}
+
+[AttributeUsage(AttributeTargets.Method)]
+public class HotkeyEventHandlerAttribute : Attribute
+{
+    public string HotkeyCode { get; }
+    public string HotkeyName { get; }
+    public GlKeys Key { get; }
+    public HotkeyType HotkeyType { get; }
+    public bool Alt { get; }
+    public bool Shift { get; }
+    public bool Ctrl { get; }
+
+    public HotkeyEventHandlerAttribute(string code, string name, GlKeys key, HotkeyType type = HotkeyType.CharacterControls, bool alt = false, bool shift = false, bool ctrl = false)
+    {
+        HotkeyCode = code;
+        HotkeyName = name;
+        Alt = alt;
+        Shift = shift;
+        Ctrl = ctrl;
+        Key = key;
+        HotkeyType = type;
+    }
 }
 
 public interface IHasWeaponLogic
@@ -44,10 +68,14 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 {
     public bool SuppressLMB { get; set; } = false;
     public bool SuppressRMB { get; set; } = false;
-    public float ManipulationSpeed => Math.Clamp(entity.Stats.GetBlended("manipulationSpeed"), 0.5f, 2.0f);
+    public float ManipulationSpeed => Math.Clamp(entity.Stats.GetBlended("manipulationSpeed"), MinManipulationSpeed, MaxManipulationSpeed);
     public ActionListener ActionListener { get; }
+    public float MaxManipulationSpeed { get; set; } = 2.0f;
+    public float MinManipulationSpeed { get; set; } = 0.5f;
 
     public delegate bool ActionEventCallbackDelegate(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction);
+
+    public delegate bool HotkeyEventCallbackDelegate(ItemSlot slot, EntityPlayer player, ref int state, KeyCombination keyCombination, bool mainHand, AttackDirection direction);
 
     public ActionsManagerPlayerBehavior(Entity entity) : base(entity)
     {
@@ -75,6 +103,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         if (_mainPlayer)
         {
             RegisterWeapons();
+            RegisterHotkeys();
             clientApi.Event.RegisterGameTickListener(OnGameFrame, 0);
         }
     }
@@ -105,9 +134,25 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
             mainhandTickListener.OnGameTick(_player.RightHandItemSlot, _player, ref _mainHandState, true);
         }
 
+        if (_player.RightHandItemSlot.Itemstack?.Item != null)
+        {
+            foreach (IOnGameTick tickListener in _player.RightHandItemSlot.Itemstack.Item.CollectibleBehaviors.OfType<IOnGameTick>())
+            {
+                tickListener.OnGameTick(_player.RightHandItemSlot, _player, ref _mainHandState, true);
+            }
+        }
+
         if (_player.LeftHandItemSlot.Itemstack?.Item is IOnGameTick offhandTickListener)
         {
             offhandTickListener.OnGameTick(_player.LeftHandItemSlot, _player, ref _offHandState, false);
+        }
+
+        if (_player.LeftHandItemSlot.Itemstack?.Item != null)
+        {
+            foreach (IOnGameTick tickListener in _player.LeftHandItemSlot.Itemstack.Item.CollectibleBehaviors.OfType<IOnGameTick>())
+            {
+                tickListener.OnGameTick(_player.LeftHandItemSlot, _player, ref _mainHandState, true);
+            }
         }
 
         ActionListener.SuppressLMB = SuppressLMB;
@@ -136,12 +181,14 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     private readonly bool _mainPlayer = false;
     private readonly ICoreClientAPI _api;
     private readonly EntityPlayer _player;
-    private readonly HashSet<string> _currentMainHandPlayerStats = new();
-    private readonly HashSet<string> _currentOffHandPlayerStats = new();
+    private readonly HashSet<string> _currentMainHandPlayerStats = [];
+    private readonly HashSet<string> _currentOffHandPlayerStats = [];
     private const string _statCategory = "CombatOverhaul:melee-weapon-player-behavior";
     private readonly DirectionController _directionController;
     private readonly DirectionCursorRenderer _directionRenderer;
     private readonly StatsSystemClient _statsSystem;
+    private readonly Dictionary<string, HotkeyEventHandlerAttribute> _hotkeys = [];
+    private readonly Dictionary<string, Dictionary<int, List<HotkeyEventCallbackDelegate>>> _hotkeysCallbacks = [];
 
     private IClientWeaponLogic? _currentMainHandWeapon;
     private IClientWeaponLogic? _currentOffHandWeapon;
@@ -159,6 +206,27 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
             .OfType<IHasWeaponLogic>()
             .Select(element => element.ClientLogic)
             .Foreach(RegisterWeapon);
+
+        _api.World.Items
+            .Select(item => item.CollectibleBehaviors as IEnumerable<CollectibleBehavior>)
+            .Aggregate((a, b) => a.Concat(b))
+            .OfType<IClientWeaponLogic>()
+            .Foreach(RegisterWeapon);
+    }
+    private void RegisterHotkeys()
+    {
+        foreach ((string code, HotkeyEventHandlerAttribute data) in _hotkeys)
+        {
+            _api.Input.RegisterHotKey(code, Lang.Get(data.HotkeyName), data.Key, data.HotkeyType, data.Alt, data.Ctrl, data.Shift);
+        }
+
+        foreach ((string code, Dictionary<int, List<HotkeyEventCallbackDelegate>> delegatesPerItem) in _hotkeysCallbacks)
+        {
+            _api.Input.SetHotKeyHandler(code, keyCombination => HandleHotkeyEvent(delegatesPerItem, keyCombination));
+        }
+
+        _hotkeys.Clear();
+        _hotkeysCallbacks.Clear();
     }
     private void RegisterWeapon(IClientWeaponLogic? weapon)
     {
@@ -174,6 +242,30 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
             {
                 ActionListener.Subscribe(eventId, (eventData) => HandleActionEvent(eventData, itemId, callback));
             });
+        }
+
+        Dictionary<string, List<HotkeyEventCallbackDelegate>> hotkeyHandlers = CollectHotkeysHandlers(weapon);
+
+        foreach ((string code, List<HotkeyEventCallbackDelegate> list) in hotkeyHandlers)
+        {
+            if (_hotkeysCallbacks.TryGetValue(code, out Dictionary<int, List<HotkeyEventCallbackDelegate>>? itemCallbacks))
+            {
+                if (itemCallbacks.TryGetValue(itemId, out List<HotkeyEventCallbackDelegate>? existingList))
+                {
+                    existingList.AddRange(list);
+                }
+                else
+                {
+                    itemCallbacks[itemId] = list;
+                }
+            }
+            else
+            {
+                _hotkeysCallbacks[code] = new()
+                {
+                    { itemId, list }
+                };
+            }
         }
 
         weapon.OnRegistered(this, _api);
@@ -211,6 +303,38 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         return handlers;
     }
+    private Dictionary<string, List<HotkeyEventCallbackDelegate>> CollectHotkeysHandlers(object owner)
+    {
+        IEnumerable<MethodInfo> methods = owner.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Where(method => method.GetCustomAttributes(typeof(HotkeyEventHandlerAttribute), true).Any());
+
+        Dictionary<string, List<HotkeyEventCallbackDelegate>> handlers = [];
+        foreach (MethodInfo method in methods)
+        {
+            if (method.GetCustomAttributes(typeof(HotkeyEventHandlerAttribute), true)[0] is not HotkeyEventHandlerAttribute attribute) continue;
+
+            if (Delegate.CreateDelegate(typeof(HotkeyEventCallbackDelegate), owner, method) is not HotkeyEventCallbackDelegate handler)
+            {
+                throw new InvalidOperationException($"Hotkey handler should have same signature as 'HotkeyEventCallbackDelegate' delegate.");
+            }
+
+            if (handlers.TryGetValue(attribute.HotkeyCode, out List<HotkeyEventCallbackDelegate>? callbackDelegates))
+            {
+                callbackDelegates.Add(handler);
+            }
+            else
+            {
+                callbackDelegates = [handler];
+                handlers.Add(attribute.HotkeyCode, callbackDelegates);
+            }
+
+            if (!_hotkeys.ContainsKey(attribute.HotkeyCode))
+            {
+                _hotkeys[attribute.HotkeyCode] = attribute;
+            }
+        }
+
+        return handlers;
+    }
     private bool HandleActionEvent(ActionEventData eventData, int itemId, ActionEventCallbackDelegate callback)
     {
         int mainHandId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? -1;
@@ -227,6 +351,40 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         if (offHandId == itemId)
         {
             offHandHandled = callback.Invoke(_player.LeftHandItemSlot, _player, ref _offHandState, eventData, false, _directionController.CurrentDirection);
+        }
+
+        return mainHandHandled || offHandHandled;
+    }
+    private bool HandleHotkeyEvent(Dictionary<int, List<HotkeyEventCallbackDelegate>> delegates, KeyCombination keyCombination)
+    {
+        int mainHandId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? -1;
+        int offHandId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? -1;
+
+        bool mainHandHandled = false;
+        bool offHandHandled = false;
+
+        if (delegates.TryGetValue(mainHandId, out List<HotkeyEventCallbackDelegate>? delegatesForItemInMainHand))
+        {
+            foreach (HotkeyEventCallbackDelegate hotkeyDelegate in delegatesForItemInMainHand)
+            {
+                if (hotkeyDelegate.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, keyCombination, true, _directionController.CurrentDirection))
+                {
+                    mainHandHandled = true;
+                    break;
+                }
+            }
+        }
+
+        if (delegates.TryGetValue(offHandId, out List<HotkeyEventCallbackDelegate>? delegatesForItemInOffhand))
+        {
+            foreach (HotkeyEventCallbackDelegate hotkeyDelegate in delegatesForItemInOffhand)
+            {
+                if (hotkeyDelegate.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, keyCombination, false, _directionController.CurrentDirection))
+                {
+                    mainHandHandled = true;
+                    break;
+                }
+            }
         }
 
         return mainHandHandled || offHandHandled;
