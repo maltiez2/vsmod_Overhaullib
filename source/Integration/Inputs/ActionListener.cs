@@ -175,7 +175,7 @@ public sealed class ActionListener : IDisposable
     private bool _suppressRMB = false;
 
     private void HandleMouseDownEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, true);
-    private void HandleMouseUpEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, true);
+    private void HandleMouseUpEvents(MouseEvent mouseEvent) => HandleMouseEvents(mouseEvent, false);
     private void HandleMouseEvents(MouseEvent mouseEvent, bool on)
     {
         if (!_clientApi.Input.MouseGrabbed)
@@ -328,8 +328,6 @@ public sealed class ActionListener : IDisposable
     private bool CallSubscriptions(EnumEntityAction action)
     {
         ActionState state = _actionStates[action];
-
-        if (state != ActionState.Inactive) Debug.WriteLine($"{action} - {state}");
 
         bool handled = CallSubscriptionsForState(action, state);
 
