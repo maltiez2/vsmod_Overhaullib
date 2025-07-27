@@ -10,6 +10,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
+using ConfigLib;
 using HarmonyLib;
 using OpenTK.Mathematics;
 using ProtoBuf;
@@ -95,6 +96,8 @@ public sealed class CombatOverhaulSystem : ModSystem
 {
     public event Action? OnDispose;
     public event Action<Settings>? SettingsLoaded;
+    public event Action<Settings>? SettingsChanged;
+    
     public Settings Settings { get; set; } = new();
     public bool Disposed { get; private set; } = false;
 
@@ -143,6 +146,11 @@ public sealed class CombatOverhaulSystem : ModSystem
         new Harmony("CombatOverhaulAuto").PatchAll();
 
         InInventoryPlayerBehavior._reportedEntities.Clear();
+
+        if (api.ModLoader.IsModEnabled("configlib"))
+        {
+            SubscribeToConfigChange(api);
+        }
     }
     public override void StartServerSide(ICoreServerAPI api)
     {
@@ -155,7 +163,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         ServerBlockBreakingSystem = new(api);
         ServerAttachmentSystem = new(api);
 
-        _serverTOggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
+        _serverToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>()
             .SetMessageHandler<TogglePacket>(ToggleWearableItem);
 
@@ -305,7 +313,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     private ICoreClientAPI? _clientApi;
     private readonly Vector4 _iconScale = new(-0.1f, -0.1f, 1.2f, 1.2f);
     private IClientNetworkChannel? _clientToggleChannel;
-    private IServerNetworkChannel? _serverTOggleChannel;
+    private IServerNetworkChannel? _serverToggleChannel;
 
     private void RegisterCustomIcon(ICoreClientAPI api, string key, string path)
     {
@@ -324,9 +332,19 @@ public sealed class CombatOverhaulSystem : ModSystem
             api.Gui.DrawSvg(svgAsset, (ImageSurface)(object)((target is ImageSurface) ? target : null), xNew, yNew, wNew, hNew, value);
         };
     }
-    private void CheckStatusServerSide(ICoreServerAPI api)
-    {
 
+    private void SubscribeToConfigChange(ICoreAPI api)
+    {
+        ConfigLibModSystem system = api.ModLoader.GetModSystem<ConfigLibModSystem>();
+
+        system.SettingChanged += (domain, config, setting) =>
+        {
+            if (domain != "combatoverhaul") return;
+
+            setting.AssignSettingValue(Settings);
+
+            SettingsChanged?.Invoke(Settings);
+        };
     }
 }
 

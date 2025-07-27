@@ -77,6 +77,8 @@ public class StanceStats
 
     public Dictionary<string, string> TpAttackAnimation { get; set; } = new();
     public string BlockTpAnimation { get; set; } = "";
+
+    public float AttackSpeedMultiplier { get; set; } = 1;
 }
 
 public class ThrowWeaponStats
@@ -612,7 +614,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                     }
                     tpAttackAnimation ??= "";
 
-                    float animationSpeed = ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack);
+                    float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
                     MeleeBlockSystem.StopBlock(mainHand);
                     SetState(MeleeWeaponState.WindingUp, mainHand);
                     attack.Start(player.Player);
@@ -620,14 +622,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                     AnimationBehavior?.Play(
                         mainHand,
                         attackAnimation,
-                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * animationSpeed,
+                        animationSpeed: animationSpeed,
                         category: AnimationCategory(mainHand),
                         callback: () => AttackAnimationCallback(mainHand),
                         callbackHandler: code => AttackAnimationCallbackHandler(code, mainHand));
                     TpAnimationBehavior?.Play(
                         mainHand,
                         attackAnimation,
-                        animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * animationSpeed,
+                        animationSpeed: animationSpeed,
                         category: AnimationCategory(mainHand));
                     if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(tpAttackAnimation, mainHand);
 

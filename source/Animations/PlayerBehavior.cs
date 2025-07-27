@@ -214,6 +214,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     private bool _resetFov = false;
     private readonly ICoreClientAPI? _api;
     private readonly List<(AnimationRequest request, bool mainHand, bool skip, int itemId)> _playRequests = new();
+    private float _previousHeadBobbingAmplitude = 1;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
 
@@ -239,7 +240,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
             if (_resetFov)
             {
                 SetFov(1, false);
-                _player.HeadBobbingAmplitude = 1;
+                _player.HeadBobbingAmplitude = _previousHeadBobbingAmplitude;
                 _resetFov = false;
             }
             return;
@@ -260,7 +261,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     {
         Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
 
-        frame.Apply(pose, eyePosition);
+        frame.Apply(pose, eyePosition, (float)entity.Properties.EyeHeight);
 
         if (animatable != null && frame.DetachedAnchor)
         {
@@ -288,7 +289,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
         }
 
         SetFov(frame.Player.FovMultiplier, true);
-        _player.HeadBobbingAmplitude = frame.Player.BobbingAmplitude;
+        _previousHeadBobbingAmplitude = _player.HeadBobbingAmplitude;
+        _player.HeadBobbingAmplitude *= frame.Player.BobbingAmplitude;
         _resetFov = true;
     }
     private static bool IsOwner(Entity entity) => (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;
@@ -756,7 +758,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
         float pitch = targetEntity.Pos.HeadPitch;
         Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
 
-        frame.Apply(pose, eyePosition, pitch, true, false);
+        frame.Apply(pose, eyePosition, (float)entity.Properties.EyeHeight, pitch, true, false);
 
         if (animatable != null && frame.DetachedAnchor)
         {

@@ -114,6 +114,13 @@ public class BowClient : RangeWeaponClient
             AimingStats.HorizontalLimit = settings.BowsAimingHorizontalLimit;
         };
 
+        api.ModLoader.GetModSystem<CombatOverhaulSystem>().SettingsChanged += settings =>
+        {
+            AimingStats.CursorType = Enum.Parse<AimingCursorType>(settings.BowsAimingCursorType);
+            AimingStats.VerticalLimit = settings.BowsAimingVerticalLimit;
+            AimingStats.HorizontalLimit = settings.BowsAimingHorizontalLimit;
+        };
+
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followX", () => AimingStats.AnimationFollowX, (value) => AimingStats.AnimationFollowX = value)
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followY", () => AimingStats.AnimationFollowY, (value) => AimingStats.AnimationFollowY = value)
     }

@@ -294,7 +294,7 @@ public sealed class ClientAimingSystem : IDisposable
     private Vector2 _currentAim = new();
     private float _currentFovRatio;
     private float _difficultyMultiplier = 1;
-    private const float _noCursorDifficultyMultiplier = 0.5f;
+    private const float _noCursorDifficultyMultiplier = 0.75f;
 
 
     private void ResetAimOffset()
