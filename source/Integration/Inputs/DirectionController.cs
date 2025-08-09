@@ -45,12 +45,12 @@ public sealed class DirectionController
 {
     public DirectionsConfiguration DirectionsConfiguration { get; set; } = DirectionsConfiguration.Eight;
     public int Depth { get; set; } = 5;
-    public float Sensitivity { get; set; } = 1.0f;
-    public bool Invert { get; set; } = false;
+    public float Sensitivity => _settings.DirectionsSensitivity;
+    public bool Invert => _settings.DirectionsInvert;
     public AttackDirection CurrentDirection { get; private set; }
     public AttackDirection CurrentDirectionWithInversion => Invert ? _inversionMapping[CurrentDirection] : CurrentDirection;
     public int CurrentDirectionNormalized { get; private set; }
-    public bool AlternativeDirectionControls { get; set; } = false;
+    public bool AlternativeDirectionControls => _settings.DirectionsMovementControls;
 
     public static readonly Dictionary<DirectionsConfiguration, List<int>> Configurations = new()
     {
@@ -61,10 +61,11 @@ public sealed class DirectionController
         { DirectionsConfiguration.Eight, new() {0, 1, 2, 3, 4, 5, 6, 7} }
     };
 
-    public DirectionController(ICoreClientAPI api, DirectionCursorRenderer renderer)
+    public DirectionController(ICoreClientAPI api, DirectionCursorRenderer renderer, Settings settings)
     {
         _api = api;
         _directionCursorRenderer = renderer;
+        _settings = settings;
 
         for (int count = 0; count < Depth * 2; count++)
         {
@@ -109,7 +110,7 @@ public sealed class DirectionController
         }
         else
         {
-            int direction = CalculateDirectionWithInversion(previous.Yaw - yaw, previous.Pitch - pitch, (int)DirectionsConfiguration);
+            int direction = CalculateDirection(previous.Yaw - yaw, previous.Pitch - pitch, (int)DirectionsConfiguration);
 
             float delta = _directionQueue.Last().DeltaPitch * _directionQueue.Last().DeltaPitch + _directionQueue.Last().DeltaYaw * _directionQueue.Last().DeltaYaw;
 
@@ -127,6 +128,7 @@ public sealed class DirectionController
     private readonly ICoreClientAPI _api;
     private readonly Queue<MouseMovementData> _directionQueue = new();
     private readonly DirectionCursorRenderer _directionCursorRenderer;
+    private readonly Settings _settings;
 
     private readonly Dictionary<DirectionsConfiguration, List<int>> _invertedConfigurations = new();
     private readonly Dictionary<AttackDirection, AttackDirection> _inversionMapping = new()

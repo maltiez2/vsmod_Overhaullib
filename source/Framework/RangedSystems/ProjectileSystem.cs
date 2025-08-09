@@ -1,14 +1,15 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
-using ProtoBuf;
 using OpenTK.Mathematics;
+using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using System.Diagnostics;
+using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -133,43 +134,7 @@ public class ProjectileCollisionCheckRequest
     public int PacketVersion { get; set; }
 }
 
-public abstract class ProjectileSystemBase
-{
-    protected static ProjectileEntity SpawnProjectile(Guid id, ItemStack projectileStack, ItemStack? weaponStack, ProjectileStats stats, ProjectileSpawnStats spawnStats, ICoreAPI api, Entity shooter)
-    {
-        AssetLocation entityTypeAsset = new(stats.EntityCode);
-
-        EntityProperties? entityType = api.World.GetEntityType(entityTypeAsset) ?? throw new InvalidOperationException();
-
-        if (api.ClassRegistry.CreateEntity(entityType) is not ProjectileEntity projectile)
-        {
-            throw new InvalidOperationException();
-        }
-
-        projectile.ProjectileId = id;
-        projectile.ProjectileStack = projectileStack;
-        projectile.WeaponStack = weaponStack;
-        projectile.DropOnImpactChance = stats.DropChance;
-        projectile.ColliderRadius = stats.CollisionRadius;
-        projectile.PenetrationDistance = stats.PenetrationDistance;
-        projectile.PenetrationStrength = Math.Max(0, stats.PenetrationBonus + spawnStats.DamageStrength);
-        projectile.DurabilityDamageOnImpact = stats.DurabilityDamage;
-
-        projectile.ServerPos.SetPos(new Vec3d(spawnStats.Position.X, spawnStats.Position.Y, spawnStats.Position.Z));
-        projectile.ServerPos.Motion.Set(new Vec3d(spawnStats.Velocity.X, spawnStats.Velocity.Y, spawnStats.Velocity.Z));
-        projectile.Pos.SetFrom(projectile.ServerPos);
-        projectile.World = api.World;
-        projectile.SetRotation();
-        projectile.ShooterId = shooter.EntityId;
-
-        api.World.SpawnEntity(projectile);
-
-        return projectile;
-    }
-}
-
-
-public sealed class ProjectileSystemClient : ProjectileSystemBase
+public sealed class ProjectileSystemClient
 {
     public const string NetworkChannelId = "CombatOverhaul:projectiles";
 
@@ -342,7 +307,7 @@ public sealed class ProjectileSystemClient : ProjectileSystemBase
     }
 }
 
-public sealed class ProjectileSystemServer : ProjectileSystemBase
+public sealed class ProjectileSystemServer
 {
     public delegate void RangedDamageDelegate(Entity target, DamageSource damageSource, ItemStack? weaponStack, ref float damage);
 
@@ -362,11 +327,13 @@ public sealed class ProjectileSystemServer : ProjectileSystemBase
 
     public void Spawn(Guid id, ProjectileStats projectileStats, ProjectileSpawnStats spawnStats, ItemStack projectileStack, ItemStack? weaponStack, Entity shooter)
     {
-        ProjectileEntity projectile = SpawnProjectile(id, projectileStack, weaponStack, projectileStats, spawnStats, _api, shooter);
+        SpawnProjectile(id, projectileStack, weaponStack, projectileStats, spawnStats, _api, shooter, out ProjectileEntity? projectile);
 
-        _projectiles.Add(id, new(projectile, projectileStats, spawnStats, _api, ClearId, projectileStack));
-
-        projectile.ServerProjectile = _projectiles[id];
+        if (projectile != null)
+        {
+            _projectiles.Add(id, new(projectile, projectileStats, spawnStats, _api, ClearId, projectileStack));
+            projectile.ServerProjectile = _projectiles[id];
+        }
     }
     public void TryCollide(ProjectileEntity projectile)
     {
@@ -398,6 +365,51 @@ public sealed class ProjectileSystemServer : ProjectileSystemBase
     private readonly IServerNetworkChannel _serverChannel;
     private readonly Dictionary<Guid, ProjectileServer> _projectiles = new();
 
+    private static void SpawnProjectile(Guid id, ItemStack projectileStack, ItemStack? weaponStack, ProjectileStats stats, ProjectileSpawnStats spawnStats, ICoreAPI api, Entity shooter, out ProjectileEntity? projectile)
+    {
+        AssetLocation entityTypeAsset = new(stats.EntityCode);
+
+        EntityProperties? entityType = api.World.GetEntityType(entityTypeAsset) ?? throw new InvalidOperationException($"[Overhaul lib] Unable to create entity '{entityTypeAsset}'");
+
+        Entity entity = api.ClassRegistry.CreateEntity(entityType) ?? throw new InvalidOperationException($"[Overhaul lib] Unable to create entity '{entityTypeAsset}'");
+
+        entity.ServerPos.SetPos(new Vec3d(spawnStats.Position.X, spawnStats.Position.Y, spawnStats.Position.Z));
+        entity.ServerPos.Motion.Set(new Vec3d(spawnStats.Velocity.X, spawnStats.Velocity.Y, spawnStats.Velocity.Z));
+        entity.Pos.SetFrom(entity.ServerPos);
+        entity.World = api.World;
+
+        projectile = entity as ProjectileEntity;
+        if (projectile != null)
+        {
+            projectile.ProjectileId = id;
+            projectile.ProjectileStack = projectileStack;
+            projectile.WeaponStack = weaponStack;
+            projectile.DropOnImpactChance = stats.DropChance;
+            projectile.ColliderRadius = stats.CollisionRadius;
+            projectile.PenetrationDistance = stats.PenetrationDistance;
+            projectile.PenetrationStrength = Math.Max(0, stats.PenetrationBonus + spawnStats.DamageStrength);
+            projectile.DurabilityDamageOnImpact = stats.DurabilityDamage;
+            projectile.ShooterId = shooter.EntityId;
+
+            projectile.SetRotation();
+        }
+        else if (entity is IProjectile vanillaProjectile)
+        {
+            vanillaProjectile.FiredBy = shooter;
+            vanillaProjectile.Damage = stats.DamageStats.Damage * spawnStats.DamageMultiplier;
+            vanillaProjectile.DamageTier = (int)spawnStats.DamageStrength + stats.DamageTierBonus;
+            vanillaProjectile.ProjectileStack = projectileStack;
+            vanillaProjectile.WeaponStack = weaponStack;
+            vanillaProjectile.DropOnImpactChance = stats.DropChance;
+            vanillaProjectile.DamageStackOnImpact = stats.DurabilityDamage > 0;
+            vanillaProjectile.Weight = entity.Properties.Weight;
+            vanillaProjectile.IgnoreInvFrames = true;
+
+            vanillaProjectile.PreInitialize();
+        }
+
+        api.World.SpawnEntity(entity);
+    }
     private void ClearId(Guid id) => _projectiles.Remove(id);
     private void HandleCollision(IServerPlayer player, ProjectileCollisionPacket packet)
     {

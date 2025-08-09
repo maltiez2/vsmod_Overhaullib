@@ -16,7 +16,6 @@ using OpenTK.Mathematics;
 using ProtoBuf;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -28,29 +27,33 @@ namespace CombatOverhaul;
 
 public sealed class Settings
 {
-    public float DirectionsCursorAlpha { get; set; } = 1.0f;
+    public float DirectionsCursorTransparency { get; set; } = 1.0f;
     public float DirectionsCursorScale { get; set; } = 1.0f;
 
     public string BowsAimingCursorType { get; set; } = "Moving";
     public float BowsAimingHorizontalLimit { get; set; } = 0.125f;
     public float BowsAimingVerticalLimit { get; set; } = 0.35f;
 
+    public string ThrownWeaponsCursorType { get; set; } = "Fixed";
+    public float ThrownWeaponsAimingHorizontalLimit { get; set; } = 0.125f;
+    public float ThrownWeaponsAimingVerticalLimit { get; set; } = 0.25f;
+
     public bool PrintProjectilesHits { get; set; } = false;
     public bool PrintMeleeHits { get; set; } = false;
     public bool PrintPlayerBeingHit { get; set; } = false;
 
-    public float DirectionsControllerSensitivity { get; set; } = 1f;
-    public bool DirectionsControllerInvert { get; set; } = false;
+    public float DirectionsSensitivity { get; set; } = 1f;
+    public bool DirectionsInvert { get; set; } = false;
 
     public bool HandsYawSmoothing { get; set; } = false;
 
-    public bool DoVanillaActionsWhileBlocking { get; set; } = true;
+    public bool VanillaActionsWhileBlocking { get; set; } = true;
 
     public float CollisionRadius { get; set; } = 16f;
 
     public float DefaultColliderPenetrationResistance { get; set; } = 5f;
 
-    public bool AlternativeDirectionControls { get; set; } = false;
+    public bool DirectionsMovementControls { get; set; } = false;
 }
 
 public sealed class ArmorConfig
@@ -97,16 +100,10 @@ public sealed class CombatOverhaulSystem : ModSystem
     public event Action? OnDispose;
     public event Action<Settings>? SettingsLoaded;
     public event Action<Settings>? SettingsChanged;
-    
+
     public Settings Settings { get; set; } = new();
     public bool Disposed { get; private set; } = false;
 
-    public override void StartPre(ICoreAPI api)
-    {
-        // Moved to CO
-        //(api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
-        //(api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
-    }
     public override void Start(ICoreAPI api)
     {
         api.RegisterEntityBehaviorClass("CombatOverhaul:FirstPersonAnimations", typeof(FirstPersonAnimationsBehavior));
@@ -119,6 +116,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterEntityBehaviorClass("CombatOverhaul:WearableStats", typeof(WearableStatsBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:InInventory", typeof(InInventoryPlayerBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ArmorStandInventory", typeof(EntityBehaviorCOArmorStandInventory));
+        api.RegisterEntityBehaviorClass("CombatOverhaul:ProjectilePhysics", typeof(ProjectilePhysicsBehavior));
 
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:Animatable", typeof(Animatable));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:AnimatableAttachable", typeof(AnimatableAttachable));
@@ -133,8 +131,6 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterItemClass("CombatOverhaul:MeleeWeapon", typeof(MeleeWeapon));
         api.RegisterItemClass("CombatOverhaul:StanceBasedMeleeWeapon", typeof(StanceBasedMeleeWeapon));
         api.RegisterItemClass("CombatOverhaul:VanillaShield", typeof(VanillaShield));
-        api.RegisterItemClass("CombatOverhaul:Axe", typeof(Axe));
-        api.RegisterItemClass("CombatOverhaul:Pickaxe", typeof(Pickaxe));
         api.RegisterItemClass("CombatOverhaul:WearableArmor", typeof(ItemWearableArmor));
         api.RegisterItemClass("CombatOverhaul:WearableFueledLightSource", typeof(WearableFueledLightSource));
 
@@ -160,7 +156,6 @@ public sealed class CombatOverhaulSystem : ModSystem
         ServerMeleeSystem = new(api);
         ServerBlockSystem = new(api);
         ServerStatsSystem = new(api);
-        ServerBlockBreakingSystem = new(api);
         ServerAttachmentSystem = new(api);
 
         _serverToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
@@ -174,23 +169,19 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         ClientProjectileSystem = new(api, api.ModLoader.GetModSystem<EntityPartitioning>());
         ActionListener = new(api);
-        DirectionCursorRenderer = new(api);
+        DirectionCursorRenderer = new(api, Settings);
         ReticleRenderer = new(api);
-        DirectionController = new(api, DirectionCursorRenderer);
+        DirectionController = new(api, DirectionCursorRenderer, Settings);
         ClientRangedWeaponSystem = new(api);
         ClientSoundsSynchronizer = new(api);
         AimingSystem = new(api, ReticleRenderer);
         ClientMeleeSystem = new(api);
         ClientBlockSystem = new(api);
         ClientStatsSystem = new(api);
-        ClientBlockBreakingSystem = new(api);
         ClientAttachmentSystem = new(api);
 
         api.Event.RegisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         api.Event.RegisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
-
-        // Moved to CO
-        //api.Gui.RegisterDialog(new GuiDialogArmorInventory(api));
 
         AimingPatches.Patch("CombatOverhaulAiming");
         MouseWheelPatch.Patch("CombatOverhaul", api);
@@ -220,26 +211,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     }
     public override void AssetsFinalize(ICoreAPI api)
     {
-        IAsset settingsAsset = api.Assets.Get("combatoverhaul:config/settings.json");
-        JsonObject settings = JsonObject.FromJson(settingsAsset.ToText());
-        Settings = settings.AsObject<Settings>();
-
-        if (DirectionCursorRenderer != null)
-        {
-            DirectionCursorRenderer.Alpha = Settings.DirectionsCursorAlpha;
-            DirectionCursorRenderer.CursorScale = Settings.DirectionsCursorScale;
-        }
-
-        if (DirectionController != null)
-        {
-            DirectionController.Sensitivity = Settings.DirectionsControllerSensitivity;
-            DirectionController.Invert = Settings.DirectionsControllerInvert;
-            DirectionController.AlternativeDirectionControls = Settings.AlternativeDirectionControls;
-        }
-
         HarmonyPatches.YawSmoothing = Settings.HandsYawSmoothing;
-
-        SettingsLoaded?.Invoke(Settings);
 
         IAsset armorConfigAsset = api.Assets.Get("combatoverhaul:config/armor-config.json");
         JsonObject armorConfig = JsonObject.FromJson(armorConfigAsset.ToText());
@@ -305,8 +277,6 @@ public sealed class CombatOverhaulSystem : ModSystem
     public MeleeBlockSystemServer? ServerBlockSystem { get; private set; }
     public StatsSystemClient? ClientStatsSystem { get; private set; }
     public StatsSystemServer? ServerStatsSystem { get; private set; }
-    public BlockBreakingSystemClient? ClientBlockBreakingSystem { get; private set; }
-    public BlockBreakingSystemServer? ServerBlockBreakingSystem { get; private set; }
     public AttachableSystemClient? ClientAttachmentSystem { get; private set; }
     public AttachableSystemServer? ServerAttachmentSystem { get; private set; }
 
@@ -339,11 +309,17 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         system.SettingChanged += (domain, config, setting) =>
         {
-            if (domain != "combatoverhaul") return;
+            if (domain != "combatoverhaul" && domain != "bullseyecontinued") return;
 
             setting.AssignSettingValue(Settings);
-
             SettingsChanged?.Invoke(Settings);
+        };
+
+        system.ConfigsLoaded += () =>
+        {
+            system.GetConfig("combatoverhaul")?.AssignSettingsValues(Settings);
+            system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
+            SettingsLoaded?.Invoke(Settings);
         };
     }
 }

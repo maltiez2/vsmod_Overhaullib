@@ -18,7 +18,7 @@ public enum AimingCursorType
 public class AimingStatsJson
 {
     public float AimDifficulty { get; set; } = 1;
-    public string CursorType { get; set; } = "Moving";
+    public string CursorType { get; set; } = "Moving"; // Usually overriden in weapon class
     public bool InvertMouseYAxis { get; set; } = false;
 
     public float VerticalAccuracyMultiplier { get; set; } = 1f;

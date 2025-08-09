@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.Colliders;
 
@@ -188,20 +189,27 @@ public readonly struct TriangleCollider
 
 public readonly struct CuboidAABBCollider
 {
+    /// <summary>
+    /// Min
+    /// </summary>
     public readonly Vector3d VertexA;
+    /// <summary>
+    /// Max
+    /// </summary>
     public readonly Vector3d VertexB;
+
+    public Vector3d Center => (VertexA + VertexB) / 2;
 
     public CuboidAABBCollider(Vector3d vertexA, Vector3d vertexB)
     {
-        VertexA = vertexA;
-        VertexB = vertexB;
+        VertexA = new(Math.Min(vertexA.X, vertexB.X), Math.Min(vertexA.Y, vertexB.Y), Math.Min(vertexA.Z, vertexB.Z));
+        VertexB = new(Math.Max(vertexA.X, vertexB.X), Math.Max(vertexA.Y, vertexB.Y), Math.Max(vertexA.Z, vertexB.Z));
     }
     public CuboidAABBCollider(Cuboidf cuboid)
     {
-        VertexA = new(cuboid.X1, cuboid.Y1, cuboid.Z1);
-        VertexB = new(cuboid.X2, cuboid.Y2, cuboid.Z2);
+        VertexA = new(Math.Min(cuboid.X1, cuboid.X2), Math.Min(cuboid.Y1, cuboid.Y2), Math.Min(cuboid.Z1, cuboid.Z2));
+        VertexB = new(Math.Max(cuboid.X1, cuboid.X2), Math.Max(cuboid.Y1, cuboid.Y2), Math.Max(cuboid.Z1, cuboid.Z2));
     }
-
     public CuboidAABBCollider(Entity entity)
     {
         Cuboidf collisionBox = entity.CollisionBox.Clone();
@@ -213,8 +221,8 @@ public readonly struct CuboidAABBCollider
         collisionBox.Y2 += (float)position.Y;
         collisionBox.Z2 += (float)position.Z;
 
-        VertexA = new(collisionBox.X1, collisionBox.Y1, collisionBox.Z1);
-        VertexB = new(collisionBox.X2, collisionBox.Y2, collisionBox.Z2);
+        VertexA = new(Math.Min(collisionBox.X1, collisionBox.X2), Math.Min(collisionBox.Y1, collisionBox.Y2), Math.Min(collisionBox.Z1, collisionBox.Z2));
+        VertexB = new(Math.Max(collisionBox.X1, collisionBox.X2), Math.Max(collisionBox.Y1, collisionBox.Y2), Math.Max(collisionBox.Z1, collisionBox.Z2));
     }
 
     public bool Collide(Vector3d segmentStart, Vector3d segmentDirection, out double parameter)
@@ -278,44 +286,273 @@ public readonly struct CuboidAABBCollider
 
         return true;
     }
-
-    public bool CollideRough(Vector3d thisTickOrigin, Vector3d previousTickOrigin, double radius, out Vector3d intersection)
+    public bool Collide(Vector3d origin, double radius, out Vector3d intersection)
     {
-        Vector3d origin = (thisTickOrigin + previousTickOrigin) / 2;
-        double maxRadius = (thisTickOrigin - previousTickOrigin).Length / 2f + radius;
-
         intersection = new(
             Math.Clamp(origin.X, Math.Min(VertexA.X, VertexB.X), Math.Max(VertexA.X, VertexB.X)),
             Math.Clamp(origin.Y, Math.Min(VertexA.Y, VertexB.Y), Math.Max(VertexA.Y, VertexB.Y)),
             Math.Clamp(origin.Z, Math.Min(VertexA.Z, VertexB.Z), Math.Max(VertexA.Z, VertexB.Z))
         );
 
-        double distanceSquared = Vector3d.DistanceSquared(thisTickOrigin, intersection);
-
-        return distanceSquared <= maxRadius * maxRadius;
-    }
-    public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, double radius, out Vector3d intersection)
-    {
-        intersection = new(
-            Math.Clamp(thisTickOrigin.X, Math.Min(VertexA.X, VertexB.X), Math.Max(VertexA.X, VertexB.X)),
-            Math.Clamp(thisTickOrigin.Y, Math.Min(VertexA.Y, VertexB.Y), Math.Max(VertexA.Y, VertexB.Y)),
-            Math.Clamp(thisTickOrigin.Z, Math.Min(VertexA.Z, VertexB.Z), Math.Max(VertexA.Z, VertexB.Z))
-        );
-
-        Vector3d origin = ClosestPointOnSegment(thisTickOrigin, previousTickOrigin, intersection);
-
         double distanceSquared = Vector3d.DistanceSquared(origin, intersection);
 
         return distanceSquared <= radius * radius;
     }
+    public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, double radius, out Vector3d intersection)
+    {
+        if ((thisTickOrigin - previousTickOrigin).LengthSquared < radius / 2)
+        {
+            bool collided = Collide(thisTickOrigin, radius, out _);
 
-    public static Vector3d ClosestPointOnSegment(Vector3d a, Vector3d b, Vector3d p)
+            intersection = thisTickOrigin;
+
+            return collided;
+        }
+        
+        bool intersects = SegmentIntersectsAABB(previousTickOrigin, thisTickOrigin, VertexA, VertexB, out Vector3d intersectionStart, out Vector3d intersectionEnd, out Vector3d closestPointOnSegment, out Vector3d closestPointOnBox);
+
+        if (intersects)
+        {
+            intersection = intersectionStart - (intersectionEnd - intersectionStart).Normalized() * radius;
+#if DEBUG
+            //_api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), new(intersection.X, intersection.Y, intersection.Z), new(intersection.X, intersection.Y, intersection.Z), new Vec3f(), new Vec3f(), 3, 0, 1.0f, EnumParticleModel.Cube);            
+#endif
+            //Debug.WriteLine($"Dist 0");
+            //Debug.WriteLine("HIT");
+
+            return true;
+        }
+        else
+        {
+            intersection = closestPointOnSegment;
+        }
+
+        double distanceSquared = Vector3d.DistanceSquared(intersection, closestPointOnBox);
+#if DEBUG
+        //_api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), new(intersection.X, intersection.Y, intersection.Z), new(intersection.X, intersection.Y, intersection.Z), new Vec3f(), new Vec3f(), 3, 0, 1.0f, EnumParticleModel.Cube);
+#endif
+
+        //Debug.WriteLine($"Dist {Math.Sqrt(distanceSquared)} < {radius}");
+
+        if (distanceSquared <= radius * radius)
+        {
+            //Debug.WriteLine("HIT");
+        }
+
+        return distanceSquared <= radius * radius;
+    }
+    public static bool CollideWithTerrain(
+        IBlockAccessor blockAccessor,
+        Vector3d thisTickOrigin,
+        Vector3d previousTickOrigin,
+        double radius,
+        out Vector3d intersection,
+        out Vector3d normal,
+        out BlockFacing? facing,
+        out Block? block,
+        out BlockPos? blockPosition)
+    {
+        int minX = (int)(Math.Min(thisTickOrigin.X, previousTickOrigin.X) - radius);
+        int minY = (int)(Math.Min(thisTickOrigin.Y, previousTickOrigin.Y) - radius);
+        int minZ = (int)(Math.Min(thisTickOrigin.Z, previousTickOrigin.Z) - radius);
+
+        int maxX = (int)(Math.Max(thisTickOrigin.X, previousTickOrigin.X) + radius);
+        int maxY = (int)(Math.Max(thisTickOrigin.Y, previousTickOrigin.Y) + radius);
+        int maxZ = (int)(Math.Max(thisTickOrigin.Z, previousTickOrigin.Z) + radius);
+
+        blockPosition = null;
+        BlockPos blockPos = _blockPosBuffer;
+        Vec3d blockPosVec = _vecBuffer;
+        block = null;
+        facing = null;
+        intersection = new();
+        normal = new();
+        double shortestDistance = double.MaxValue;
+        for (int y = minY; y <= maxY; y++)
+        {
+            blockPos.SetAndCorrectDimension(minX, y, minZ);
+            blockPosVec.Set(minX, y, minZ);
+            for (int x = minX; x <= maxX; x++)
+            {
+                blockPos.X = x;
+                blockPosVec.X = x;
+                for (int z = minZ; z <= maxZ; z++)
+                {
+                    blockPos.Z = z;
+                    Block? blockBuffer = blockAccessor.GetBlock(blockPos, BlockLayersAccess.MostSolid);
+
+                    Cuboidf?[]? collisionBoxes = blockBuffer.GetCollisionBoxes(blockAccessor, blockPos);
+                    if (collisionBoxes == null || collisionBoxes.Length == 0) continue;
+
+                    blockPosVec.Z = z;
+                    for (int i = 0; i < collisionBoxes.Length; i++)
+                    {
+                        Cuboidf? collisionBox = collisionBoxes[i];
+
+                        if (collisionBox == null) continue;
+
+                        collisionBox = collisionBox.OffsetCopy(blockPos);
+
+                        CuboidAABBCollider collider = new(collisionBox);
+
+                        if (collider.Collide(thisTickOrigin, previousTickOrigin, radius, out Vector3d currentIntersection))
+                        {
+                            double currentDistance = (currentIntersection - previousTickOrigin).Length;
+
+                            //Debug.WriteLine(currentDistance);
+
+                            if (currentDistance < shortestDistance)
+                            {
+                                intersection = currentIntersection;
+                                shortestDistance = currentDistance;
+                                block = blockBuffer;
+                                blockPosition = blockPos.Copy();
+                                facing = collider.GetFacing(intersection - collider.Center, out normal);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return block != null;
+    }
+
+    public BlockFacing GetFacing(Vector3d direction, out Vector3d normal)
+    {
+        normal = GetIntersectingFaceNormal(VertexA, VertexB, direction);
+
+        return BlockFacing.FromNormal(new Vec3f((float)normal.X, (float)normal.Y, (float)normal.Z));
+    }
+
+    private static BlockPos _blockPosBuffer = new(0);
+    private static Vec3d _vecBuffer = new();
+#if DEBUG
+    internal static ICoreAPI? _api; // for debug
+#endif
+
+    private static Vector3d GetIntersectingFaceNormal(Vector3d min, Vector3d max, Vector3d dir)
+    {
+        // Normalize direction (optional — only needed for consistent t values)
+        dir.Normalize();
+
+        Vector3d center = (min + max) * 0.5;
+        Vector3d halfExtents = (max - min) * 0.5;
+
+        // Avoid division by zero — use double.MaxValue to represent no intersection in that axis
+        double tx = dir.X != 0 ? (Math.Sign(dir.X) * halfExtents.X) / dir.X : double.MaxValue;
+        double ty = dir.Y != 0 ? (Math.Sign(dir.Y) * halfExtents.Y) / dir.Y : double.MaxValue;
+        double tz = dir.Z != 0 ? (Math.Sign(dir.Z) * halfExtents.Z) / dir.Z : double.MaxValue;
+
+        // Pick smallest positive t
+        double t = double.MaxValue;
+        Vector3d normal = Vector3d.Zero;
+
+        if (tx > 0 && tx < t) { t = tx; normal = new Vector3d(Math.Sign(dir.X), 0, 0); }
+        if (ty > 0 && ty < t) { t = ty; normal = new Vector3d(0, Math.Sign(dir.Y), 0); }
+        if (tz > 0 && tz < t) { t = tz; normal = new Vector3d(0, 0, Math.Sign(dir.Z)); }
+
+        return normal;
+    }
+
+    private static bool SegmentIntersectsAABB(
+        Vector3d p1,
+        Vector3d p2,
+        Vector3d boxMin,
+        Vector3d boxMax,
+        out Vector3d intersectionStart,
+        out Vector3d intersectionEnd,
+        out Vector3d closestPointOnSegment,
+        out Vector3d closestPointOnBox)
+    {
+        intersectionStart = Vector3d.Zero;
+        intersectionEnd = Vector3d.Zero;
+        closestPointOnSegment = Vector3d.Zero;
+        closestPointOnBox = Vector3d.Zero;
+
+        Vector3d dir = p2 - p1;
+        Vector3d invDir = new Vector3d(
+            1.0 / (dir.X != 0.0 ? dir.X : double.Epsilon),
+            1.0 / (dir.Y != 0.0 ? dir.Y : double.Epsilon),
+            1.0 / (dir.Z != 0.0 ? dir.Z : double.Epsilon)
+        );
+
+        double tmin = (boxMin.X - p1.X) * invDir.X;
+        double tmax = (boxMax.X - p1.X) * invDir.X;
+        if (tmin > tmax) Swap(ref tmin, ref tmax);
+
+        double tymin = (boxMin.Y - p1.Y) * invDir.Y;
+        double tymax = (boxMax.Y - p1.Y) * invDir.Y;
+        if (tymin > tymax) Swap(ref tymin, ref tymax);
+
+        if (tmin > tymax || tymin > tmax)
+            return ComputeClosestPoints(out closestPointOnSegment, out closestPointOnBox);
+
+        if (tymin > tmin) tmin = tymin;
+        if (tymax < tmax) tmax = tymax;
+
+        double tzmin = (boxMin.Z - p1.Z) * invDir.Z;
+        double tzmax = (boxMax.Z - p1.Z) * invDir.Z;
+        if (tzmin > tzmax) Swap(ref tzmin, ref tzmax);
+
+        if (tmin > tzmax || tzmin > tmax)
+            return ComputeClosestPoints(out closestPointOnSegment, out closestPointOnBox);
+
+        if (tzmin > tmin) tmin = tzmin;
+        if (tzmax < tmax) tmax = tzmax;
+
+        if (tmax < 0.0 || tmin > 1.0)
+            return ComputeClosestPoints(out closestPointOnSegment, out closestPointOnBox);
+
+        double tEnter = Math.Max(0.0, tmin);
+        double tExit = Math.Min(1.0, tmax);
+
+        intersectionStart = p1 + dir * tEnter;
+        intersectionEnd = p1 + dir * tExit;
+
+        ComputeClosestPoints(out closestPointOnSegment, out closestPointOnBox);
+
+        return true;
+
+        // Closest point fallback
+        bool ComputeClosestPoints(out Vector3d closestPointOnSegment, out Vector3d closestPointOnBox)
+        {
+            // Clamp each coordinate of the segment's closest point to the box
+            Vector3d segClosest = ClosestPointOnSegmentToPoint(p1, p2, ClampPointToAABB((p1 + p2) * 0.5, boxMin, boxMax));
+            Vector3d boxClosest = ClampPointToAABB(segClosest, boxMin, boxMax);
+
+            closestPointOnSegment = segClosest;
+            closestPointOnBox = boxClosest;
+            return false;
+        }
+    }
+
+    private static Vector3d ClosestPointOnSegmentToPoint(Vector3d a, Vector3d b, Vector3d point)
     {
         Vector3d ab = b - a;
-        double t = Vector3d.Dot(p - a, ab) / ab.LengthSquared;
-        t = Math.Clamp(t, 0.0f, 1.0f);
-        return a + ab * t;
+        double t = Vector3d.Dot(point - a, ab) / ab.LengthSquared;
+
+        t = Math.Clamp(t, 0.0, 1.0);
+        return a + t * ab;
     }
+
+    private static Vector3d ClampPointToAABB(Vector3d point, Vector3d min, Vector3d max)
+    {
+        return new Vector3d(
+            Math.Clamp(point.X, min.X, max.X),
+            Math.Clamp(point.Y, min.Y, max.Y),
+            Math.Clamp(point.Z, min.Z, max.Z)
+        );
+    }
+
+    private static void Swap(ref double a, ref double b)
+    {
+        double tmp = a;
+        a = b;
+        b = tmp;
+    }
+
+    
 }
 
 public sealed class ShapeElementCollider

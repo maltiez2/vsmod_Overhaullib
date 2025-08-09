@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using OpenTK.Mathematics;
+using System.Diagnostics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
@@ -23,6 +24,33 @@ public readonly struct Angle
     public static Angle FromDegrees(float degrees) => new(degrees * GameMath.DEG2RAD);
     public static Angle FromMinutes(float minutes) => new(minutes * GameMath.DEG2RAD / 60f);
     public static Angle FromSeconds(float seconds) => new(seconds * GameMath.DEG2RAD / 3600f);
+
+    public static Angle BetweenVectors(Vector3d a, Vector3d b)
+    {
+        double dot = Vector3d.Dot(a, b);
+        double magProduct = a.Length * b.Length;
+
+        if (magProduct == 0)
+            return FromRadians(0); // Avoid division by zero if one vector is zero
+
+        // Clamp value to [-1, 1] to avoid NaN from floating point errors
+        double cosTheta = Math.Clamp(dot / magProduct, -1.0, 1.0);
+
+        return FromRadians((float)Math.Acos(cosTheta)); // Returns radians
+    }
+    public static Angle BetweenVectors(Vector3 a, Vector3 b)
+    {
+        float dot = Vector3.Dot(a, b);
+        float magProduct = a.Length * b.Length;
+
+        if (magProduct == 0)
+            return FromRadians(0); // Avoid division by zero if one vector is zero
+
+        // Clamp value to [-1, 1] to avoid NaN from floating point errors
+        float cosTheta = Math.Clamp(dot / magProduct, -1.0f, 1.0f);
+
+        return FromRadians(MathF.Acos(cosTheta)); // Returns radians
+    }
 
     public static Angle operator +(Angle a, Angle b) => new(a._value + b._value);
     public static Angle operator -(Angle a, Angle b) => new(a._value - b._value);

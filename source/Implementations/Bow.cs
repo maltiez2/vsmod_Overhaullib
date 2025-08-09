@@ -13,6 +13,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.Client.NoObf;
+using YamlDotNet.Serialization;
 
 namespace CombatOverhaul.Implementations;
 
@@ -107,19 +108,7 @@ public class BowClient : RangeWeaponClient
         AmmoSelector = ammoSelector;
         TwoHanded = Stats.TwoHanded;
 
-        api.ModLoader.GetModSystem<CombatOverhaulSystem>().SettingsLoaded += settings =>
-        {
-            AimingStats.CursorType = Enum.Parse<AimingCursorType>(settings.BowsAimingCursorType);
-            AimingStats.VerticalLimit = settings.BowsAimingVerticalLimit;
-            AimingStats.HorizontalLimit = settings.BowsAimingHorizontalLimit;
-        };
-
-        api.ModLoader.GetModSystem<CombatOverhaulSystem>().SettingsChanged += settings =>
-        {
-            AimingStats.CursorType = Enum.Parse<AimingCursorType>(settings.BowsAimingCursorType);
-            AimingStats.VerticalLimit = settings.BowsAimingVerticalLimit;
-            AimingStats.HorizontalLimit = settings.BowsAimingHorizontalLimit;
-        };
+        Settings = api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
 
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followX", () => AimingStats.AnimationFollowX, (value) => AimingStats.AnimationFollowX = value)
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followY", () => AimingStats.AnimationFollowY, (value) => AimingStats.AnimationFollowY = value)
@@ -154,6 +143,7 @@ public class BowClient : RangeWeaponClient
     protected readonly BowStats Stats;
     protected readonly AimingStats AimingStats;
     protected readonly AmmoSelector AmmoSelector;
+    protected readonly Settings Settings;
     protected AimingAnimationController? AimingAnimationController;
     protected bool AfterLoad = false;
 
@@ -175,6 +165,9 @@ public class BowClient : RangeWeaponClient
         AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, callback: LoadAnimationCallback);
         TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed);
 
+        AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.BowsAimingCursorType);
+        AimingStats.VerticalLimit = Settings.BowsAimingVerticalLimit * Stats.Aiming.VerticalLimit;
+        AimingStats.HorizontalLimit = Settings.BowsAimingHorizontalLimit * Stats.Aiming.HorizontalLimit;
         AimingSystem.ResetAim();
         AimingSystem.StartAiming(AimingStats);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
@@ -247,6 +240,9 @@ public class BowClient : RangeWeaponClient
             AimingStats aimingStats = AimingStats.Clone();
             aimingStats.AimDifficulty *= stackStats.AimingDifficulty;
 
+            AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.BowsAimingCursorType);
+            AimingStats.VerticalLimit = Settings.BowsAimingVerticalLimit * Stats.Aiming.VerticalLimit;
+            AimingStats.HorizontalLimit = Settings.BowsAimingHorizontalLimit * Stats.Aiming.HorizontalLimit;
             AimingSystem.StartAiming(aimingStats);
             AimingSystem.AimingState = WeaponAimingState.Blocked;
 
@@ -465,13 +461,15 @@ public class BowServer : RangeWeaponServer
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
+        Vector3d playerVelocity = new(player.Entity.ServerPos.Motion.X, player.Entity.ServerPos.Motion.Y, player.Entity.ServerPos.Motion.Z);
+
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
             DamageMultiplier = Stats.ArrowDamageMultiplier * stackStats.DamageMultiplier,
             DamageStrength = Stats.ArrowDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
-            Velocity = GetDirectionWithDispersion(packet.Velocity, new float[2] { Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier }) * Stats.ArrowVelocity * stackStats.ProjectileSpeed
+            Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.ArrowVelocity * stackStats.ProjectileSpeed + playerVelocity
         };
 
         ProjectileSystem.Spawn(packet.ProjectileId[0], stats, spawnStats, arrowSlot.TakeOut(1), slot.Itemstack, shooter);

@@ -187,6 +187,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
         Stats = item.Attributes.AsObject<MeleeWeaponStats>();
         AimingStats = Stats.ThrowAttack?.Aiming.ToStats();
+        if (AimingStats != null)
+        {
+            DefaultVerticalLimit = AimingStats.VerticalLimit;
+            DefaultHorizontalLimit = AimingStats.HorizontalLimit;
+        }
 
         if (Stats.OneHandedStance?.Attack != null)
         {
@@ -531,13 +536,15 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     protected readonly MeleeBlockSystemClient MeleeBlockSystem;
     protected readonly RangedWeaponSystemClient RangedWeaponSystem;
     protected readonly ClientAimingSystem AimingSystem;
+    protected readonly Settings Settings;
+    protected readonly float DefaultVerticalLimit;
+    protected readonly float DefaultHorizontalLimit;
     protected FirstPersonAnimationsBehavior? AnimationBehavior;
     protected ThirdPersonAnimationsBehavior? TpAnimationBehavior;
     protected ActionsManagerPlayerBehavior? PlayerBehavior;
     protected SoundsSynchronizerClient SoundsSystem;
     protected AimingAnimationController? AimingAnimationController;
     protected GripController? GripController;
-    protected Settings Settings;
     internal const int _maxStates = 100;
     protected const int MaxState = _maxStates;
     protected readonly MeleeWeaponStats Stats;
@@ -754,7 +761,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Block(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        bool handleEvent = !Settings.DoVanillaActionsWhileBlocking;
+        bool handleEvent = !Settings.VanillaActionsWhileBlocking;
 
         if (eventData.AltPressed) return false;
         if (!CanBlock(mainHand) && !CanParry(mainHand)) return false;
@@ -953,6 +960,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         AimingStats stats = AimingStats.Clone();
         stats.AimDifficulty *= stackStats.ThrownAimingDifficulty;
 
+        AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.ThrownWeaponsCursorType);
+        AimingStats.VerticalLimit = Settings.ThrownWeaponsAimingVerticalLimit * DefaultVerticalLimit;
+        AimingStats.HorizontalLimit = Settings.ThrownWeaponsAimingHorizontalLimit * DefaultHorizontalLimit;
         AimingSystem.StartAiming(AimingStats);
 
         AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => AimAnimationCallback(slot, mainHand));
@@ -1333,13 +1343,15 @@ public class MeleeWeaponServer : RangeWeaponServer
             return false;
         }
 
+        Vector3d playerVelocity = new(player.Entity.ServerPos.Motion.X, player.Entity.ServerPos.Motion.Y, player.Entity.ServerPos.Motion.Z);
+
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
             DamageMultiplier = 1 * stackStats.ThrownDamageMultiplier,
             DamageStrength = Stats.ThrowAttack?.DamageStrength ?? 0 + stackStats.ThrownDamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
-            Velocity = Vector3d.Normalize(new Vector3d(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2])) * (Stats.ThrowAttack?.Velocity ?? 1) * stackStats.ThrownProjectileSpeedMultiplier
+            Velocity = Vector3d.Normalize(new Vector3d(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2])) * (Stats.ThrowAttack?.Velocity ?? 1) * stackStats.ThrownProjectileSpeedMultiplier + playerVelocity
         };
 
         AssetLocation projectileCode = slot.Itemstack.Item.Code.Clone();

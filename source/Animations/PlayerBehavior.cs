@@ -214,7 +214,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     private bool _resetFov = false;
     private readonly ICoreClientAPI? _api;
     private readonly List<(AnimationRequest request, bool mainHand, bool skip, int itemId)> _playRequests = new();
-    private float _previousHeadBobbingAmplitude = 1;
+    private float _previousHeadBobbingAmplitudeFactor = 1;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
 
@@ -240,7 +240,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
             if (_resetFov)
             {
                 SetFov(1, false);
-                _player.HeadBobbingAmplitude = _previousHeadBobbingAmplitude;
+                _player.HeadBobbingAmplitude /= _previousHeadBobbingAmplitudeFactor;
+                _previousHeadBobbingAmplitudeFactor = 1;
                 _resetFov = false;
             }
             return;
@@ -289,8 +290,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
         }
 
         SetFov(frame.Player.FovMultiplier, true);
-        _previousHeadBobbingAmplitude = _player.HeadBobbingAmplitude;
-        _player.HeadBobbingAmplitude *= frame.Player.BobbingAmplitude;
+
+        _player.HeadBobbingAmplitude /= _previousHeadBobbingAmplitudeFactor;
+        _previousHeadBobbingAmplitudeFactor = frame.Player.BobbingAmplitude;
+        _player.HeadBobbingAmplitude *= _previousHeadBobbingAmplitudeFactor;
+
         _resetFov = true;
     }
     private static bool IsOwner(Entity entity) => (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;

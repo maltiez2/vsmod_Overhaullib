@@ -1,7 +1,9 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -9,6 +11,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -181,23 +184,45 @@ public class ProjectileEntity : Entity
 
         SpawnTime = TimeSpan.FromMilliseconds(World.ElapsedMilliseconds);
 
-        CollisionTestBox = SelectionBox.Clone().OmniGrowBy(0.05f);
+        CollisionTestBox = SelectionBox.Clone();//.OmniGrowBy(0.05f);
 
-        GetBehavior<EntityBehaviorPassivePhysics>().OnPhysicsTickCallback = OnPhysicsTickCallback;
-        //GetBehavior<EntityBehaviorPassivePhysics>().collisionYExtra = 0f; // Slightly cheap hax so that stones/arrows don't collid with fences
+        ProjectilePhysicsBehavior? physicsBehavior = GetBehavior<ProjectilePhysicsBehavior>();
+
+        if (physicsBehavior == null)
+        {
+            LoggerUtil.Error(Api, this, $"Projectile {Code} does not have 'ProjectilePhysicsBehavior', update this mod to support latest Overhaul lib version.");
+            return;
+        }
+
+        PhysicsBehavior = physicsBehavior;
+
+        physicsBehavior.Config.ColliderRadius = ColliderRadius;
+        physicsBehavior.OnPhysicsTickCallback = OnPhysicsTickCallback;
 
         PreviousPosition = Pos.XYZ.Clone();
         PreviousVelocity = Pos.Motion.Clone();
+        StartingPos = Pos.XYZ.Clone();
     }
     public override void OnGameTick(float dt)
     {
         base.OnGameTick(dt);
         if (ShouldDespawn) return;
 
-        EntityPos pos = SidedPos;
+        /*if (SetPosition)
+        {
+            SetPosition = false;
+            ServerPos.SetPos(NewPosition.X, NewPosition.Y, NewPosition.Z);
+            Pos.SetPos(NewPosition.X, NewPosition.Y, NewPosition.Z);
+        }*/
 
-        Stuck = Collided || CollTester.IsColliding(World.BlockAccessor, CollisionTestBox, pos.XYZ) || WatchedAttributes.GetBool("stuck");
+        if (Api.Side == EnumAppSide.Server && Stuck && !Collided)
+        {
+            WatchedAttributes.SetBool("stuck", false);
+        }
+
+        Stuck = Collided || WatchedAttributes.GetBool("stuck");
         if (Api.Side == EnumAppSide.Server) WatchedAttributes.SetBool("stuck", Stuck);
+        if (PhysicsBehavior != null) PhysicsBehavior.Stuck = Stuck;
 
         if (!Stuck)
         {
@@ -207,10 +232,10 @@ public class ProjectileEntity : Entity
         double impactSpeed = Math.Max(MotionBeforeCollide.Length(), SidedPos.Motion.Length());
         if (Stuck)
         {
-            if (Api.Side == EnumAppSide.Client)
+            /*if (Api.Side == EnumAppSide.Client)
             {
                 ServerPos.SetFrom(Pos);
-            }
+            }*/
 
             OnTerrainCollision(SidedPos, impactSpeed);
         }
@@ -300,6 +325,10 @@ public class ProjectileEntity : Entity
     protected bool BeforeCollided = false;
     protected long MsCollide = 0;
     protected Random Rand = new();
+    protected Vector3d NewPosition = new();
+    protected bool SetPosition = false;
+    protected Vec3d StartingPos = new();
+    protected ProjectilePhysicsBehavior? PhysicsBehavior;
 
     protected void OnPhysicsTickCallback(float dtFac)
     {
@@ -397,5 +426,145 @@ public class ProjectileBehavior : CollectibleBehavior
         }
 
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+    }
+}
+
+public class ProjectilePhysicsBehaviorConfig
+{
+    public double ColliderRadius { get; set; } = 0;
+    public bool CanRicochet { get; set; } = true;
+    public float MinSpeedToRicochet { get; set; } = 0.5f;
+    public float RicochetSpeedFactor { get; set; } = 0.5f;
+    public float RicochetNormalSpeedFactor { get; set; } = 0.5f;
+    public float MaxRicochetAngleDeg { get; set; } = 5;
+}
+
+public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
+{
+    public ProjectilePhysicsBehavior(Entity entity) : base(entity)
+    {
+    }
+
+    public override void Initialize(EntityProperties properties, JsonObject attributes)
+    {
+        base.Initialize(properties, attributes);
+
+        Config = attributes.AsObject<ProjectilePhysicsBehaviorConfig>();
+    }
+
+    public bool Stuck { get; set; } = false;
+
+    public ProjectilePhysicsBehaviorConfig Config { get; set; }
+
+    protected BlockPos MinPos = new(0);
+    protected BlockPos MaxPos = new(0);
+    protected BlockPos PosBuffer = new(0);
+    protected Cuboidd EntityBox = new();
+
+    protected override void applyCollision(EntityPos pos, float dtFactor)
+    {
+        Vector3d WolrdCenter = new Vector3d(512000, 0, 512000);
+
+        Vector3d CurrentPosition = new(pos.X, pos.Y, pos.Z);
+
+        if (CurrentPosition.LengthSquared == 0) return;
+
+        Vector3d PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
+        Vector3d NextPosition = CurrentPosition + PositionDelta;
+
+        //Debug.WriteLine($"{CurrentPosition - WolrdCenter} - {PositionDelta} - {NextPosition - WolrdCenter}");
+
+#if DEBUG
+        CuboidAABBCollider._api = entity.Api as ICoreServerAPI;
+        if (pos.Motion.Length() > 0.1)
+        {
+            CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
+        }
+        
+        //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
+#endif
+
+        if (CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition))
+        {
+            Angle angle = Angle.BetweenVectors(PositionDelta, normal);
+            float angleDeg = Math.Abs(angle.Degrees);
+
+            if ((angleDeg > 90 - Config.MaxRicochetAngleDeg) && (angleDeg < 90 + Config.MaxRicochetAngleDeg) && (pos.Motion.Length() > Config.MinSpeedToRicochet))
+            {
+                switch (facing.Index)
+                {
+                    case 0: // North / South
+                    case 2:
+                        pos.Motion.Z *= -Config.RicochetNormalSpeedFactor;
+                        break;
+
+                    case 1: // East / West
+                    case 3:
+                        pos.Motion.X *= -Config.RicochetNormalSpeedFactor;
+                        break;
+
+                    case 4: // Up / Down
+                    case 5:
+                        pos.Motion.Y *= -Config.RicochetNormalSpeedFactor;
+                        break;
+                }
+
+                PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
+                NextPosition = intersection + PositionDelta * (1 - (CurrentPosition - intersection).Length / (CurrentPosition - NextPosition).Length);
+
+                switch (facing.Index)
+                {
+                    case 2: // North / South
+                        NextPosition.Z = Math.Max(intersection.Z + Config.ColliderRadius, NextPosition.Z);
+                        break;
+                    case 0:
+                        NextPosition.Z = Math.Min(intersection.Z - Config.ColliderRadius, NextPosition.Z);
+                        break;
+
+                    case 1: // East / West
+                        NextPosition.X = Math.Max(intersection.X + Config.ColliderRadius, NextPosition.X);
+                        break;
+                    case 3:
+                        NextPosition.X = Math.Min(intersection.X - Config.ColliderRadius, NextPosition.X);
+                        break;
+
+                    case 4: // Up / Down
+                        NextPosition.Y = Math.Max(intersection.Y + Config.ColliderRadius, NextPosition.Y);
+                        break;
+                    case 5:
+                        NextPosition.Y = Math.Min(intersection.Y - Config.ColliderRadius, NextPosition.Y);
+                        break;
+                }
+
+                newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
+                entity.CollidedHorizontally = false;
+                entity.CollidedVertically = false;
+                (entity as ProjectileEntity)?.SetRotation();
+                pos.Motion *= Config.RicochetSpeedFactor;
+
+                entity.Api.World.PlaySoundAt(block?.Sounds?.Hit ?? block?.Sounds?.ByTool?.Values?.FirstOrDefault()?.Hit ?? block?.Sounds?.Break ?? new AssetLocation("game:sounds/player/destruct"), intersection.X, intersection.Y, intersection.Z);
+
+                return;
+            }
+            
+            newPos.Set(intersection.X, intersection.Y, intersection.Z);
+            entity.WatchedAttributes.SetBool("stuck", true);
+            entity.CollidedHorizontally = true;
+            entity.CollidedVertically = true;
+
+            block?.OnEntityCollide(entity.Api.World, entity, blockPosition, facing, pos.Motion, true);
+
+            pos.Motion *= 0;
+#if DEBUG
+            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 50), new(newPos.X, newPos.Y, newPos.Z), new(newPos.X, newPos.Y, newPos.Z), new Vec3f(), new Vec3f(), 3, 0, 1.5f, EnumParticleModel.Cube);
+#endif
+        }
+        else
+        {
+            entity.CollidedHorizontally = false;
+            entity.CollidedVertically = false;
+
+            newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
+        }
     }
 }

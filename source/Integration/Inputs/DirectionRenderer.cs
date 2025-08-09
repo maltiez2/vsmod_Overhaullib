@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+﻿using Cairo;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
@@ -15,8 +16,8 @@ public sealed class DirectionCursorRenderer : IRenderer
             _currentDirection = Math.Clamp(value, 0, NumDirections - 1);
         }
     }
-    public float CursorScale { get; set; } = 1.0f;
-    public float Alpha { get; set; } = 1.0f;
+    public float CursorScale => _settings.DirectionsCursorScale;
+    public float Alpha => _settings.DirectionsCursorTransparency;
 
     public const int NumDirections = 8;
     public const float ScaleMultiplier = 0.5f;
@@ -25,9 +26,10 @@ public sealed class DirectionCursorRenderer : IRenderer
     public int RenderRange => 9999;
 
 
-    public DirectionCursorRenderer(ICoreClientAPI api)
+    public DirectionCursorRenderer(ICoreClientAPI api, Settings settings)
     {
         _clientApi = api;
+        _settings = settings;
 
         for (int index = 0; index < NumDirections; index++)
         {
@@ -65,6 +67,7 @@ public sealed class DirectionCursorRenderer : IRenderer
     }
 
     private readonly List<LoadedTexture> _directionCursorTextures = new();
+    private readonly Settings _settings;
     private readonly ICoreClientAPI _clientApi;
     private int _currentDirection = 0;
 }

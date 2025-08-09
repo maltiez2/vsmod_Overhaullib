@@ -29,16 +29,16 @@ public class InInventoryPlayerBehavior : EntityBehavior
         }
         catch (Exception exception)
         {
-            long entityId = entity.EntityId;
+            /*long entityId = entity.EntityId;
             if (_reportedEntities.Contains(entityId)) return;
             _reportedEntities.Add(entityId);
             
-            LoggerUtil.Error(_player.Api, this, $"[OnGameTick] (entity code: {entity.Code}, class: {LoggerUtil.GetCallerTypeName(entity)}) Exception: {exception}");
+            LoggerUtil.Error(_player.Api, this, $"[OnGameTick] (entity code: {entity.Code}, class: {LoggerUtil.GetCallerTypeName(entity)}) Exception: {exception}");*/
         }
     }
 
     private readonly EntityPlayer _player;
-    internal static readonly List<long> _reportedEntities = new();
+    internal static readonly List<long> _reportedEntities = [];
 
     private bool ProcessSlot(ItemSlot slot)
     {
