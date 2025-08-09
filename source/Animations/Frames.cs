@@ -25,9 +25,9 @@ public readonly struct PlayerItemFrame
     public static readonly PlayerItemFrame Zero = new(PlayerFrame.Zero, null);
     public static readonly PlayerItemFrame Empty = new(PlayerFrame.Empty, null);
 
-    public void Apply(ElementPose pose, Vector3 eyePosition, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
+    public void Apply(ElementPose pose, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
     {
-        Player.Apply(pose, eyePosition, cameraPitch, applyCameraPitch, overrideTorso);
+        Player.Apply(pose, eyePosition, eyeHeight, cameraPitch, applyCameraPitch, overrideTorso);
         Item?.Apply(pose);
     }
 
@@ -460,7 +460,6 @@ public readonly struct PlayerFrame
     public const float DefaultPitchFollow = 0.8f;
     public const float PerfectPitchFollow = 1.0f;
     public const float Epsilon = 1E-6f;
-    public const float DefaultEyesHeight = 1.7f;
     public const float EyeHeightToAnimationDistanceMultiplier = 16.1f;
     public const float PitchAngleMin = -45;
     public const float PitchAngleMax = 75;
@@ -496,7 +495,7 @@ public readonly struct PlayerFrame
     public static readonly PlayerFrame Zero = new(RightHandFrame.Zero, LeftHandFrame.Zero, OtherPartsFrame.Zero);
     public static readonly PlayerFrame Empty = new();
 
-    public void Apply(ElementPose pose, Vector3 eyePosition, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
+    public void Apply(ElementPose pose, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
     {
         switch (pose.ForElement.Name)
         {
@@ -522,19 +521,19 @@ public readonly struct PlayerFrame
                 {
                     if (LowerTorso != null)
                     {
-                        AnimationElement torso = new(LowerTorso?.OffsetX, (eyePosition.Y - DefaultEyesHeight) * EyeHeightToAnimationDistanceMultiplier, LowerTorso?.OffsetZ, LowerTorso?.RotationX, LowerTorso?.RotationY, LowerTorso?.RotationZ);
+                        AnimationElement torso = new(LowerTorso?.OffsetX, (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier, LowerTorso?.OffsetZ, LowerTorso?.RotationX, LowerTorso?.RotationY, LowerTorso?.RotationZ);
                         torso.Apply(pose);
                     }
                     else
                     {
-                        AnimationElement torso = new(0, (eyePosition.Y - DefaultEyesHeight) * EyeHeightToAnimationDistanceMultiplier, 0, 0, 0, 0);
+                        AnimationElement torso = new(0, (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier, 0, 0, 0, 0);
                         torso.Apply(pose);
                     }
                 }
                 else
                 {
                     LowerTorso?.Apply(pose);
-                    pose.translateY = (eyePosition.Y - DefaultEyesHeight) * EyeHeightToAnimationDistanceMultiplier / 16;
+                    pose.translateY = (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier / 16;
                 }
                 break;
             default:
