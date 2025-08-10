@@ -3,7 +3,6 @@ using ImGuiNET;
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
-using VSImGui.Debug;
 
 namespace CombatOverhaul.Animations;
 
@@ -115,10 +114,10 @@ public readonly struct ParticlesFrame
         float time = DurationFraction * (float)totalDuration.TotalMilliseconds;
         ImGui.InputFloat($"Time##{title}", ref time);
 
-        var position = Position.toSystem();
+        System.Numerics.Vector3 position = Position.toSystem();
         ImGui.DragFloat3($"Position ##{title}", ref position);
 
-        var velocity = Velocity.toSystem();
+        System.Numerics.Vector3 velocity = Velocity.toSystem();
         ImGui.DragFloat3($"Velocity ##{title}", ref velocity);
 
         float intensity = Intensity;
@@ -407,37 +406,69 @@ public readonly struct PLayerKeyFrame
     public readonly PlayerFrame Frame;
     public readonly TimeSpan Time;
     public readonly EasingFunctionType EasingFunction;
+    public readonly EasingFunctionType EasingType;
+    public readonly Vector2 FrameProgressRange;
+
+    public PLayerKeyFrame(PlayerFrame frame, TimeSpan easingTime, EasingFunctionType easeFunction, EasingFunctionType easingType, Vector2 frameProgressRange)
+    {
+        Frame = frame;
+        Time = easingTime;
+        EasingFunction = easeFunction;
+        EasingType = easingType;
+        FrameProgressRange = frameProgressRange;
+    }
 
     public PLayerKeyFrame(PlayerFrame frame, TimeSpan easingTime, EasingFunctionType easeFunction)
     {
         Frame = frame;
         Time = easingTime;
         EasingFunction = easeFunction;
+        EasingType = easeFunction;
+        FrameProgressRange = new(0, 1);
     }
 
     public static readonly PLayerKeyFrame Zero = new(PlayerFrame.Zero, TimeSpan.Zero, EasingFunctionType.Linear);
 
     public PlayerFrame Interpolate(PlayerFrame frame, float frameProgress)
     {
-        float interpolatedProgress = EasingFunctions.Get(EasingFunction).Invoke((float)frameProgress);
+        float interpolatedProgress = GetInterpolatedProgress(frameProgress);
+
+
         return PlayerFrame.Interpolate(frame, Frame, interpolatedProgress);
     }
 
     public bool Reached(TimeSpan currentDuration) => currentDuration >= Time;
 
+    private float GetInterpolatedProgress(float frameProgress)
+    {
+        EasingFunctions.EasingFunctionDelegate easingFunction = EasingFunctions.Get(EasingFunction);
+        float currentProgress = easingFunction.Invoke(GetAdjustedFrameProgress(frameProgress));
+        float startProgress = easingFunction.Invoke(FrameProgressRange.X);
+        float endProgress = easingFunction.Invoke(FrameProgressRange.Y);
+
+        return (currentProgress - startProgress) / (endProgress - startProgress);
+    }
+
+    private float GetAdjustedFrameProgress(float frameProgress)
+    {
+        return FrameProgressRange.X + frameProgress * (FrameProgressRange.Y - FrameProgressRange.X);
+    }
+
 #if DEBUG
-    public PLayerKeyFrame Edit(string title)
+    public PLayerKeyFrame Edit(string title, out bool easingFunctionChanged)
     {
         int milliseconds = (int)Time.TotalMilliseconds;
         ImGui.DragInt($"Easing time##{title}", ref milliseconds);
 
-        EasingFunctionType function = VSImGui.EnumEditor<EasingFunctionType>.Combo($"Easing function##{title}", EasingFunction);
+        EasingFunctionType function = VSImGui.EnumEditor<EasingFunctionType>.Combo($"Easing function##{title}", EasingType);
 
         ImGui.SeparatorText("Key frame");
 
         PlayerFrame frame = Frame.Edit(title);
 
-        return new(frame, TimeSpan.FromMilliseconds(milliseconds), function);
+        easingFunctionChanged = function != EasingType;
+
+        return new(frame, TimeSpan.FromMilliseconds(milliseconds), EasingFunction, function, FrameProgressRange);
     }
 #endif
 }

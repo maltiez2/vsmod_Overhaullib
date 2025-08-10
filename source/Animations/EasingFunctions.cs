@@ -44,6 +44,7 @@ namespace CombatOverhaul.Animations;
 /// </remarks>
 public enum EasingFunctionType
 {
+    Skip,
     /// <summary>
     /// Animation speed stays the same through whole animation.
     ///  <seealso href="https://www.wolframalpha.com/input?i=plot+x+from+0+to+1">Progress curve</seealso>.

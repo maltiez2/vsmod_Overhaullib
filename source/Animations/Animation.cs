@@ -32,6 +32,7 @@ public sealed class Animation
         SoundFrames.Sort((x, y) => (int)((x.DurationFraction - y.DurationFraction) * 1E6f));
 
         ItemAnimationEnd = TotalDuration;
+        ProcessPlayerKeyFrames();
     }
     public Animation(IEnumerable<PLayerKeyFrame> playerFrames, IEnumerable<ItemKeyFrame> itemFrames)
     {
@@ -44,6 +45,7 @@ public sealed class Animation
         ItemKeyFrames.Sort((x, y) => (int)((x.DurationFraction - y.DurationFraction) * 1E6f));
 
         ItemAnimationEnd = TotalDuration;
+        ProcessPlayerKeyFrames();
     }
     public Animation(IEnumerable<PLayerKeyFrame> playerFrames)
     {
@@ -55,6 +57,7 @@ public sealed class Animation
         ItemKeyFrames.Sort((x, y) => (int)((x.DurationFraction - y.DurationFraction) * 1E6f));
 
         ItemAnimationEnd = TotalDuration;
+        ProcessPlayerKeyFrames();
     }
     public Animation(IEnumerable<PLayerKeyFrame> playerFrames, string itemAnimation, Shape itemShape)
     {
@@ -67,6 +70,7 @@ public sealed class Animation
         ItemKeyFrames.Sort((x, y) => (int)((x.DurationFraction - y.DurationFraction) * 1E6f));
 
         ItemAnimationEnd = TotalDuration;
+        ProcessPlayerKeyFrames();
     }
 
     public static readonly Animation Zero = new(new PLayerKeyFrame[] { PLayerKeyFrame.Zero });
@@ -283,6 +287,55 @@ public sealed class Animation
             return PlayerKeyFrames[nextPlayerKeyFrame].Interpolate(PlayerKeyFrames[nextPlayerKeyFrame - 1].Frame, frameProgress);
         }
     }
+    private void ProcessPlayerKeyFrames()
+    {
+        int skipCount = 0;
+        for (int index = 0; index < PlayerKeyFrames.Count; index++)
+        {
+            if (PlayerKeyFrames[index].EasingType == EasingFunctionType.Skip)
+            {
+                skipCount++;
+                continue;
+            }
+
+            if (skipCount > 0)
+            {
+                ProcessPlayerKeyFrames(index, skipCount);
+                skipCount = 0;
+            }
+        }
+    }
+    private void ProcessPlayerKeyFrames(int endIndex, int skipCount)
+    {
+        TimeSpan startTime;
+        TimeSpan endTime = PlayerKeyFrames[endIndex].Time;
+        if (endIndex == skipCount)
+        {
+            startTime = TimeSpan.Zero;
+        }
+        else
+        {
+            startTime = PlayerKeyFrames[endIndex - skipCount].Time;
+        }
+
+        TimeSpan duration = endTime - startTime;
+        EasingFunctionType easingFunction = PlayerKeyFrames[endIndex].EasingType;
+        TimeSpan previousFrameTime = startTime;
+
+        for (int index = endIndex - skipCount; index <= endIndex; index++)
+        {
+            PLayerKeyFrame oldFrame = PlayerKeyFrames[index];
+
+            double startProgress = previousFrameTime / duration;
+            double endProgress = oldFrame.Time / duration;
+
+            PLayerKeyFrame newFrame = new(oldFrame.Frame, oldFrame.Time, easingFunction, oldFrame.EasingType, new((float)startProgress, (float)endProgress));
+            PlayerKeyFrames[index] = newFrame;
+
+            previousFrameTime = oldFrame.Time;
+        }
+    }
+
 #if DEBUG
     private void EditPlayerAnimation(string title)
     {
@@ -294,12 +347,14 @@ public sealed class Animation
             if (ImGui.Button($"Remove##{title}"))
             {
                 PlayerKeyFrames.RemoveAt(_playerFrameIndex);
+                ProcessPlayerKeyFrames();
             }
             ImGui.SameLine();
             if (ImGui.Button($"Duplicate##{title}"))
             {
                 PlayerKeyFrames.Insert(_playerFrameIndex + 1, PlayerKeyFrames[_playerFrameIndex]);
                 _playerFrameIndex++;
+                ProcessPlayerKeyFrames();
             }
             ImGui.SameLine();
         }
@@ -310,6 +365,7 @@ public sealed class Animation
         if (ImGui.Button($"Insert##{title}"))
         {
             PlayerKeyFrames.Insert(_playerFrameIndex, new(PlayerFrame.Zero, TimeSpan.Zero, EasingFunctionType.Linear));
+            ProcessPlayerKeyFrames();
         }
 
         if (PlayerKeyFrames.Count > 0) ImGui.SliderInt($"Key frame##{title}", ref _playerFrameIndex, 0, PlayerKeyFrames.Count - 1);
@@ -318,8 +374,12 @@ public sealed class Animation
 
         if (PlayerKeyFrames.Count > 0)
         {
-            PLayerKeyFrame frame = PlayerKeyFrames[_playerFrameIndex].Edit(title);
+            PLayerKeyFrame frame = PlayerKeyFrames[_playerFrameIndex].Edit(title, out bool easingFunctionChanged);
             PlayerKeyFrames[_playerFrameIndex] = frame;
+            if (easingFunctionChanged)
+            {
+                ProcessPlayerKeyFrames();
+            }
         }
 
         _playerFrameEdited = true;
@@ -645,7 +705,7 @@ public sealed class PLayerKeyFrameJson
         PLayerKeyFrameJson result = new()
         {
             EasingTime = (float)frame.Time.TotalMilliseconds,
-            EasingFunction = frame.EasingFunction.ToString(),
+            EasingFunction = frame.EasingType.ToString(),
             DetachedAnchor = frame.Frame.DetachedAnchor,
             SwitchArms = frame.Frame.SwitchArms,
             PitchFollow = Math.Abs(frame.Frame.PitchFollow - PlayerFrame.PerfectPitchFollow) < PlayerFrame.Epsilon,
