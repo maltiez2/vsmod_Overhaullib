@@ -304,6 +304,11 @@ public sealed class Animation
                 skipCount = 0;
             }
         }
+        PLayerKeyFrame lastFrame = PlayerKeyFrames[PlayerKeyFrames.Count - 1];
+        if (lastFrame.EasingType == EasingFunctionType.Skip)
+        {
+            PlayerKeyFrames[PlayerKeyFrames.Count - 1] = new(lastFrame.Frame, lastFrame.Time, lastFrame.EasingFunction, lastFrame.EasingType, lastFrame.FrameProgressRange);
+        }
     }
     private void ProcessPlayerKeyFrames(int endIndex, int skipCount)
     {
