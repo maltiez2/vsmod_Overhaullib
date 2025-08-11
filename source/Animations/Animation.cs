@@ -320,7 +320,7 @@ public sealed class Animation
         }
         else
         {
-            startTime = PlayerKeyFrames[endIndex - skipCount].Time;
+            startTime = PlayerKeyFrames[endIndex - skipCount - 1].Time;
         }
 
         TimeSpan duration = endTime - startTime;
@@ -381,10 +381,12 @@ public sealed class Animation
         {
             PLayerKeyFrame frame = PlayerKeyFrames[_playerFrameIndex].Edit(title, out bool easingFunctionChanged);
             PlayerKeyFrames[_playerFrameIndex] = frame;
-            if (easingFunctionChanged)
+            /*if (easingFunctionChanged)
             {
                 ProcessPlayerKeyFrames();
-            }
+            }*/
+
+            ProcessPlayerKeyFrames();
         }
 
         _playerFrameEdited = true;

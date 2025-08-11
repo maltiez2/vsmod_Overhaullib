@@ -38,9 +38,13 @@ public sealed class Settings
     public float ThrownWeaponsAimingHorizontalLimit { get; set; } = 0.125f;
     public float ThrownWeaponsAimingVerticalLimit { get; set; } = 0.25f;
 
-    public bool PrintProjectilesHits { get; set; } = false;
+    public string SlingsAimingCursorType { get; set; } = "Fixed";
+    public float SlingsAimingHorizontalLimit { get; set; } = 0.125f;
+    public float SlingsAimingVerticalLimit { get; set; } = 0.35f;
+
+    public bool PrintRangeHits { get; set; } = false;
     public bool PrintMeleeHits { get; set; } = false;
-    public bool PrintPlayerBeingHit { get; set; } = false;
+    public bool PrintPlayerHits { get; set; } = false;
 
     public float DirectionsSensitivity { get; set; } = 1f;
     public bool DirectionsInvert { get; set; } = false;
@@ -128,6 +132,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:TexturesFromAttributes", typeof(TexturesFromAttributes));
 
         api.RegisterItemClass("CombatOverhaul:Bow", typeof(BowItem));
+        api.RegisterItemClass("CombatOverhaul:Sling", typeof(SlingItem));
         api.RegisterItemClass("CombatOverhaul:MeleeWeapon", typeof(MeleeWeapon));
         api.RegisterItemClass("CombatOverhaul:StanceBasedMeleeWeapon", typeof(StanceBasedMeleeWeapon));
         api.RegisterItemClass("CombatOverhaul:VanillaShield", typeof(VanillaShield));

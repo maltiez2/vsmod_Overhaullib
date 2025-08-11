@@ -468,7 +468,14 @@ public readonly struct PLayerKeyFrame
 
         easingFunctionChanged = function != EasingType;
 
-        return new(frame, TimeSpan.FromMilliseconds(milliseconds), EasingFunction, function, FrameProgressRange);
+        EasingFunctionType oldFunction = EasingFunction;
+
+        if (function != EasingFunctionType.Skip)
+        {
+            oldFunction = function;
+        }
+
+        return new(frame, TimeSpan.FromMilliseconds(milliseconds), oldFunction, function, FrameProgressRange);
     }
 #endif
 }

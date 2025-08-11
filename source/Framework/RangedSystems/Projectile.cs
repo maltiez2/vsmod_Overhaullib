@@ -25,7 +25,7 @@ public sealed class ProjectileServer
         _shooter = _api.World.GetEntityById(spawnStats.ProducerEntityId);
 
         _system = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().ServerProjectileSystem ?? throw new Exception();
-        _printIntoChat = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings.PrintProjectilesHits;
+        _settings = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
 
         _entity = projectile;
         _entity.ClearCallback = clearCallback;
@@ -78,7 +78,7 @@ public sealed class ProjectileServer
     private readonly Entity _shooter;
     private readonly ICoreAPI _api;
     private readonly ProjectileSystemServer _system;
-    private readonly bool _printIntoChat = false;
+    private readonly Settings _settings;
 
     private bool Attack(Entity attacker, Entity target, Vector3d position, string collider, double relativeSpeed)
     {
@@ -115,7 +115,7 @@ public sealed class ProjectileServer
 
         bool received = damageReceived || damage <= 0;
 
-        if (_printIntoChat && collider != "")
+        if (_settings.PrintRangeHits && collider != "")
         {
             CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
             ColliderTypes ColliderType = colliders?.CollidersTypes[collider] ?? ColliderTypes.Torso;
@@ -478,7 +478,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
         CuboidAABBCollider._api = entity.Api as ICoreServerAPI;
         if (pos.Motion.Length() > 0.1)
         {
-            CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
+            //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
         }
         
         //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
