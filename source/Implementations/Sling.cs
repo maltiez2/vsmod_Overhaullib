@@ -44,6 +44,7 @@ public sealed class SlingStats : WeaponStats
     public float MaxSwingSpeed { get; set; } = 1;
     public float MinSwingSpeed { get; set; } = 0.5f;
     public float SwingSpeedPerSwing { get; set; } = 0.11f;
+    public float SwingAnimationSpeed { get; set; } = 1f;
 }
 
 public class SlingClient : RangeWeaponClient
@@ -195,7 +196,7 @@ public class SlingClient : RangeWeaponClient
 
         AnimationRequestByCode request = new(
             AfterLoad ? Stats.WindUpAfterLoadAnimation : Stats.WindUpAnimation,
-            GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed,
+            1,
             1,
             "main",
             TimeSpan.FromSeconds(0.2),
@@ -241,7 +242,7 @@ public class SlingClient : RangeWeaponClient
             AimingSystem.AimingState = WeaponAimingState.PartCharge;
             CurrentSwingSpeed = Stats.MinSwingSpeed;
 
-            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
+            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
 
@@ -256,7 +257,7 @@ public class SlingClient : RangeWeaponClient
             Released = false;
             SetState(SlingState.Releasing, true);
 
-            AnimationRequestByCode request = new(Stats.ReleaseAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => ShootCallback(slot, player, mainHand), code => ShootCallback(code, slot, player, mainHand));
+            AnimationRequestByCode request = new(Stats.ReleaseAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => ShootCallback(slot, player, mainHand), code => ShootCallback(code, slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
         }
@@ -265,7 +266,7 @@ public class SlingClient : RangeWeaponClient
         {
             CurrentSwingSpeed = GameMath.Clamp(CurrentSwingSpeed + Stats.SwingSpeedPerSwing, Stats.MinSwingSpeed, Stats.MaxSwingSpeed);
 
-            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
+            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
             
@@ -349,11 +350,12 @@ public class SlingClient : RangeWeaponClient
 
     protected virtual byte[] GetAdditionalData(ItemSlot slot, EntityPlayer player, bool mainHand)
     {
-        float damageMultiplier = CurrentSwingSpeed / Stats.MaxSwingSpeed;
+        float swingSpeed = CurrentSwingSpeed / Stats.MaxSwingSpeed;
         
         MemoryStream stream = new();
         BinaryWriter writer = new(stream);
-        writer.Write(damageMultiplier);
+        writer.Write(swingSpeed);
+        writer.Write(GetAnimationSpeed(player, Stats.ProficiencyStat));
         return stream.ToArray();
     }
 
@@ -443,15 +445,17 @@ public class SlingServer : RangeWeaponServer
 
         Vector3d playerVelocity = new(player.Entity.ServerPos.Motion.X, player.Entity.ServerPos.Motion.Y, player.Entity.ServerPos.Motion.Z);
 
-        float damageMultiplier = GetDamageMultiplier(packet);
+        GetDamageMultiplier(packet, out float swingSpeed, out float manipulationSpeed);
+
+        float speedFactor = MathF.Sqrt(swingSpeed * manipulationSpeed);
 
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
-            DamageMultiplier = Stats.BulletDamageMultiplier * stackStats.DamageMultiplier * damageMultiplier,
+            DamageMultiplier = Stats.BulletDamageMultiplier * stackStats.DamageMultiplier * swingSpeed * manipulationSpeed,
             DamageStrength = Stats.BulletDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
-            Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.BulletVelocity * stackStats.ProjectileSpeed * damageMultiplier + playerVelocity
+            Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.BulletVelocity * stackStats.ProjectileSpeed * speedFactor + playerVelocity
         };
 
         ProjectileSystem.Spawn(packet.ProjectileId[0], stats, spawnStats, arrowSlot.TakeOut(1), slot.Itemstack, shooter);
@@ -463,11 +467,12 @@ public class SlingServer : RangeWeaponServer
         return true;
     }
 
-    protected virtual float GetDamageMultiplier(ShotPacket packet)
+    protected virtual void GetDamageMultiplier(ShotPacket packet, out float swingSpeed, out float manipulationSpeed)
     {
         MemoryStream stream = new(packet.Data);
         BinaryReader writer = new(stream);
-        return writer.ReadSingle();
+        swingSpeed = writer.ReadSingle();
+        manipulationSpeed = writer.ReadSingle();
     }
 
     protected readonly Dictionary<long, (InventoryBase, int)> BulletSlots = new();
