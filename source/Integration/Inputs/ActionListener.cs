@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Vintagestory.API.Client;
+﻿using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 
 namespace CombatOverhaul.Inputs;
@@ -71,6 +70,7 @@ public readonly struct ActionEventData
     {
         Action = action;
         Modifiers = modifiers;
+        AltPressed = altPressed;
     }
 }
 

@@ -14,6 +14,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Implementations;
 
@@ -993,7 +994,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     protected virtual bool Bash(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
         if (eventData.AltPressed) return false;
-        //if (!mainHand && CanAttackWithOtherHand(player, mainHand)) return false;
         EnsureStance(player, mainHand);
         if (!CanBash(mainHand)) return false;
         if (IsAttackOnCooldown(mainHand)) return false;
@@ -1027,7 +1027,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
                     float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
                     SetState(MeleeWeaponState.BlockBashWindingUp, mainHand);
-                    MeleeBlockSystem.StopBlock(mainHand);
                     ParryButtonReleased = true;
                     attack.Start(player.Player);
                     handle?.Start(player.Player);
@@ -1036,7 +1035,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                         attackAnimation,
                         animationSpeed: animationSpeed,
                         category: AnimationCategory(mainHand),
-                        callback: () => BashAnimationCallback(mainHand),
+                        callback: () => BashAnimationCallback(slot, player, mainHand),
                         callbackHandler: code => BashAnimationCallbackHandler(code, mainHand));
                     TpAnimationBehavior?.Play(
                         mainHand,
@@ -1064,6 +1063,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             default:
                 return false;
         }
+
+        SetSpeedPenalty(mainHand, player);
 
         return true;
     }
@@ -1111,17 +1112,33 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             Api.World.AddCameraShake(Stats.ScreenShakeStrength);
         }
     }
-    protected virtual bool BashAnimationCallback(bool mainHand)
+    protected virtual bool BashAnimationCallback(ItemSlot slot, EntityPlayer player, bool mainHand)
     {
-        if (CheckState(mainHand, MeleeWeaponState.BlockBashCooldown, MeleeWeaponState.BlockBashAttacking, MeleeWeaponState.BlockBashWindingUp))
-        {
-            SetState(MeleeWeaponState.Idle, mainHand);
-        }
+        bool rightMouseDown = PlayerActionsBehavior?.ActionListener.IsActive(EnumEntityAction.RightMouseDown) == true;
 
-        if (CheckState(mainHand, MeleeWeaponState.Idle))
+        if (!rightMouseDown)
         {
-            AnimationBehavior?.PlayReadyAnimation(mainHand);
-            TpAnimationBehavior?.PlayReadyAnimation(mainHand);
+            if (CheckState(mainHand, MeleeWeaponState.BlockBashCooldown, MeleeWeaponState.BlockBashAttacking, MeleeWeaponState.BlockBashWindingUp))
+            {
+                SetState(MeleeWeaponState.Idle, mainHand);
+            }
+
+            if (CheckState(mainHand, MeleeWeaponState.Idle))
+            {
+                AnimationBehavior?.PlayReadyAnimation(mainHand);
+                TpAnimationBehavior?.PlayReadyAnimation(mainHand);
+            }
+
+            MeleeBlockSystem.StopBlock(mainHand);
+        }
+        else
+        {
+            if (CheckState(mainHand, MeleeWeaponState.BlockBashCooldown, MeleeWeaponState.BlockBashAttacking, MeleeWeaponState.BlockBashWindingUp))
+            {
+                SetState(MeleeWeaponState.Blocking, mainHand);
+            }
+
+            ReturnToBlock(slot, player, mainHand);
         }
 
         if (mainHand)
@@ -1137,6 +1154,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     }
     protected virtual void BashAnimationCallbackHandler(string callbackCode, bool mainHand)
     {
+        bool rightMouseDown = PlayerActionsBehavior?.ActionListener.IsActive(EnumEntityAction.RightMouseDown) == true;
+
         switch (callbackCode)
         {
             case "start":
@@ -1146,9 +1165,52 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 SetState(MeleeWeaponState.BlockBashCooldown, mainHand);
                 break;
             case "ready":
-                SetState(MeleeWeaponState.Idle, mainHand);
+                SetState(rightMouseDown ? MeleeWeaponState.BlockBashCooldown : MeleeWeaponState.Idle, mainHand);
                 break;
         }
+    }
+    protected virtual void ReturnToBlock(ItemSlot slot, EntityPlayer player, bool mainHand)
+    {
+        StanceStats? stats = GetStanceStats(mainHand);
+        DamageBlockJson? parryStats = stats?.Parry?.Clone();
+        DamageBlockJson? blockStats = stats?.Block?.Clone();
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
+
+        if (parryStats?.BlockTier != null)
+        {
+            foreach ((string damageType, float tier) in parryStats.BlockTier)
+            {
+                parryStats.BlockTier[damageType] += stackStats.ParryTierBonus;
+            }
+        }
+
+        if (blockStats?.BlockTier != null)
+        {
+            foreach ((string damageType, float tier) in blockStats.BlockTier)
+            {
+                blockStats.BlockTier[damageType] += stackStats.BlockTierBonus;
+            }
+        }
+
+        if (CanBlock(mainHand) && blockStats != null && stats != null)
+        {
+            SetState(MeleeWeaponState.Blocking, mainHand);
+            MeleeBlockSystem.StartBlock(blockStats, mainHand);
+            AnimationBehavior?.Play(
+                mainHand,
+                stats.BlockAnimation,
+                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                category: AnimationCategory(mainHand),
+                callback: () => BlockAnimationCallback(mainHand, player),
+                callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats));
+            TpAnimationBehavior?.Play(
+                mainHand,
+                stats.BlockAnimation,
+                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                category: AnimationCategory(mainHand));
+        }
+
+        SetSpeedPenalty(mainHand, player);
     }
 
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
