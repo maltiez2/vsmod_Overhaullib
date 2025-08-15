@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Integration;
+using CombatOverhaul.Utils;
 using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -112,6 +113,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     {
         if (!_mainPlayer) return;
 
+        LoggerUtil.Mark(entity.Api, "actmn-ogf-0");
+
         if (!entity.Alive)
         {
             foreach (string stat in _currentMainHandPlayerStats)
@@ -157,6 +160,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         ActionListener.SuppressLMB = SuppressLMB;
         ActionListener.SuppressRMB = SuppressRMB;
+
+        LoggerUtil.Mark(entity.Api, "actmn-ogf-1");
     }
 
     public int GetState(bool mainHand = true) => mainHand ? _mainHandState : _offHandState;

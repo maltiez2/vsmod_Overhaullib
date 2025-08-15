@@ -355,7 +355,7 @@ public sealed class ArmorInventory : InventoryCharacter
     {
         base.OnItemSlotModified(slot);
 
-        _api.World.FrameProfiler.Mark("[CO] ArmorInventory - OnItemSlotModified - Start");
+        LoggerUtil.Mark(_api, "inv-sm-0");
 
         if (slot is ClothesSlot clothesSlot)
         {
@@ -383,7 +383,7 @@ public sealed class ArmorInventory : InventoryCharacter
             OnArmorSlotModified?.Invoke();
         }
 
-        _api.World.FrameProfiler.Mark("[CO] ArmorInventory - OnItemSlotModified - Finish");
+        LoggerUtil.Mark(_api, "inv-sm-1");
     }
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {

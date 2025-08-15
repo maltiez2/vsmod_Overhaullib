@@ -3,7 +3,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using System.Diagnostics;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -11,7 +11,6 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -35,6 +34,8 @@ public sealed class ProjectileServer
 
     public void OnCollision(ProjectileCollisionPacket packet)
     {
+        LoggerUtil.Mark(_api, "prjsrv-oc-0");
+
         Entity receiver = _api.World.GetEntityById(packet.ReceiverEntity);
 
         if (receiver == null) return;
@@ -65,11 +66,15 @@ public sealed class ProjectileServer
         }
 
         _entity.OnCollisionWithEntity(receiver, packet.Collider);
+
+        LoggerUtil.Mark(_api, "prjsrv-oc-1");
     }
 
     public void TryCollide()
     {
         _system.TryCollide(_entity);
+
+        LoggerUtil.Mark(_api, "prjsrv-trcld-1");
     }
 
     private readonly ProjectileStats _stats;
@@ -196,7 +201,10 @@ public class ProjectileEntity : Entity
 
         PhysicsBehavior = physicsBehavior;
 
-        physicsBehavior.Config.ColliderRadius = ColliderRadius;
+        if (physicsBehavior.Config.ColliderRadius == 0)
+        {
+            physicsBehavior.Config.ColliderRadius = ColliderRadius;
+        }
         physicsBehavior.OnPhysicsTickCallback = OnPhysicsTickCallback;
 
         PreviousPosition = Pos.XYZ.Clone();
@@ -207,6 +215,8 @@ public class ProjectileEntity : Entity
     {
         base.OnGameTick(dt);
         if (ShouldDespawn) return;
+
+        LoggerUtil.Mark(Api, "prj-ogt-0");
 
         /*if (SetPosition)
         {
@@ -242,6 +252,8 @@ public class ProjectileEntity : Entity
 
         BeforeCollided = false;
         MotionBeforeCollide.Set(SidedPos.Motion.X, SidedPos.Motion.Y, SidedPos.Motion.Z);
+
+        LoggerUtil.Mark(Api, "prj-ogt-1");
     }
     public override bool CanCollect(Entity byEntity)
     {
@@ -454,7 +466,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
     public bool Stuck { get; set; } = false;
 
-    public ProjectilePhysicsBehaviorConfig Config { get; set; }
+    public ProjectilePhysicsBehaviorConfig Config { get; set; } = new();
 
     protected BlockPos MinPos = new(0);
     protected BlockPos MaxPos = new(0);
@@ -463,7 +475,9 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
     protected override void applyCollision(EntityPos pos, float dtFactor)
     {
-        Vector3d WolrdCenter = new Vector3d(512000, 0, 512000);
+        LoggerUtil.Mark(entity.Api, "prjphy-ac-0");
+
+        Vector3d WolrdCenter = new(512000, 0, 512000);
 
         Vector3d CurrentPosition = new(pos.X, pos.Y, pos.Z);
 
@@ -480,7 +494,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
         {
             //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
         }
-        
+
         //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
 #endif
 
@@ -546,7 +560,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
                 return;
             }
-            
+
             newPos.Set(intersection.X, intersection.Y, intersection.Z);
             entity.WatchedAttributes.SetBool("stuck", true);
             entity.CollidedHorizontally = true;
@@ -566,5 +580,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
             newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
         }
+
+        LoggerUtil.Mark(entity.Api, "prjphy-ac-1");
     }
 }

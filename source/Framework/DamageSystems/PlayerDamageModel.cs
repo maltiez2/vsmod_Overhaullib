@@ -136,9 +136,11 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
+        Utils.LoggerUtil.Mark(entity.Api, "pdm-ogt-0");
         float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
         secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
         entity.WatchedAttributes.SetFloat("secondChanceCooldown", secondChanceCooldown);
+        Utils.LoggerUtil.Mark(entity.Api, "pdm-ogt-1");
     }
 
     private readonly Settings _settings;
@@ -148,6 +150,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
+        Utils.LoggerUtil.Mark(entity.Api, "pdm-ordh-0");
+
         if (!DamageTypesToProcess.Contains(damageSource.Type)) return damage;
 
         (PlayerBodyPart detailedDamageZone, float multiplier) = DetermineHitZone(damageSource);
@@ -166,11 +170,15 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         OnReceiveDamage?.Invoke(ref damage, damageSource, detailedDamageZone);
 
+        Utils.LoggerUtil.Mark(entity.Api, "pdm-ordh-1");
+
         if (damage != 0)
         {
             string damageLogMessage = Lang.Get("combatoverhaul:damagelog-received-damage", $"{damage:F1}", Lang.Get($"combatoverhaul:detailed-damage-zone-{detailedDamageZone}"), Lang.Get($"combatoverhaul:damage-type-{damageType}"));
             PrintToDamageLog(damageLogMessage);
         }
+
+        Utils.LoggerUtil.Mark(entity.Api, "pdm-ordh-2");
 
         return damage;
     }

@@ -2,14 +2,12 @@
 using CombatOverhaul.Integration;
 using OpenTK.Mathematics;
 using PlayerModelLib;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
-using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.Colliders;
 
@@ -79,7 +77,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     public HashSet<string> ShapeElementsToProcess { get; private set; } = new();
     public Dictionary<string, ColliderTypes> CollidersTypes { get; private set; } = new();
     public Dictionary<string, ShapeElementCollider> Colliders { get; private set; } = new();
-    public override string PropertyName() => "combatoverhaul:colliders";
+    public override string PropertyName() => "CombatOverhaul:EntityColliders";
     internal ClientAnimator? Animator { get; set; }
     static public bool RenderColliders { get; set; } = false;
     public float DefaultPenetrationResistance { get; set; } = 5f;
@@ -173,6 +171,8 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     {
         if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider) return;
 
+        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-0");
+
         Animator = entity.AnimManager?.Animator as ClientAnimator;
 
         if (Animator == null) return;
@@ -205,7 +205,11 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         ProcessCollidersForCustomModel();
 
+        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-1");
+
         if (entity.IsRendered) RecalculateColliders(Animator, clientApi);
+
+        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-2");
     }
 
     public void Render(ICoreClientAPI api, EntityAgent entityPlayer, EntityShapeRenderer renderer, int color = ColorUtil.WhiteArgb)

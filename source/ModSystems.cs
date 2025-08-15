@@ -128,6 +128,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:Armor", typeof(ArmorBehavior));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:WearableWithStats", typeof(WearableWithStatsBehavior));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:GearEquipableBag", typeof(GearEquipableBag));
+        api.RegisterCollectibleBehaviorClass("CombatOverhaul:ToolBag", typeof(ToolBag));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:TextureFromAttributes", typeof(TextureFromAttributes));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:TexturesFromAttributes", typeof(TexturesFromAttributes));
 
@@ -162,6 +163,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         ServerBlockSystem = new(api);
         ServerStatsSystem = new(api);
         ServerAttachmentSystem = new(api);
+        ServerToolBagSystem = new(api);
 
         _serverToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>()
@@ -184,6 +186,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         ClientBlockSystem = new(api);
         ClientStatsSystem = new(api);
         ClientAttachmentSystem = new(api);
+        ClientToolBagSystem = new(api);
 
         api.Event.RegisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         api.Event.RegisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
@@ -245,7 +248,10 @@ public sealed class CombatOverhaulSystem : ModSystem
 
     public bool ToggleWearableItem(IPlayer player, string hotkeyCode)
     {
-        IInventory? gearInventory = player.Entity.GetBehavior<EntityBehaviorPlayerInventory>().Inventory;
+        IInventory? gearInventory = player.Entity.GetBehavior<EntityBehaviorPlayerInventory>()?.Inventory;
+
+        if (gearInventory == null) return false;
+
         bool toggled = false;
         foreach (ItemSlot slot in gearInventory)
         {
@@ -284,6 +290,8 @@ public sealed class CombatOverhaulSystem : ModSystem
     public StatsSystemServer? ServerStatsSystem { get; private set; }
     public AttachableSystemClient? ClientAttachmentSystem { get; private set; }
     public AttachableSystemServer? ServerAttachmentSystem { get; private set; }
+    public ToolBagSystemClient? ClientToolBagSystem { get; private set; }
+    public ToolBagSystemServer? ServerToolBagSystem { get; private set; }
 
     private ICoreClientAPI? _clientApi;
     private readonly Vector4 _iconScale = new(-0.1f, -0.1f, 1.2f, 1.2f);
@@ -353,7 +361,7 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         api.Event.ReloadShader += LoadAnimatedItemShaders;
-        LoadAnimatedItemShaders();
+        _ = LoadAnimatedItemShaders();
         ParticleEffectsManager = new(api);
         PlayerAnimationsManager = new(api, ParticleEffectsManager);
         DebugManager = new(api, ParticleEffectsManager);

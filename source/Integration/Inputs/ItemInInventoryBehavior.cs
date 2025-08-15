@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using CombatOverhaul.Utils;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 
 namespace CombatOverhaul.Inputs;
@@ -25,6 +26,8 @@ public class InInventoryPlayerBehavior : EntityBehavior
 
     private void Update(float dt)
     {
+        LoggerUtil.Mark(entity.Api, "ininv-upd-0");
+
         if (_player?.ShouldDespawn == true)
         {
             entity.Api.World.UnregisterGameTickListener(_listenerId);
@@ -41,6 +44,8 @@ public class InInventoryPlayerBehavior : EntityBehavior
         catch (Exception exception)
         {
         }
+
+        LoggerUtil.Mark(entity.Api, "ininv-upd-1");
     }
 
     private bool ProcessSlot(ItemSlot slot)
