@@ -1,5 +1,6 @@
 ﻿using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 
 namespace CombatOverhaul.Inputs;
 
@@ -88,6 +89,8 @@ public sealed class ActionListener : IDisposable
 
     public ActionListener(ICoreClientAPI api)
     {
+        api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
+
         _clientApi = api;
         api.Input.InWorldAction += OnEntityAction;
         api.World.RegisterGameTickListener(dt => TickListener(), 1000 / 30);

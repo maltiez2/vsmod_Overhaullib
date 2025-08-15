@@ -23,16 +23,25 @@ public class InInventoryPlayerBehavior : EntityBehavior
     internal static readonly List<long> _reportedEntities = [];
     private const int _updateTimeMs = 1000;
     private readonly long _listenerId = 0;
+    private bool _dispose = false;
+
+    public override void OnGameTick(float deltaTime)
+    {
+        if (entity.ShouldDespawn)
+        {
+            _dispose = true;
+        }
+    }
 
     private void Update(float dt)
     {
-        LoggerUtil.Mark(entity.Api, "ininv-upd-0");
-
-        if (_player?.ShouldDespawn == true)
+        if (_dispose)
         {
             entity.Api.World.UnregisterGameTickListener(_listenerId);
             return;
         }
+
+        LoggerUtil.Mark(entity.Api, "ininv-upd-0");
 
         try
         {

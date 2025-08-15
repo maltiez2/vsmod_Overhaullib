@@ -109,7 +109,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
             return;
         }
 
-        _listenerId = entity.Api.World.RegisterGameTickListener(OnGameTick, _updateTimeMs, entity.Api.World.Rand.Next(_updateTimeMs));
+        _listenerId = entity.Api.World.RegisterGameTickListener(Update, _updateTimeMs, entity.Api.World.Rand.Next(_updateTimeMs));
     }
     public override void AfterInitialized(bool onFirstSpawn)
     {
@@ -120,8 +120,23 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
             SubscribeOnModelChange();
         }
     }
+
     public override void OnGameTick(float deltaTime)
     {
+        if (entity.ShouldDespawn)
+        {
+            _dispose = true;
+        }
+    }
+
+    public void Update(float deltaTime)
+    {
+        if (_dispose)
+        {
+            Dispose();
+            return;
+        }
+
         if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider) return;
 
         Utils.LoggerUtil.Mark(entity.Api, "col-ogt-0");
@@ -160,7 +175,10 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
 
         Utils.LoggerUtil.Mark(entity.Api, "col-ogt-1");
 
-        if (entity.IsRendered) RecalculateColliders(Animator, clientApi);
+        if (entity.IsRendered)
+        {
+            RecalculateColliders(Animator, clientApi);
+        }
 
         Utils.LoggerUtil.Mark(entity.Api, "col-ogt-2");
     }
@@ -325,9 +343,10 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
     private bool _reportedMissingColliders = false;
     private ICoreAPI? Api => entity?.Api;
     private CollidersConfig _defaultConfig = new();
-    private const int _updateFps = 15;
+    private const int _updateFps = 30;
     private const int _updateTimeMs = 1000 / _updateFps;
     private long _listenerId = 0;
+    private bool _dispose = false;
 
     private void SetColliderElement(ShapeElement element)
     {

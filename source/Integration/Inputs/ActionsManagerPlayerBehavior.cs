@@ -5,6 +5,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Inputs;
@@ -112,7 +113,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     public void OnGameFrame(float deltaTime)
     {
         if (!_mainPlayer) return;
-
+        
         LoggerUtil.Mark(entity.Api, "actmn-ogf-0");
 
         if (!entity.Alive)
