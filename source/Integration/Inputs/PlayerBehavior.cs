@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Integration;
 using System.Reflection;
+using CombatOverhaul.Utils;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -82,6 +83,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     public void OnGameFrame(float deltaTime)
     {
         if (!_mainPlayer) return;
+        
+        LoggerUtil.Mark(entity.Api, "actmn-ogf-0");
 
         if (!entity.Alive)
         {
@@ -112,6 +115,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         ActionListener.SuppressLMB = SuppressLMB;
         ActionListener.SuppressRMB = SuppressRMB;
+        
+        LoggerUtil.Mark(entity.Api, "actmn-ogf-1");
     }
 
     public int GetState(bool mainHand = true) => mainHand ? _mainHandState : _offHandState;

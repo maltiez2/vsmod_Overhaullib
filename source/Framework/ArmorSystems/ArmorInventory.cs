@@ -265,6 +265,8 @@ public sealed class ArmorInventory : InventoryCharacter
 {
     public ArmorInventory(string className, string playerUID, ICoreAPI api) : base(className, playerUID, api)
     {
+        _api = api;
+        
         FillArmorIconsDict(api);
 
         _slots = GenEmptySlots(_totalSlotsNumber);
@@ -283,6 +285,8 @@ public sealed class ArmorInventory : InventoryCharacter
     }
     public ArmorInventory(string inventoryID, ICoreAPI api) : base(inventoryID, api)
     {
+        _api = api;
+        
         FillArmorIconsDict(api);
 
         _slots = GenEmptySlots(_totalSlotsNumber);
@@ -351,6 +355,8 @@ public sealed class ArmorInventory : InventoryCharacter
     {
         base.OnItemSlotModified(slot);
 
+        LoggerUtil.Mark(_api, "inv-sm-0");
+        
         if (slot is ClothesSlot clothesSlot)
         {
             bool containsBag = clothesSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>() != null;
@@ -376,6 +382,8 @@ public sealed class ArmorInventory : InventoryCharacter
         {
             OnArmorSlotModified?.Invoke();
         }
+        
+        LoggerUtil.Mark(_api, "inv-sm-1");
     }
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {
@@ -529,7 +537,8 @@ public sealed class ArmorInventory : InventoryCharacter
     internal static readonly int _totalSlotsNumber = _clothesSlotsCount + _clothesArmorSlots + _moddedArmorSlotsCount;
     private static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
-
+    private ICoreAPI _api;
+    
     protected override ItemSlot NewSlot(int slotId)
     {
         if (slotId < _clothesSlotsCount)

@@ -4,6 +4,7 @@ using CombatOverhaul.Implementations;
 using ImPlotNET;
 using OpenTK.Mathematics;
 using System.Text;
+using CombatOverhaul.Utils;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -33,6 +34,8 @@ public sealed class ProjectileServer
 
     public void OnCollision(ProjectileCollisionPacket packet)
     {
+        LoggerUtil.Mark(_api, "prjsrv-oc-0");
+        
         Entity receiver = _api.World.GetEntityById(packet.ReceiverEntity);
 
         if (receiver == null) return;
@@ -63,11 +66,15 @@ public sealed class ProjectileServer
         }
 
         _entity.OnCollisionWithEntity(receiver, packet.Collider);
+        
+        LoggerUtil.Mark(_api, "prjsrv-oc-1");
     }
 
     public void TryCollide()
     {
         _system.TryCollide(_entity);
+        
+        LoggerUtil.Mark(_api, "prjsrv-trcld-1");
     }
 
     private readonly ProjectileStats _stats;
@@ -180,7 +187,7 @@ public class ProjectileEntity : Entity
         SpawnTime = TimeSpan.FromMilliseconds(World.ElapsedMilliseconds);
 
         CollisionTestBox = SelectionBox.Clone().OmniGrowBy(0.05f);
-
+        
         GetBehavior<EntityBehaviorPassivePhysics>().OnPhysicsTickCallback = OnPhysicsTickCallback;
         //GetBehavior<EntityBehaviorPassivePhysics>().collisionYExtra = 0f; // Slightly cheap hax so that stones/arrows don't collid with fences
 
@@ -191,6 +198,8 @@ public class ProjectileEntity : Entity
     {
         base.OnGameTick(dt);
         if (ShouldDespawn) return;
+        
+        LoggerUtil.Mark(Api, "prj-ogt-0");
 
         EntityPos pos = SidedPos;
 
@@ -215,6 +224,8 @@ public class ProjectileEntity : Entity
 
         BeforeCollided = false;
         MotionBeforeCollide.Set(SidedPos.Motion.X, SidedPos.Motion.Y, SidedPos.Motion.Z);
+        
+        LoggerUtil.Mark(Api, "prj-ogt-1");
     }
     public override bool CanCollect(Entity byEntity)
     {

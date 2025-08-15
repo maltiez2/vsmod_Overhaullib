@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Integration;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
@@ -233,6 +234,8 @@ public sealed class ClientAimingSystem : IDisposable
             ref double ___DelayedMouseDeltaX, ref double ___DelayedMouseDeltaY,
             float dt)
     {
+        LoggerUtil.Mark(_clientApi, "aims-uap-0");
+        
         AimingPatches.DrawDefaultReticle = ShowVanillaReticle;
 
         if (!Aiming) return;
@@ -253,7 +256,11 @@ public sealed class ClientAimingSystem : IDisposable
 
         _reticleRenderer.AimingPoint = GetCurrentAim();
 
+        LoggerUtil.Mark(_clientApi, "aims-uap-1");
+        
         OnAimPointChange?.Invoke();
+        
+        LoggerUtil.Mark(_clientApi, "aims-uap-2");
     }
 
     public void Dispose()
