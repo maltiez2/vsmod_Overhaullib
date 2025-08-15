@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Utils;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 
@@ -14,12 +15,16 @@ public class InInventoryPlayerBehavior : EntityBehavior
     public InInventoryPlayerBehavior(Entity entity) : base(entity)
     {
         _player = entity as EntityPlayer ?? throw new Exception("This behavior should be attached only to player");
+
+        _process = _player.Api.Side == EnumAppSide.Server || _player.PlayerUID == (_player.Api as ICoreClientAPI)?.Settings.String["playeruid"];
     }
 
     public override string PropertyName() => "CombatOverhaul:InInventory";
 
     public override void OnGameTick(float deltaTime)
     {
+        if (!_process) return;
+        
         try
         {
             if (_player?.World != null)
@@ -29,16 +34,12 @@ public class InInventoryPlayerBehavior : EntityBehavior
         }
         catch (Exception exception)
         {
-            long entityId = entity.EntityId;
-            if (_reportedEntities.Contains(entityId)) return;
-            _reportedEntities.Add(entityId);
-            
-            LoggerUtil.Error(_player.Api, this, $"[OnGameTick] (entity code: {entity.Code}, class: {LoggerUtil.GetCallerTypeName(entity)}) Exception: {exception}");
         }
     }
 
     private readonly EntityPlayer _player;
     internal static readonly List<long> _reportedEntities = new();
+    private bool _process;
 
     private bool ProcessSlot(ItemSlot slot)
     {
