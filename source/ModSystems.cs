@@ -355,7 +355,7 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         api.Event.ReloadShader += LoadAnimatedItemShaders;
-        LoadAnimatedItemShaders();
+        _ = LoadAnimatedItemShaders();
         ParticleEffectsManager = new(api);
         PlayerAnimationsManager = new(api, ParticleEffectsManager);
         DebugManager = new(api, ParticleEffectsManager);

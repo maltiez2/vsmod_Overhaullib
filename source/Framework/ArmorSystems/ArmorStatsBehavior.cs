@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using CombatOverhaul.Utils;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
@@ -11,11 +12,23 @@ public interface IAffectsPlayerStats
     public Dictionary<string, float> PlayerStats(ItemSlot slot, EntityPlayer player);
 }
 
-public sealed class WearableStatsBehavior : EntityBehavior
+public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 {
     public WearableStatsBehavior(Entity entity) : base(entity)
     {
         _player = entity as EntityPlayer ?? throw new InvalidDataException("This is player behavior");
+        
+        _player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
+
+        if (_player.Api.Side == EnumAppSide.Client)
+        {
+            if (_existingBehaviors.TryGetValue(_player.PlayerUID, out WearableStatsBehavior? previousBehavior))
+            {
+                previousBehavior.PartialDispose();
+            }
+
+            _existingBehaviors[_player.PlayerUID] = this;
+        }
     }
 
     public override string PropertyName() => "CombatOverhaul:WearableStats";
@@ -23,12 +36,14 @@ public sealed class WearableStatsBehavior : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
+        if (_initialized) return;
+
         InventoryBase? inventory = GetGearInventory(_player);
 
-        if (_initialized || inventory == null) return;
+        if (inventory == null) return;
 
-        inventory.SlotModified += _ => UpdateStatsValues();
-        UpdateStatsValues();
+        inventory.SlotModified += UpdateStatsValues;
+        UpdateStatsValues(0);
 
         _initialized = true;
     }
@@ -36,18 +51,21 @@ public sealed class WearableStatsBehavior : EntityBehavior
     private readonly EntityPlayer _player;
     private const string _statsCategory = "CombatOverhaul:Armor";
     private bool _initialized = false;
+    private static readonly Dictionary<string, WearableStatsBehavior> _existingBehaviors = new();
 
     private static InventoryBase? GetGearInventory(Entity entity)
     {
-        return entity.GetBehavior<EntityBehaviorPlayerInventory>().Inventory;
+        return entity.GetBehavior<EntityBehaviorPlayerInventory>()?.Inventory;
     }
 
-    private void UpdateStatsValues()
+    private void UpdateStatsValues(int slotId)
     {
         InventoryBase? inventory = GetGearInventory(_player);
 
         if (inventory == null) return;
-
+        
+        LoggerUtil.Mark(entity.Api, "wst-usv-0");
+        
         foreach ((string stat, _) in Stats)
         {
             _player.Stats.Remove(stat, _statsCategory);
@@ -87,6 +105,8 @@ public sealed class WearableStatsBehavior : EntityBehavior
         }
 
         _player.walkSpeed = _player.Stats.GetBlended("walkspeed");
+        
+        LoggerUtil.Mark(entity.Api, "wst-usv-1");
     }
     private void AddStatValue(string stat, float value)
     {
@@ -108,5 +128,24 @@ public sealed class WearableStatsBehavior : EntityBehavior
         {
             Stats[stat] += value;
         }
+    }
+    
+    private void PartialDispose()
+    {
+        InventoryBase? inventory = GetGearInventory(_player);
+        if (inventory != null)
+        {
+            inventory.SlotModified -= UpdateStatsValues;
+        }
+    }
+
+    public void Dispose()
+    {
+        InventoryBase? inventory = GetGearInventory(_player);
+        if (inventory != null)
+        {
+            inventory.SlotModified -= UpdateStatsValues;
+        }
+        _existingBehaviors.Clear();
     }
 }

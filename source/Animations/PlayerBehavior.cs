@@ -26,33 +26,37 @@ public interface IHasDynamicIdleAnimations
     AnimationRequestByCode? GetReadyAnimation(bool mainHand);
 }
 
-public sealed class FirstPersonAnimationsBehavior : EntityBehavior
+public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 {
     public FirstPersonAnimationsBehavior(Entity entity) : base(entity)
     {
         if (entity is not EntityPlayer player) throw new ArgumentException("Only for players");
+        
         _player = player;
-        _api = player.Api as ICoreClientAPI;
-        _animationsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().PlayerAnimationsManager;
-        _vanillaAnimationsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ClientVanillaAnimations;
-
+        _api = player.Api as ICoreClientAPI ?? throw new ArgumentException("Only client side");
+        _animationsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().PlayerAnimationsManager ?? throw new Exception();
+        _vanillaAnimationsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ClientVanillaAnimations ?? throw new Exception();
+        _mainPlayer = (entity as EntityPlayer)?.PlayerUID == _api.Settings.String["playeruid"];
+        
         SoundsSynchronizerClient soundsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().ClientSoundsSynchronizer ?? throw new Exception();
         ParticleEffectsManager particleEffectsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ParticleEffectsManager ?? throw new Exception();
         _composer = new(soundsManager, particleEffectsManager, player);
 
+        if (!_mainPlayer) return;
+        
         HarmonyPatches.OnBeforeFrame += OnBeforeFrame;
         HarmonyPatches.OnFrame += OnFrame;
         player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
-
-        _mainPlayer = (entity as EntityPlayer)?.PlayerUID == _api?.Settings.String["playeruid"];
     }
 
-    public override string PropertyName() => "FirstPersonAnimations";
+    public override string PropertyName() => "CombatOverhaul:FirstPersonAnimations";
 
     public override void OnGameTick(float deltaTime)
     {
         if (!_mainPlayer || _player.RightHandItemSlot == null || _player.LeftHandItemSlot == null) return;
 
+        LoggerUtil.Mark(_api, "fpan-ogt-0");
+        
         int mainHandItemId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0;
         int offhandItemId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
 
@@ -68,11 +72,15 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
             OffhandItemChanged();
         }
 
+        LoggerUtil.Mark(_api, "fpan-ogt-1");
+        
         foreach ((AnimationRequest request, bool mainHand, bool skip, int itemId) in _playRequests)
         {
             if (!skip) PlayRequest(request, mainHand);
         }
         _playRequests.Clear();
+        
+        LoggerUtil.Mark(_api, "fpan-ogt-2");
     }
 
     public PlayerItemFrame? FrameOverride { get; set; } = null;
@@ -199,8 +207,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
 
     private readonly Composer _composer;
     private readonly EntityPlayer _player;
-    private readonly AnimationsManager? _animationsManager;
-    private readonly VanillaAnimationsSystemClient? _vanillaAnimationsManager;
+    private readonly AnimationsManager _animationsManager;
+    private readonly VanillaAnimationsSystemClient _vanillaAnimationsManager;
     private PlayerItemFrame _lastFrame = PlayerItemFrame.Zero;
     private readonly List<string> _offhandCategories = new();
     private readonly List<string> _mainHandCategories = new();
@@ -212,7 +220,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     private long _mainHandIdleTimer = -1;
     private long _offHandIdleTimer = -1;
     private bool _resetFov = false;
-    private readonly ICoreClientAPI? _api;
+    private readonly ICoreClientAPI _api;
     private readonly List<(AnimationRequest request, bool mainHand, bool skip, int itemId)> _playRequests = new();
     private float _previousHeadBobbingAmplitudeFactor = 1;
 
@@ -225,14 +233,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
     {
         if (!IsOwner(entity)) return;
 
+        LoggerUtil.Mark(_api, "fpan-obf-0");
+        
         float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1;
 
         double dtAdjusted = GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
+        
+        LoggerUtil.Mark(_api, "fpan-obf-1");
     }
     private void OnFrame(Entity entity, ElementPose pose)
     {
+        LoggerUtil.Mark(_api, "fpan-of-0");
+        
         if (IsImmersiveFirstPerson(entity)) return;
         if (!DebugWindowManager.PlayAnimationsInThirdPerson && !IsFirstPerson(entity)) return;
         if (!_composer.AnyActiveAnimations() && FrameOverride == null)
@@ -257,6 +271,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
         {
             ApplyFrame(_lastFrame, entity, pose, animatable);
         }
+        
+        LoggerUtil.Mark(_api, "fpan-of-1");
     }
     private void ApplyFrame(PlayerItemFrame frame, Entity entity, ElementPose pose, Animatable? animatable)
     {
@@ -534,14 +550,15 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior
             return _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
         }
     }
-    private void Dispose()
+    
+    public void Dispose()
     {
         HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
         HarmonyPatches.OnFrame -= OnFrame;
     }
 }
 
-public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
+public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 {
     public ThirdPersonAnimationsBehavior(Entity entity) : base(entity)
     {
@@ -549,8 +566,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
         _player = player;
         _api = player.Api as ICoreClientAPI;
         _animationsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().PlayerAnimationsManager;
-        _animationSystem = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ClientTpAnimationSystem;
-
+        _animationSystem = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ClientTpAnimationSystem ?? throw new Exception();
+        
         _composer = new(null, null, player);
 
         HarmonyPatches.OnBeforeFrame += OnBeforeFrame;
@@ -561,9 +578,9 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
 
         if (player.Api.Side == EnumAppSide.Client)
         {
-            if (_existingBehaviors.TryGetValue(_player.PlayerUID, out ThirdPersonAnimationsBehavior previousBheavior))
+            if (_existingBehaviors.TryGetValue(_player.PlayerUID, out ThirdPersonAnimationsBehavior? previousBehavior))
             {
-                previousBheavior.PartialDispose();
+                previousBehavior.PartialDispose();
             }
 
             _existingBehaviors[_player.PlayerUID] = this;
@@ -574,7 +591,9 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
-        if (_player.RightHandItemSlot == null || _player.LeftHandItemSlot == null) return;
+        if (!_player.IsRendered || _player.RightHandItemSlot == null || _player.LeftHandItemSlot == null) return;
+
+        LoggerUtil.Mark(_api, "tpan-ogt-0");
 
         int mainHandItemId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0;
         int offhandItemId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
@@ -598,6 +617,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
             _offHandItemId = offhandItemId;
             OffhandItemChanged();
         }
+        
+        LoggerUtil.Mark(_api, "tpan-ogt-1");
     }
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
@@ -730,17 +751,23 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
 
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
-        if (entity.EntityId != targetEntity.EntityId) return;
+        if (entity.EntityId != targetEntity.EntityId || !targetEntity.IsRendered) return;
+
+        LoggerUtil.Mark(_api, "tpan-obf-0");
 
         float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1f;
 
         double dtAdjusted = GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
+        
+        LoggerUtil.Mark(_api, "tpan-obf-1");
     }
     private void OnFrame(Entity entity, ElementPose pose)
     {
-        if (DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(entity)) return;
+        if (!entity.IsRendered || DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(entity)) return;
+
+        LoggerUtil.Mark(_api, "tpan-of-0");
 
         Animatable? animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
 
@@ -752,6 +779,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
         {
             ApplyFrame(_lastFrame, entity, pose, animatable);
         }
+        
+        LoggerUtil.Mark(_api, "tpan-of-1");
     }
     private void ApplyFrame(PlayerItemFrame frame, Entity targetEntity, ElementPose pose, Animatable? animatable)
     {
@@ -984,23 +1013,28 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
     }
 
     private int GetCurrentItemId(bool mainHand) => mainHand ? _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0 : _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
+    
     private void PartialDispose()
     {
         if (!_disposed)
         {
             _disposed = true;
+            _offhandCategories.Clear();
+            _mainHandCategories.Clear();
             HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
             HarmonyPatches.OnFrame -= OnFrame;
             _existingBehaviors.Remove(_player.PlayerUID);
         }
     }
-    private void Dispose()
+    public void Dispose()
     {
         if (!_disposed)
         {
+            _disposed = true;
+            _offhandCategories.Clear();
+            _mainHandCategories.Clear();
             HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
             HarmonyPatches.OnFrame -= OnFrame;
-            _disposed = true;
         }
         _existingBehaviors.Clear();
     }
@@ -1010,10 +1044,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior
 public sealed class AnimationRequestPacket
 {
     public bool MainHand { get; set; }
-    public string Animation { get; set; }
+    public string Animation { get; set; } = "";
     public float AnimationSpeed { get; set; }
     public float Weight { get; set; }
-    public string Category { get; set; }
+    public string Category { get; set; } = "";
     public double EaseOutDurationMs { get; set; }
     public double EaseInDurationMs { get; set; }
     public bool EaseOut { get; set; }

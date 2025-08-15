@@ -5,8 +5,8 @@ namespace CombatOverhaul.Utils;
 
 public static class LoggerUtil
 {
-    private const string _prefix = "[Combat Overhaul]";
-
+    private const string _prefix = "[Overhaul lib]";
+    private const string _markPrefix = "ovhlib-";
     public static void Notify(ICoreAPI? api, object caller, string format) => api?.Logger?.Notification(Format(caller, format));
     public static void Notify(ICoreAPI? api, Type type, string format) => api?.Logger?.Notification(Format(type, format));
 
@@ -44,6 +44,11 @@ public static class LoggerUtil
 #endif
     }
 
+    public static void Mark(ICoreAPI? api, string marker)
+    {
+        api?.World.FrameProfiler.Mark(_markPrefix + marker);
+    }
+    
     public static string Format(object caller, string format)
     {
         DefaultInterpolatedStringHandler defaultInterpolatedStringHandler = new(4, 3);

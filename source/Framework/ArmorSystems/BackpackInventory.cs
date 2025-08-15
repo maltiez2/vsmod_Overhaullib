@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using CombatOverhaul.Utils;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
@@ -16,10 +17,12 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
 
     public InventoryPlayerBackPacksCombatOverhaul(string className, string playerUID, ICoreAPI api) : base(className, playerUID, api)
     {
+        _api = api;
     }
 
     public InventoryPlayerBackPacksCombatOverhaul(string inventoryId, ICoreAPI api) : base(inventoryId, api)
     {
+        _api = api;
     }
 
     public void ReloadBagInventory()
@@ -35,6 +38,8 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
 
     public override void OnItemSlotModified(ItemSlot slot)
     {
+        LoggerUtil.Mark(_api, "invpbp-oism-0");
+        
         // Player modified must have some backpack contents
         // lets store that change in the backpack stack
         if (slot is ItemSlotBagContent)
@@ -50,6 +55,8 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
                 (Api.World.PlayerByUid(playerUID) as IServerPlayer)?.BroadcastPlayerData();
             }
         }
+        
+        LoggerUtil.Mark(_api, "invpbp-oism-1");
     }
 
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
@@ -101,6 +108,8 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
         bagInv.ReloadBagInventory(this, AppendGearInventorySlots(bagSlots));
     }
 
+    private ICoreAPI _api;
+    
     private ItemSlot[] AppendGearInventorySlots(ItemSlot[] backpackSlots)
     {
         ItemSlot[] gearSlots = GetGearInventory(Owner)?.ToArray() ?? Array.Empty<ItemSlot>();
