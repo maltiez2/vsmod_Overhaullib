@@ -100,7 +100,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmptyIntoHotbar(InventoryBasePlayer inventory, int index)
     {
-        if (Empty) return;
+        if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
 
         DummySlot dummySlot = new(itemstack);
         ItemSlot? targetSlot = inventory.GetBestSuitedSlot(dummySlot)?.slot ?? inventory.FirstOrDefault(slot => slot?.CanHold(dummySlot) == true, null);
@@ -117,7 +117,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmpty(InventoryBase inventory, int index)
     {
-        if (Empty) return;
+        if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
 
         DummySlot dummySlot = new(itemstack);
         ItemSlot? targetSlot =
