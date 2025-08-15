@@ -1,4 +1,6 @@
 ﻿using CombatOverhaul.Utils;
+using System.Diagnostics;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 
@@ -14,7 +16,8 @@ public class InInventoryPlayerBehavior : EntityBehavior
     public InInventoryPlayerBehavior(Entity entity) : base(entity)
     {
         _player = entity as EntityPlayer ?? throw new Exception("This behavior should be attached only to player");
-        _listenerId = entity.Api.World.RegisterGameTickListener(Update, _updateTimeMs, _updateTimeMs + entity.Api.World.Rand.Next(_updateTimeMs));
+        _process = _player.Api.Side == EnumAppSide.Server || _player.PlayerUID == (_player.Api as ICoreClientAPI)?.Settings.String["playeruid"];
+        if (_process) _listenerId = entity.Api.World.RegisterGameTickListener(Update, _updateTimeMs, _updateTimeMs + entity.Api.World.Rand.Next(_updateTimeMs));
     }
 
     public override string PropertyName() => "CombatOverhaul:InInventory";
@@ -24,6 +27,7 @@ public class InInventoryPlayerBehavior : EntityBehavior
     private const int _updateTimeMs = 1000;
     private readonly long _listenerId = 0;
     private bool _dispose = false;
+    private readonly bool _process;
 
     public override void OnGameTick(float deltaTime)
     {
@@ -35,6 +39,8 @@ public class InInventoryPlayerBehavior : EntityBehavior
 
     private void Update(float dt)
     {
+        if (!_process) return;
+        
         if (_dispose)
         {
             entity.Api.World.UnregisterGameTickListener(_listenerId);
