@@ -7,6 +7,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Colliders;
@@ -64,7 +65,7 @@ public class CollidersConfig
     public bool ResistantCollidersStopProjectiles { get; set; } = true;
 }
 
-public sealed class CollidersEntityBehavior : EntityBehavior
+public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
 {
     public CollidersEntityBehavior(Entity entity) : base(entity)
     {
@@ -99,64 +100,16 @@ public sealed class CollidersEntityBehavior : EntityBehavior
             _defaultConfig = attributes.AsObject<CollidersConfig>();
 
             ApplyConfig(_defaultConfig);
-
-            /*ColliderTypesJson types = attributes["elements"].AsObject<ColliderTypesJson>();
-            foreach (string collider in types.Torso)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Torso);
-                ShapeElementsToProcess.Add(collider);
-            }
-            foreach (string collider in types.Head)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Head);
-                ShapeElementsToProcess.Add(collider);
-            }
-            foreach (string collider in types.Arm)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Arm);
-                ShapeElementsToProcess.Add(collider);
-            }
-            foreach (string collider in types.Leg)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Leg);
-                ShapeElementsToProcess.Add(collider);
-            }
-            foreach (string collider in types.Critical)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Critical);
-                ShapeElementsToProcess.Add(collider);
-            }
-            foreach (string collider in types.Resistant)
-            {
-                CollidersTypes.Add(collider, ColliderTypes.Resistant);
-                ShapeElementsToProcess.Add(collider);
-            }
-
-            UnprocessedElementsLeft = true;
-            HasOBBCollider = true;
-
-            if (attributes.KeyExists("defaultPenetrationResistance"))
-            {
-                DefaultPenetrationResistance = attributes["defaultPenetrationResistance"].AsFloat(5f);
-            }
-
-            if (attributes.KeyExists("penetrationResistances"))
-            {
-                PenetrationResistances = attributes["penetrationResistances"].AsObject<Dictionary<string, float>>();
-            }
-
-            if (attributes.KeyExists("resistantCollidersStopProjectiles"))
-            {
-                ResistantCollidersStopProjectiles = attributes["resistantCollidersStopProjectiles"].AsBool(true);
-            }*/
-
         }
         catch (Exception exception)
         {
             Utils.LoggerUtil.Error(entity.Api, this, $"Error on parsing behavior properties for entity: {entity.Code}. Exception:\n{exception}");
             UnprocessedElementsLeft = false;
             HasOBBCollider = false;
+            return;
         }
+
+        _listenerId = entity.Api.World.RegisterGameTickListener(OnGameTick, _updateTimeMs, entity.Api.World.Rand.Next(_updateTimeMs));
     }
     public override void AfterInitialized(bool onFirstSpawn)
     {
@@ -372,6 +325,9 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     private bool _reportedMissingColliders = false;
     private ICoreAPI? Api => entity?.Api;
     private CollidersConfig _defaultConfig = new();
+    private const int _updateFps = 15;
+    private const int _updateTimeMs = 1000 / _updateFps;
+    private long _listenerId = 0;
 
     private void SetColliderElement(ShapeElement element)
     {
@@ -566,5 +522,10 @@ public sealed class CollidersEntityBehavior : EntityBehavior
         }
 
         UnprocessedElementsLeftCustom = false;
+    }
+
+    public void Dispose()
+    {
+        Api?.World?.UnregisterGameTickListener(_listenerId);
     }
 }
