@@ -222,7 +222,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         foreach (IAsset icon in icons)
         {
             string iconPath = icon.Location.ToString();
-            string iconCode = icon.Location.Domain + ":" + icon.Location.Path[_iconsFolder.Length .. ^4].ToLowerInvariant();
+            string iconCode = icon.Location.Domain + ":" + icon.Location.Path[_iconsPath.Length .. ^4].ToLowerInvariant();
 
             Debug.WriteLine(iconCode);
 
@@ -316,6 +316,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     private IClientNetworkChannel? _clientToggleChannel;
     private IServerNetworkChannel? _serverToggleChannel;
     private const string _iconsFolder = "sloticons";
+    private const string _iconsPath = $"textures/{_iconsFolder}/";
 
     private void RegisterCustomIcon(ICoreClientAPI api, string key, string path)
     {

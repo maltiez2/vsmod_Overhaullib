@@ -81,6 +81,14 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         _playRequests.Clear();
 
         LoggerUtil.Mark(_api, "fpan-ogt-2");
+
+        _settingsUpdateTimeSec += deltaTime;
+        if (_settingsUpdateTimeSec > _settingsUpdatePeriodSec)
+        {
+            _settingsUpdateTimeSec = 0;
+            _settingsFOV = ClientSettings.FieldOfView;
+            _settingsHandsFOV = ClientSettings.FieldOfView;
+        }
     }
 
     public PlayerItemFrame? FrameOverride { get; set; } = null;
@@ -223,10 +231,13 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly ICoreClientAPI _api;
     private readonly List<(AnimationRequest request, bool mainHand, bool skip, int itemId)> _playRequests = new();
     private float _previousHeadBobbingAmplitudeFactor = 1;
+    private int _settingsFOV = ClientSettings.FieldOfView;
+    private int _settingsHandsFOV = ClientSettings.FpHandsFoV;
+    private const float _settingsUpdatePeriodSec = 3f;
+    private float _settingsUpdateTimeSec = 0;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
 
-    private readonly FieldInfo _mainCameraInfo = typeof(ClientMain).GetField("MainCamera", BindingFlags.Public | BindingFlags.Instance) ?? throw new Exception();
     private readonly FieldInfo _cameraFov = typeof(Camera).GetField("Fov", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new Exception();
 
     private void OnBeforeFrame(Entity entity, float dt)
@@ -338,18 +349,18 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         ClientMain? client = _api?.World as ClientMain;
         if (client == null) return;
 
-        PlayerCamera? camera = (PlayerCamera?)_mainCameraInfo.GetValue(client);
+        PlayerCamera? camera = client.MainCamera;
         if (camera == null) return;
 
         float? fovField = (float?)_cameraFov.GetValue(camera);
         if (fovField == null) return;
 
-        float equalizeMultiplier = MathF.Sqrt(ClientSettings.FieldOfView / (float)ClientSettings.FpHandsFoV);
+        float equalizeMultiplier = MathF.Sqrt(_settingsFOV / (float)_settingsHandsFOV);
 
         PlayerRenderingPatches.HandsFovMultiplier = multiplier * (equalizeFov ? equalizeMultiplier : 1);
-        _cameraFov.SetValue(camera, ClientSettings.FieldOfView * GameMath.DEG2RAD * multiplier);
+        _cameraFov.SetValue(camera, _settingsFOV * GameMath.DEG2RAD * multiplier);
 
-        CurrentFov = ClientSettings.FieldOfView * multiplier;
+        CurrentFov = _settingsFOV * multiplier;
     }
     private void PlayRequest(AnimationRequest request, bool mainHand = true)
     {

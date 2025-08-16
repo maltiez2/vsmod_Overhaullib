@@ -50,6 +50,7 @@ public sealed class Composer
                 _requests[category].CallbackHandler?.Invoke(callbackId);
             }
         }
+
         PlayerItemFrame result = PlayerItemFrame.Compose(frames);
 
         foreach (string category in _requests.Select(entry => entry.Key).ToArray())
