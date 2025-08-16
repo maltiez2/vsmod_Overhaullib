@@ -470,7 +470,20 @@ public class ToolBag : GearEquipableBag
             stackBackPackTree = new TreeAttribute();
             ITreeAttribute slotsTree = new TreeAttribute();
 
-            for (int slotIndex = 0; slotIndex < RegularSlotsNumber; slotIndex++)
+            ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, 0, flags, bagstack, ToolSlotColor)
+            {
+                CanHoldWildcard = CanHoldWildcard,
+                CanHoldItemTags = CanHoldItemTags,
+                CanHoldBlockTags = CanHoldBlockTags
+            };
+            bagContents.Add(toolSlot);
+            slotsTree["slot-" + 0] = new ItemstackAttribute(null);
+            if (ToolSlotIcon != null)
+            {
+                toolSlot.BackgroundIcon = ToolSlotIcon;
+            }
+
+            for (int slotIndex = 1; slotIndex <= RegularSlotsNumber; slotIndex++)
             {
                 ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
                 {
@@ -485,19 +498,6 @@ public class ToolBag : GearEquipableBag
                 {
                     slot.BackgroundIcon = SlotsIcon;
                 }
-            }
-
-            ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, 0, flags, bagstack, ToolSlotColor)
-            {
-                CanHoldWildcard = CanHoldWildcard,
-                CanHoldItemTags = CanHoldItemTags,
-                CanHoldBlockTags = CanHoldBlockTags
-            };
-            bagContents.Add(toolSlot);
-            slotsTree["slot-" + RegularSlotsNumber] = new ItemstackAttribute(null);
-            if (ToolSlotIcon != null)
-            {
-                toolSlot.BackgroundIcon = ToolSlotIcon;
             }
 
             ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, 0, flags, bagstack, TakeOutSlotColor);
@@ -520,7 +520,7 @@ public class ToolBag : GearEquipableBag
             {
                 int slotIndex = val.Key.Split("-")[1].ToInt();
 
-                if (slotIndex < RegularSlotsNumber)
+                if (slotIndex <= RegularSlotsNumber && slotIndex > 0)
                 {
                     ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
                     {
@@ -536,10 +536,15 @@ public class ToolBag : GearEquipableBag
                         slot.Itemstack.ResolveBlockOrItem(world);
                     }
 
+                    if (SlotsIcon != null)
+                    {
+                        slot.BackgroundIcon = SlotsIcon;
+                    }
+
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = slot;
                 }
-                else if (slotIndex == RegularSlotsNumber)
+                else if (slotIndex == 0)
                 {
                     ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, ToolSlotColor)
                     {
@@ -555,6 +560,11 @@ public class ToolBag : GearEquipableBag
                         slot.Itemstack.ResolveBlockOrItem(world);
                     }
 
+                    if (ToolSlotIcon != null)
+                    {
+                        slot.BackgroundIcon = ToolSlotIcon;
+                    }
+
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = slot;
                 }
@@ -567,6 +577,11 @@ public class ToolBag : GearEquipableBag
                         ItemstackAttribute attr = (ItemstackAttribute)val.Value;
                         takeOutSLot.Itemstack = attr.value;
                         takeOutSLot.Itemstack.ResolveBlockOrItem(world);
+                    }
+
+                    if (TakeOutSlotIcon != null)
+                    {
+                        takeOutSLot.BackgroundIcon = TakeOutSlotIcon;
                     }
 
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
