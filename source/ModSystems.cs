@@ -14,6 +14,7 @@ using ConfigLib;
 using HarmonyLib;
 using OpenTK.Mathematics;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -216,6 +217,23 @@ public sealed class CombatOverhaulSystem : ModSystem
                 RegisterCustomIcon(clientApi, iconCode, iconPath);
             }
         }
+
+        List<IAsset> icons = clientApi.Assets.GetManyInCategory("textures", _iconsFolder, loadAsset: false);
+        foreach (IAsset icon in icons)
+        {
+            string iconPath = icon.Location.ToString();
+            string iconCode = icon.Location.Domain + ":" + icon.Location.Path[_iconsFolder.Length .. ^4].ToLowerInvariant();
+
+            Debug.WriteLine(iconCode);
+
+            if (!iconPath.ToLowerInvariant().EndsWith(".svg"))
+            {
+                LoggerUtil.Verbose(clientApi, this, $"Icon should have '.svg' format, skipping. Path: {iconPath}");
+                return;
+            }
+
+            RegisterCustomIcon(clientApi, iconCode, iconPath);
+        }
     }
     public override void AssetsFinalize(ICoreAPI api)
     {
@@ -297,6 +315,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     private readonly Vector4 _iconScale = new(-0.1f, -0.1f, 1.2f, 1.2f);
     private IClientNetworkChannel? _clientToggleChannel;
     private IServerNetworkChannel? _serverToggleChannel;
+    private const string _iconsFolder = "sloticons";
 
     private void RegisterCustomIcon(ICoreClientAPI api, string key, string path)
     {
@@ -487,7 +506,7 @@ public sealed class NightVisionSystem : ModSystem, IRenderer
         double hoursPassed = totalHours - _lastCheckTotalHours;
 
         if (hoursPassed < _updatePeriodHours) return;
-        
+
         foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
             IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
