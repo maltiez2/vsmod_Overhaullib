@@ -145,8 +145,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     private readonly Settings _settings;
     private CollidersEntityBehavior? _colliders;
-    private float _healthAfterSecondChance = 1;
-    private PlayerDamageModelConfig _defaultConfig;
+    private readonly float _healthAfterSecondChance = 1;
+    private PlayerDamageModelConfig _defaultConfig = new();
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {

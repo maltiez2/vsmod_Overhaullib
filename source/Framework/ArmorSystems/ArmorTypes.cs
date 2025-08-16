@@ -102,6 +102,8 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IAffectsPlayerStats
     public ArmorType ArmorType { get; protected set; } = new(ArmorLayers.None, DamageZone.None);
     public DamageResistData Resists { get; protected set; } = new();
     public Dictionary<string, float> Stats { get; protected set; } = new();
+    public bool StatsChanged { get; set; } = false;
+
     public Dictionary<string, float> PlayerStats(ItemSlot slot, EntityPlayer player) => Stats;
 
     public override void Initialize(JsonObject properties)
@@ -175,6 +177,8 @@ public class WearableWithStatsBehavior : CollectibleBehavior, IAffectsPlayerStat
     {
     }
     public Dictionary<string, float> Stats { get; set; } = new();
+    public bool StatsChanged { get; set; } = false;
+
     public Dictionary<string, float> PlayerStats(ItemSlot slot, EntityPlayer player) => Stats;
 
     public override void Initialize(JsonObject properties)

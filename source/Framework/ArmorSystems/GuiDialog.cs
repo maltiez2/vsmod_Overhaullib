@@ -52,9 +52,9 @@ public sealed class GuiDialogArmorInventory : GuiDialog
         _composer?.Dispose();
     }
 
-    private void RecomposeDialog()
+    private void RecomposeDialog(bool itemChanged, bool durabilityChanged, bool isArmorSlot)
     {
-        if (!opened || _recomposeDialog) return;
+        if (!opened || _recomposeDialog || !itemChanged || !isArmorSlot) return;
 
         _recomposeDialog = true;
         _api.World.RegisterCallback(_ => RecomposeDialogCallback(), _recomposeDelay);

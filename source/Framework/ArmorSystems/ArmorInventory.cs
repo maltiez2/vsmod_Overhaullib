@@ -14,6 +14,8 @@ public class ClothesSlot : ItemSlotCharacter
     public IWorldAccessor? World { get; set; }
     public string? OwnerUUID { get; set; }
     public bool PreviouslyHeldBag { get; set; } = false;
+    public int PreviousItemId { get; set; } = 0;
+    public int PreviousDurability { get; set; } = 0;
 
     public ClothesSlot(EnumCharacterDressType type, InventoryBase inventory) : base(type, inventory)
     {
@@ -108,6 +110,8 @@ public class ArmorSlot : ItemSlot
     public IWorldAccessor? World { get; set; }
     public string? OwnerUUID { get; set; }
     public bool PreviouslyHeldBag { get; set; } = false;
+    public int PreviousItemId { get; set; } = 0;
+    public int PreviousDurability { get; set; } = 0;
 
     public ArmorSlot(InventoryBase inventory, ArmorType armorType) : base(inventory)
     {
@@ -308,8 +312,10 @@ public sealed class ArmorInventory : InventoryCharacter
 
     public override int Count => _totalSlotsNumber;
 
-    public event Action? OnSlotModified;
-    public event Action? OnArmorSlotModified;
+    public delegate void SlotModifiedDelegate(bool itemChanged, bool durabilityChanged, bool isArmorSlot);
+
+    public event SlotModifiedDelegate? OnSlotModified;
+    public event SlotModifiedDelegate? OnArmorSlotModified;
 
     public override void FromTreeAttributes(ITreeAttribute tree)
     {
@@ -359,28 +365,61 @@ public sealed class ArmorInventory : InventoryCharacter
 
         if (slot is ClothesSlot clothesSlot)
         {
+            int currentItemId = slot.Itemstack?.Item?.ItemId ?? 0;
+            bool itemChanged = currentItemId != clothesSlot.PreviousItemId;
+            clothesSlot.PreviousItemId = currentItemId;
+
             bool containsBag = clothesSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>() != null;
-            if (clothesSlot.PreviouslyHeldBag || containsBag)
+            if (itemChanged && (clothesSlot.PreviouslyHeldBag || containsBag))
             {
                 ReloadBagInventory();
             }
             clothesSlot.PreviouslyHeldBag = containsBag;
+
+            bool durabilityChanged = false;
+            if (!itemChanged)
+            {
+                int currentDurability = slot.Itemstack?.Item?.GetRemainingDurability(slot.Itemstack) ?? 0;
+                durabilityChanged = currentDurability != clothesSlot.PreviousDurability;
+                clothesSlot.PreviousDurability = currentDurability;
+            }
+            else
+            {
+                int currentDurability = slot.Itemstack?.Item?.GetRemainingDurability(slot.Itemstack) ?? 0;
+                clothesSlot.PreviousDurability = currentDurability;
+            }
+
+            OnSlotModified?.Invoke(itemChanged, durabilityChanged, false);
         }
 
         if (slot is ArmorSlot armorSlot)
         {
+            int currentItemId = slot.Itemstack?.Item?.ItemId ?? 0;
+            bool itemChanged = currentItemId != armorSlot.PreviousItemId;
+            armorSlot.PreviousItemId = currentItemId;
+
             bool containsBag = armorSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>() != null;
-            if (armorSlot.PreviouslyHeldBag || containsBag)
+            if (itemChanged && (armorSlot.PreviouslyHeldBag || containsBag))
             {
                 ReloadBagInventory();
             }
             armorSlot.PreviouslyHeldBag = containsBag;
-        }
 
-        OnSlotModified?.Invoke();
-        if (slot is ArmorSlot)
-        {
-            OnArmorSlotModified?.Invoke();
+            bool durabilityChanged = false;
+            if (!itemChanged)
+            {
+                int currentDurability = slot.Itemstack?.Item?.GetRemainingDurability(slot.Itemstack) ?? 0;
+                durabilityChanged = currentDurability != armorSlot.PreviousDurability;
+                armorSlot.PreviousDurability = currentDurability;
+            }
+            else
+            {
+                int currentDurability = slot.Itemstack?.Item?.GetRemainingDurability(slot.Itemstack) ?? 0;
+                armorSlot.PreviousDurability = currentDurability;
+            }
+
+            OnSlotModified?.Invoke(itemChanged, durabilityChanged, true);
+            OnArmorSlotModified?.Invoke(itemChanged, durabilityChanged, true);
         }
 
         LoggerUtil.Mark(_api, "inv-sm-1");
@@ -682,6 +721,8 @@ public sealed class ArmorInventory : InventoryCharacter
 
     private void ReloadBagInventory()
     {
+        LoggerUtil.Mark(_api, "inv-rbi-0");
+
         InventoryPlayerBackPacks? backpack = GetBackpackInventory();
         if (backpack == null) return;
 
@@ -690,5 +731,7 @@ public sealed class ArmorInventory : InventoryCharacter
         if (bag == null || bagSlots == null) return;
 
         bag.ReloadBagInventory(backpack, bagSlots);
+
+        LoggerUtil.Mark(_api, "inv-rbi-1");
     }
 }

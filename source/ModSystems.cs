@@ -477,6 +477,7 @@ public sealed class NightVisionSystem : ModSystem, IRenderer
     private ICoreClientAPI? _clientApi;
     private ICoreServerAPI? _serverApi;
     private EntityBehaviorPlayerInventory? _playerInventoryBehavior;
+    private const double _updatePeriodHours = 0.1;
 
     private void OnServerTick(float dt)
     {
@@ -485,41 +486,40 @@ public sealed class NightVisionSystem : ModSystem, IRenderer
         double totalHours = _serverApi.World.Calendar.TotalHours;
         double hoursPassed = totalHours - _lastCheckTotalHours;
 
-        if (hoursPassed > 0.05)
+        if (hoursPassed < _updatePeriodHours) return;
+        
+        foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
-            foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
+            IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
+            if (inventory == null) continue;
+
+            ItemSlot? slot = inventory.FirstOrDefault(slot => slot.Itemstack?.Collectible is ItemNightvisiondevice);
+
+            if (slot?.Itemstack?.Collectible is ItemNightvisiondevice device)
             {
-                IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
-                if (inventory == null) continue;
-
-                ItemSlot? slot = inventory.FirstOrDefault(slot => slot.Itemstack?.Collectible is ItemNightvisiondevice);
-
-                if (slot?.Itemstack?.Collectible is ItemNightvisiondevice device)
-                {
-                    device.AddFuelHours(slot.Itemstack, -hoursPassed);
-                    slot.MarkDirty();
-                }
+                device.AddFuelHours(slot.Itemstack, -hoursPassed);
+                slot.MarkDirty();
             }
-
-            foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
-            {
-                IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
-                if (inventory == null) continue;
-
-                foreach (ItemSlot slot in inventory)
-                {
-                    IFueledItem? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IFueledItem>();
-                    if (item == null) continue;
-
-                    if (IsSleeping(player.Entity) && !item.ConsumeFuelWhenSleeping(player, slot)) continue;
-
-                    item.AddFuelHours(player, slot, -hoursPassed);
-                    slot.MarkDirty();
-                }
-            }
-
-            _lastCheckTotalHours = totalHours;
         }
+
+        foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
+        {
+            IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
+            if (inventory == null) continue;
+
+            foreach (ItemSlot slot in inventory)
+            {
+                IFueledItem? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IFueledItem>();
+                if (item == null) continue;
+
+                if (IsSleeping(player.Entity) && !item.ConsumeFuelWhenSleeping(player, slot)) continue;
+
+                item.AddFuelHours(player, slot, -hoursPassed);
+                slot.MarkDirty();
+            }
+        }
+
+        _lastCheckTotalHours = totalHours;
     }
 
     private bool IsSleeping(EntityPlayer ep) => ep.GetBehavior<EntityBehaviorTiredness>()?.IsSleeping == true;

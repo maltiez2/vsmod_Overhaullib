@@ -1,5 +1,4 @@
-﻿using CombatOverhaul.Animations;
-using CombatOverhaul.Utils;
+﻿using CombatOverhaul.Utils;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.GameContent;
@@ -9,6 +8,8 @@ namespace CombatOverhaul.Armor;
 public interface IAffectsPlayerStats
 {
     public Dictionary<string, float> PlayerStats(ItemSlot slot, EntityPlayer player);
+
+    public bool StatsChanged { get; set; }
 }
 
 public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
@@ -41,7 +42,15 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (inventory == null) return;
 
-        inventory.SlotModified += UpdateStatsValues;
+        if (inventory is ArmorInventory armorInventory)
+        {
+            armorInventory.OnSlotModified += UpdateStatsValuesConditional;
+        }
+        else
+        {
+            inventory.SlotModified += UpdateStatsValues;
+        }
+
         UpdateStatsValues(0);
 
         _initialized = true;
@@ -59,11 +68,54 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
     private void UpdateStatsValues(int slotId)
     {
+        UpdateStatsValuesConditional(true, true, true);
+    }
+
+    private void UpdateStatsValuesConditional(bool itemChanged, bool durabilityChanged, bool isArmorSlot)
+    {
         InventoryBase? inventory = GetGearInventory(_player);
 
         if (inventory == null) return;
 
         LoggerUtil.Mark(entity.Api, "wst-usv-0");
+
+        bool anyStatsChangedItem = itemChanged;
+        bool anyStatsChangedBehavior = itemChanged;
+
+        if (!itemChanged)
+        {
+            foreach (ItemSlot slot in inventory
+                .Where(slot => slot?.Itemstack?.Item != null)
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+            {
+                if (slot?.Itemstack?.Item is not IAffectsPlayerStats item) continue;
+
+                if (item.StatsChanged)
+                {
+                    anyStatsChangedItem = true;
+                    item.StatsChanged = false;
+                }
+            }
+
+            foreach (ItemSlot slot in inventory
+                .Where(slot => slot?.Itemstack?.Item != null)
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+            {
+                IAffectsPlayerStats? behavior = slot.Itemstack.Item.CollectibleBehaviors.Where(behavior => behavior is IAffectsPlayerStats).FirstOrDefault(defaultValue: null) as IAffectsPlayerStats;
+
+                if (behavior == null) continue;
+
+                if (behavior.StatsChanged)
+                {
+                    anyStatsChangedBehavior = true;
+                    behavior.StatsChanged = false;
+                }
+            }
+        }
+
+        if (!anyStatsChangedItem && !anyStatsChangedBehavior) return;
+
+        LoggerUtil.Mark(entity.Api, "wst-usv-1");
 
         foreach ((string stat, _) in Stats)
         {
@@ -72,29 +124,35 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         Stats.Clear();
 
-        foreach (ItemSlot slot in inventory
-            .Where(slot => slot?.Itemstack?.Item != null)
-            .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+        if (anyStatsChangedItem)
         {
-            if (slot?.Itemstack?.Item is not IAffectsPlayerStats item) continue;
-
-            foreach ((string stat, float value) in item.PlayerStats(slot, _player))
+            foreach (ItemSlot slot in inventory
+                .Where(slot => slot?.Itemstack?.Item != null)
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
             {
-                AddStatValue(stat, value);
+                if (slot?.Itemstack?.Item is not IAffectsPlayerStats item) continue;
+
+                foreach ((string stat, float value) in item.PlayerStats(slot, _player))
+                {
+                    AddStatValue(stat, value);
+                }
             }
         }
 
-        foreach (ItemSlot slot in inventory
-            .Where(slot => slot?.Itemstack?.Item != null)
-            .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+        if (anyStatsChangedBehavior)
         {
-            IAffectsPlayerStats? behavior = slot.Itemstack.Item.CollectibleBehaviors.Where(behavior => behavior is IAffectsPlayerStats).FirstOrDefault(defaultValue: null) as IAffectsPlayerStats;
-
-            if (behavior == null) continue;
-
-            foreach ((string stat, float value) in behavior.PlayerStats(slot, _player))
+            foreach (ItemSlot slot in inventory
+                .Where(slot => slot?.Itemstack?.Item != null)
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
             {
-                AddStatValue(stat, value);
+                IAffectsPlayerStats? behavior = slot.Itemstack.Item.CollectibleBehaviors.Where(behavior => behavior is IAffectsPlayerStats).FirstOrDefault(defaultValue: null) as IAffectsPlayerStats;
+
+                if (behavior == null) continue;
+
+                foreach ((string stat, float value) in behavior.PlayerStats(slot, _player))
+                {
+                    AddStatValue(stat, value);
+                }
             }
         }
 
@@ -105,7 +163,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         _player.walkSpeed = _player.Stats.GetBlended("walkspeed");
 
-        LoggerUtil.Mark(entity.Api, "wst-usv-1");
+        LoggerUtil.Mark(entity.Api, "wst-usv-2");
     }
     private void AddStatValue(string stat, float value)
     {
