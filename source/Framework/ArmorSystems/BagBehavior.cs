@@ -1,5 +1,4 @@
 ﻿using ProtoBuf;
-using System.Security.Cryptography.X509Certificates;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -17,9 +16,7 @@ namespace CombatOverhaul.Armor;
 public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
 {
     public ItemStack SourceBag { get; set; }
-    public ItemTagRule CanHoldItemTags { get; set; } = ItemTagRule.Empty;
-    public BlockTagRule CanHoldBlockTags { get; set; } = BlockTagRule.Empty;
-    public string[] CanHoldWildcard { get; set; } = [];
+    public SlotConfig Config { get; set; } = new([], []);
 
     public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
     {
@@ -41,17 +38,17 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
     {
         if (base.CanHold(sourceSlot) && sourceSlot?.Itemstack?.Collectible?.Code != null)
         {
-            bool matchWithoutDomain = WildcardUtil.Match(CanHoldWildcard, sourceSlot.Itemstack.Collectible.Code.Path);
-            bool matchWithDomain = WildcardUtil.Match(CanHoldWildcard, sourceSlot.Itemstack.Collectible.Code.ToString());
+            bool matchWithoutDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.Path);
+            bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
 
             bool matchWithTags = false;
-            if (sourceSlot.Itemstack?.Item != null && CanHoldItemTags != ItemTagRule.Empty)
+            if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags != ItemTagRule.Empty)
             {
-                matchWithTags = CanHoldItemTags.Intersects(sourceSlot.Itemstack.Item.Tags);
+                matchWithTags = Config.CanHoldItemTags.Intersects(sourceSlot.Itemstack.Item.Tags);
             }
-            if (sourceSlot.Itemstack?.Block != null && CanHoldBlockTags != BlockTagRule.Empty)
+            if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags != BlockTagRule.Empty)
             {
-                matchWithTags = CanHoldBlockTags.Intersects(sourceSlot.Itemstack.Block.Tags);
+                matchWithTags = Config.CanHoldBlockTags.Intersects(sourceSlot.Itemstack.Block.Tags);
             }
 
             return matchWithoutDomain || matchWithDomain || matchWithTags;
@@ -64,6 +61,7 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
 public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
 {
     public int ToolBagId { get; set; }
+    public bool MainHand { get; set; } = true;
 
     public ItemSlotToolHolder(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType, sourceBag, color)
     {
@@ -75,6 +73,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 {
     public int ToolBagId { get; set; }
     public bool CanHoldNow { get; set; } = false;
+    public bool MainHand { get; set; } = true;
 
     public ItemSlotTakeOutOnly(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
     {
@@ -137,18 +136,59 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
     }
 }
 
-public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteractions
+public class SlotConfigJson
+{
+    public string[] CanHoldItemTags { get; set; } = [];
+    public string[] CanHoldBlockTags { get; set; } = [];
+    public string[] CanHoldWildcards { get; set; } = [];
+    public string? SlotColor { get; set; } = null;
+    public string? SlotsIcon { get; set; } = null;
+    public int SlotsNumber { get; set; } = 0;
+
+    public SlotConfig ToConfig()
+    {
+        return new SlotConfig(CanHoldItemTags, CanHoldBlockTags)
+        {
+            CanHoldWildcards = CanHoldWildcards,
+            SlotColor = SlotColor,
+            SlotsIcon = SlotsIcon,
+            SlotsNumber = SlotsNumber
+        };
+    }
+}
+
+public class SlotConfig
 {
     public ItemTagRule CanHoldItemTags { get; set; } = ItemTagRule.Empty;
     public BlockTagRule CanHoldBlockTags { get; set; } = BlockTagRule.Empty;
-    public string[] CanHoldWildcard { get; protected set; } = ["*"];
-    public string? SlotColor { get; protected set; } = null;
+    public string[] CanHoldWildcards { get; set; } = [];
+    public string? SlotColor { get; set; } = null;
+    public string? SlotsIcon { get; set; } = null;
+    public int SlotsNumber { get; set; } = 0;
+
+    protected string[] CanHoldItemTagsNames { get; set; }
+    protected string[] CanHoldBlockTagsNames { get; set; }
+
+    public SlotConfig(string[] itemTags, string[] blockTags)
+    {
+        CanHoldItemTagsNames = itemTags;
+        CanHoldBlockTagsNames = blockTags;
+    }
+
+    public void Resolve(ICoreAPI api)
+    {
+        CanHoldItemTags = new(api, CanHoldItemTagsNames);
+        CanHoldBlockTags = new(api, CanHoldBlockTagsNames);
+    }
+}
+
+public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteractions
+{
+    public SlotConfig DefaultSlotConfig { get; protected set; } = new([], []);
+    public SlotConfig[] SlotConfigs { get; protected set; } = [];
     public int SlotsNumber { get; protected set; } = 0;
-    public string? SlotsIcon { get; protected set; } = null;
 
     protected ICoreAPI? Api;
-    protected string[] ItemTags = [];
-    protected string[] BlockTags = [];
 
     public GearEquipableBag(CollectibleObject collObj) : base(collObj)
     {
@@ -159,24 +199,28 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         base.OnLoaded(api);
         Api = api;
 
-        CanHoldItemTags = new(Api, ItemTags);
-        CanHoldBlockTags = new(Api, BlockTags);
-
-        ItemTags = [];
-        BlockTags = [];
+        DefaultSlotConfig.Resolve(api);
+        SlotConfigs.Foreach(config => config.Resolve(api));
     }
 
     public override void Initialize(JsonObject properties)
     {
         base.Initialize(properties);
 
-        CanHoldWildcard = properties["canHoldWildcards"].AsArray().Select(element => element.AsString("*")).ToArray();
-        SlotsNumber = properties["slotsNumber"].AsInt(0);
-        SlotColor = properties["color"].AsString(null);
+        SlotConfigJson? defaultSlotConfigJson = properties.AsObject<SlotConfigJson>();
+        SlotConfigJson[]? slotConfigsJson = properties["slots"]?.AsObject<SlotConfigJson[]>();
 
-        ItemTags = properties["canHoldItemTags"].AsArray<string>([]);
-        BlockTags = properties["canHoldBlockTags"].AsArray<string>([]);
-        SlotsIcon = properties["slotsIcon"].AsString(null);
+        if (defaultSlotConfigJson != null)
+        {
+            DefaultSlotConfig = defaultSlotConfigJson.ToConfig();
+        }
+
+        if (slotConfigsJson != null)
+        {
+            SlotConfigs = slotConfigsJson.Select(config => config.ToConfig()).ToArray();
+        }
+
+        SlotsNumber = (DefaultSlotConfig?.SlotsNumber ?? 0) + (SlotConfigs?.Select(config => config.SlotsNumber).Sum() ?? 0);
     }
 
     public void Clear(ItemStack backPackStack)
@@ -260,7 +304,6 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         List<ItemSlotBagContent?> bagContents = new();
 
         EnumItemStorageFlags flags = (EnumItemStorageFlags)DefaultFlags;
-        int quantitySlots = SlotsNumber;
 
         ITreeAttribute stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
         if (stackBackPackTree == null)
@@ -268,19 +311,38 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
             stackBackPackTree = new TreeAttribute();
             ITreeAttribute slotsTree = new TreeAttribute();
 
-            for (int slotIndex = 0; slotIndex < quantitySlots; slotIndex++)
+            int slotIndex = 0;
+
+            for (; slotIndex < DefaultSlotConfig.SlotsNumber; slotIndex++)
             {
-                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, DefaultSlotConfig.SlotColor)
                 {
-                    CanHoldWildcard = CanHoldWildcard,
-                    CanHoldItemTags = CanHoldItemTags,
-                    CanHoldBlockTags = CanHoldBlockTags
+                    Config = DefaultSlotConfig
                 };
                 bagContents.Add(slot);
                 slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
-                if (SlotsIcon != null)
+                if (DefaultSlotConfig.SlotsIcon != null)
                 {
-                    slot.BackgroundIcon = SlotsIcon;
+                    slot.BackgroundIcon = DefaultSlotConfig.SlotsIcon;
+                }
+            }
+
+            foreach (SlotConfig config in SlotConfigs)
+            {
+                int lastIndex = slotIndex + config.SlotsNumber;
+
+                for (; slotIndex < lastIndex; slotIndex++)
+                {
+                    ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, config.SlotColor)
+                    {
+                        Config = config
+                    };
+                    bagContents.Add(slot);
+                    slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                    if (config.SlotsIcon != null)
+                    {
+                        slot.BackgroundIcon = config.SlotsIcon;
+                    }
                 }
             }
 
@@ -294,16 +356,17 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
             foreach (KeyValuePair<string, IAttribute> val in slotsTree)
             {
                 int slotIndex = val.Key.Split("-")[1].ToInt();
-                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+
+                SlotConfig config = GetSlotConfig(slotIndex);
+
+                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, config.SlotColor)
                 {
-                    CanHoldWildcard = CanHoldWildcard,
-                    CanHoldItemTags = CanHoldItemTags,
-                    CanHoldBlockTags = CanHoldBlockTags
+                    Config = config
                 };
 
-                if (SlotsIcon != null)
+                if (config.SlotsIcon != null)
                 {
-                    slot.BackgroundIcon = SlotsIcon;
+                    slot.BackgroundIcon = config.SlotsIcon;
                 }
 
                 if (val.Value?.GetValue() != null)
@@ -390,21 +453,40 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
             onEntity.World.SpawnItemEntity(stack, onEntity.Pos.XYZ);
         }
     }
+
+    protected virtual SlotConfig GetSlotConfig(int index)
+    {
+        if (index < DefaultSlotConfig.SlotsNumber)
+        {
+            return DefaultSlotConfig;
+        }
+
+        int previousIndex = DefaultSlotConfig.SlotsNumber;
+        for (int configIndex = 0; configIndex < SlotConfigs.Length; configIndex++)
+        {
+            previousIndex += SlotConfigs[configIndex].SlotsNumber;
+
+            if (index < previousIndex)
+            {
+                return SlotConfigs[configIndex];
+            }
+        }
+
+        return DefaultSlotConfig;
+    }
 }
 
 public class ToolBag : GearEquipableBag
 {
+    public SlotConfig? MainHandSlotConfig { get; protected set; } = new([], []);
+    public SlotConfig? OffHandSlotConfig { get; protected set; } = new([], []);
+
     public string? TakeOutSlotColor { get; protected set; } = null;
-    public string? ToolSlotColor { get; protected set; } = null;
     public string HotkeyCode { get; protected set; } = "";
     public string HotkeyName { get; protected set; } = "";
     public GlKeys HotKeyKey { get; protected set; } = GlKeys.R;
     public int RegularSlotsNumber { get; protected set; } = 0;
-    public ItemTagRule ToolItemTags { get; set; } = ItemTagRule.Empty;
-    public BlockTagRule ToolBlockTags { get; set; } = BlockTagRule.Empty;
-    public string[] ToolWildcard { get; protected set; } = ["*"];
-    public bool MainHand { get; protected set; } = true;
-    public string? ToolSlotIcon { get; protected set; } = null;
+    public int ToolSlotNumber { get; protected set; } = 0;
     public string? TakeOutSlotIcon { get; protected set; } = null;
 
     public ToolBag(CollectibleObject collObj) : base(collObj)
@@ -416,19 +498,30 @@ public class ToolBag : GearEquipableBag
         base.Initialize(properties);
 
         TakeOutSlotColor = properties["takeOutColor"].AsString(null);
-        ToolSlotColor = properties["toolSlotColor"].AsString(null);
         HotkeyCode = properties["hotkeyCode"].AsString("");
         HotkeyName = properties["hotkeyName"].AsString("");
         HotKeyKey = Enum.Parse<GlKeys>(properties["hotkeyKey"].AsString("R"));
-        ToolWildcard = properties["toolWildcards"].AsArray().Select(element => element.AsString("*")).ToArray();
-        ToolStringItemTags = properties["toolItemTags"].AsArray<string>([]);
-        ToolStringBlockTags = properties["toolBlockTags"].AsArray<string>([]);
-        MainHand = properties["putIntoMainHand"].AsBool(true);
-        ToolSlotIcon = properties["toolSlotIcon"].AsString();
         TakeOutSlotIcon = properties["takeOutSlotIcon"].AsString();
 
+        SlotConfigJson? mainHandSlotConfigJson = properties["toolSlot"]?.AsObject<SlotConfigJson>();
+        SlotConfigJson? offHandSlotConfigJson = properties["offhandToolSlot"]?.AsObject<SlotConfigJson>();
+
+        if (mainHandSlotConfigJson != null)
+        {
+            MainHandSlotConfig = mainHandSlotConfigJson.ToConfig();
+        }
+
+        if (offHandSlotConfigJson != null)
+        {
+            OffHandSlotConfig = offHandSlotConfigJson.ToConfig();
+        }
+
         RegularSlotsNumber = SlotsNumber;
-        SlotsNumber += 2;
+
+        if (mainHandSlotConfigJson != null) ToolSlotNumber += 1;
+        if (offHandSlotConfigJson != null) ToolSlotNumber += 1;
+
+        SlotsNumber += ToolSlotNumber * 2;
     }
 
     public override void OnLoaded(ICoreAPI api)
@@ -451,11 +544,8 @@ public class ToolBag : GearEquipableBag
 
         clientApi.Input.SetHotKeyHandler(HotkeyCode, OnHotkeyPressed);
 
-        ToolItemTags = new(Api, ToolStringItemTags);
-        ToolBlockTags = new(Api, ToolStringBlockTags);
-
-        ToolStringItemTags = [];
-        ToolStringBlockTags = [];
+        MainHandSlotConfig?.Resolve(api);
+        OffHandSlotConfig?.Resolve(api);
     }
 
     public override List<ItemSlotBagContent?> GetOrCreateSlots(ItemStack bagstack, InventoryBase parentinv, int bagIndex, IWorldAccessor world)
@@ -470,44 +560,97 @@ public class ToolBag : GearEquipableBag
             stackBackPackTree = new TreeAttribute();
             ITreeAttribute slotsTree = new TreeAttribute();
 
-            ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, 0, flags, bagstack, ToolSlotColor)
+            int slotIndex = 0;
+
+            if (MainHandSlotConfig != null)
             {
-                CanHoldWildcard = CanHoldWildcard,
-                CanHoldItemTags = CanHoldItemTags,
-                CanHoldBlockTags = CanHoldBlockTags
-            };
-            bagContents.Add(toolSlot);
-            slotsTree["slot-" + 0] = new ItemstackAttribute(null);
-            if (ToolSlotIcon != null)
-            {
-                toolSlot.BackgroundIcon = ToolSlotIcon;
+                ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
+                {
+                    Config = MainHandSlotConfig
+                };
+                toolSlot.MainHand = true;
+                bagContents.Add(toolSlot);
+                slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                if (MainHandSlotConfig.SlotsIcon != null)
+                {
+                    toolSlot.BackgroundIcon = MainHandSlotConfig.SlotsIcon;
+                }
+                slotIndex += 1;
             }
 
-            for (int slotIndex = 1; slotIndex <= RegularSlotsNumber; slotIndex++)
+            if (OffHandSlotConfig != null)
             {
-                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+                ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
                 {
-                    CanHoldWildcard = CanHoldWildcard,
-                    CanHoldItemTags = CanHoldItemTags,
-                    CanHoldBlockTags = CanHoldBlockTags
+                    Config = OffHandSlotConfig
+                };
+                toolSlot.MainHand = false;
+                bagContents.Add(toolSlot);
+                slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                if (OffHandSlotConfig.SlotsIcon != null)
+                {
+                    toolSlot.BackgroundIcon = OffHandSlotConfig.SlotsIcon;
+                }
+                slotIndex += 1;
+            }
+
+            for (; slotIndex < DefaultSlotConfig.SlotsNumber + ToolSlotNumber; slotIndex++)
+            {
+                ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, DefaultSlotConfig.SlotColor)
+                {
+                    Config = DefaultSlotConfig
                 };
                 bagContents.Add(slot);
                 slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
-
-                if (SlotsIcon != null)
+                if (DefaultSlotConfig.SlotsIcon != null)
                 {
-                    slot.BackgroundIcon = SlotsIcon;
+                    slot.BackgroundIcon = DefaultSlotConfig.SlotsIcon;
                 }
             }
 
-            ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, 0, flags, bagstack, TakeOutSlotColor);
-            bagContents.Add(takeOutSLot);
-            slotsTree["slot-" + (RegularSlotsNumber + 1)] = new ItemstackAttribute(null);
-            if (TakeOutSlotIcon != null)
+            foreach (SlotConfig config in SlotConfigs)
             {
-                takeOutSLot.BackgroundIcon = TakeOutSlotIcon;
+                int lastIndex = slotIndex + config.SlotsNumber;
+
+                for (; slotIndex < lastIndex; slotIndex++)
+                {
+                    ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, config.SlotColor)
+                    {
+                        Config = config
+                    };
+                    bagContents.Add(slot);
+                    slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                    if (config.SlotsIcon != null)
+                    {
+                        slot.BackgroundIcon = config.SlotsIcon;
+                    }
+                }
             }
 
+            if (MainHandSlotConfig != null)
+            {
+                ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
+                takeOutSLot.MainHand = true;
+                bagContents.Add(takeOutSLot);
+                slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                if (TakeOutSlotIcon != null)
+                {
+                    takeOutSLot.BackgroundIcon = TakeOutSlotIcon;
+                }
+                slotIndex += 1;
+            }
+
+            if (OffHandSlotConfig != null)
+            {
+                ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
+                takeOutSLot.MainHand = false;
+                bagContents.Add(takeOutSLot);
+                slotsTree["slot-" + slotIndex] = new ItemstackAttribute(null);
+                if (TakeOutSlotIcon != null)
+                {
+                    takeOutSLot.BackgroundIcon = TakeOutSlotIcon;
+                }
+            }
 
             stackBackPackTree["slots"] = slotsTree;
             bagstack.Attributes["backpack"] = stackBackPackTree;
@@ -520,14 +663,62 @@ public class ToolBag : GearEquipableBag
             {
                 int slotIndex = val.Key.Split("-")[1].ToInt();
 
-                if (slotIndex <= RegularSlotsNumber && slotIndex > 0)
+                if (slotIndex == 0)
                 {
-                    ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, SlotColor)
+                    if (MainHandSlotConfig != null)
                     {
-                        CanHoldWildcard = CanHoldWildcard,
-                        CanHoldItemTags = CanHoldItemTags,
-                        CanHoldBlockTags = CanHoldBlockTags
+                        ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
+                        {
+                            Config = MainHandSlotConfig
+                        };
+                        slot.MainHand = true;
+
+                        if (val.Value?.GetValue() != null)
+                        {
+                            ItemstackAttribute attr = (ItemstackAttribute)val.Value;
+                            slot.Itemstack = attr.value;
+                            slot.Itemstack.ResolveBlockOrItem(world);
+                        }
+
+                        if (MainHandSlotConfig.SlotsIcon != null)
+                        {
+                            slot.BackgroundIcon = MainHandSlotConfig.SlotsIcon;
+                        }
+
+                        while (bagContents.Count <= slotIndex) bagContents.Add(null);
+                        bagContents[slotIndex] = slot;
+                    }
+                    else if (OffHandSlotConfig != null)
+                    {
+                        ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
+                        {
+                            Config = OffHandSlotConfig
+                        };
+                        slot.MainHand = false;
+
+                        if (val.Value?.GetValue() != null)
+                        {
+                            ItemstackAttribute attr = (ItemstackAttribute)val.Value;
+                            slot.Itemstack = attr.value;
+                            slot.Itemstack.ResolveBlockOrItem(world);
+                        }
+
+                        if (OffHandSlotConfig.SlotsIcon != null)
+                        {
+                            slot.BackgroundIcon = OffHandSlotConfig.SlotsIcon;
+                        }
+
+                        while (bagContents.Count <= slotIndex) bagContents.Add(null);
+                        bagContents[slotIndex] = slot;
+                    }
+                }
+                else if (slotIndex == 1 && ToolSlotNumber == 2 && OffHandSlotConfig != null)
+                {
+                    ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
+                    {
+                        Config = OffHandSlotConfig
                     };
+                    slot.MainHand = false;
 
                     if (val.Value?.GetValue() != null)
                     {
@@ -536,41 +727,18 @@ public class ToolBag : GearEquipableBag
                         slot.Itemstack.ResolveBlockOrItem(world);
                     }
 
-                    if (SlotsIcon != null)
+                    if (OffHandSlotConfig.SlotsIcon != null)
                     {
-                        slot.BackgroundIcon = SlotsIcon;
+                        slot.BackgroundIcon = OffHandSlotConfig.SlotsIcon;
                     }
 
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = slot;
                 }
-                else if (slotIndex == 0)
-                {
-                    ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, ToolSlotColor)
-                    {
-                        CanHoldWildcard = ToolWildcard,
-                        CanHoldItemTags = ToolItemTags,
-                        CanHoldBlockTags = ToolBlockTags
-                    };
-
-                    if (val.Value?.GetValue() != null)
-                    {
-                        ItemstackAttribute attr = (ItemstackAttribute)val.Value;
-                        slot.Itemstack = attr.value;
-                        slot.Itemstack.ResolveBlockOrItem(world);
-                    }
-
-                    if (ToolSlotIcon != null)
-                    {
-                        slot.BackgroundIcon = ToolSlotIcon;
-                    }
-
-                    while (bagContents.Count <= slotIndex) bagContents.Add(null);
-                    bagContents[slotIndex] = slot;
-                }
-                else if (slotIndex == RegularSlotsNumber + 1)
+                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + ToolSlotNumber - 1 && MainHandSlotConfig != null)
                 {
                     ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
+                    takeOutSLot.MainHand = true;
 
                     if (val.Value?.GetValue() != null)
                     {
@@ -587,6 +755,50 @@ public class ToolBag : GearEquipableBag
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = takeOutSLot;
                 }
+                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) - 1 && OffHandSlotConfig != null)
+                {
+                    ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
+                    takeOutSLot.MainHand = false;
+
+                    if (val.Value?.GetValue() != null)
+                    {
+                        ItemstackAttribute attr = (ItemstackAttribute)val.Value;
+                        takeOutSLot.Itemstack = attr.value;
+                        takeOutSLot.Itemstack.ResolveBlockOrItem(world);
+                    }
+
+                    if (TakeOutSlotIcon != null)
+                    {
+                        takeOutSLot.BackgroundIcon = TakeOutSlotIcon;
+                    }
+
+                    while (bagContents.Count <= slotIndex) bagContents.Add(null);
+                    bagContents[slotIndex] = takeOutSLot;
+                }
+                else
+                {
+                    SlotConfig config = GetSlotConfig(slotIndex - ToolSlotNumber);
+
+                    ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, config.SlotColor)
+                    {
+                        Config = config
+                    };
+
+                    if (config.SlotsIcon != null)
+                    {
+                        slot.BackgroundIcon = config.SlotsIcon;
+                    }
+
+                    if (val.Value?.GetValue() != null)
+                    {
+                        ItemstackAttribute attr = (ItemstackAttribute)val.Value;
+                        slot.Itemstack = attr.value;
+                        slot.Itemstack.ResolveBlockOrItem(world);
+                    }
+
+                    while (bagContents.Count <= slotIndex) bagContents.Add(null);
+                    bagContents[slotIndex] = slot;
+                }
             }
         }
 
@@ -595,8 +807,6 @@ public class ToolBag : GearEquipableBag
 
     protected ActionConsumable<KeyCombination>? PreviousHotkeyHandler;
     protected ICoreClientAPI? ClientApi;
-    protected string[] ToolStringItemTags = [];
-    protected string[] ToolStringBlockTags = [];
 
     protected virtual bool OnHotkeyPressed(KeyCombination keyCombination)
     {
@@ -610,7 +820,7 @@ public class ToolBag : GearEquipableBag
             {
                 ToolBagSystemClient? system = ClientApi?.ModLoader?.GetModSystem<CombatOverhaulSystem>()?.ClientToolBagSystem;
 
-                system?.Send(toolBagId, MainHand);
+                system?.Send(toolBagId, MainHandSlotConfig != null);
             }
         }
 
@@ -669,12 +879,26 @@ public class ToolBagSystemServer
 
         if (inventory == null) return;
 
-        ItemSlotToolHolder? toolSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == packet.ToolBagId, null) as ItemSlotToolHolder;
-        ItemSlotTakeOutOnly? sinkSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == packet.ToolBagId, null) as ItemSlotTakeOutOnly;
-        ItemSlot? activeSlot = packet.MainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
+        ItemSlotToolHolder? mainHandToolSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotToolHolder)?.MainHand == true, null) as ItemSlotToolHolder;
+        ItemSlotToolHolder? offHandToolSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotToolHolder)?.MainHand == false, null) as ItemSlotToolHolder;
+        ItemSlotTakeOutOnly? mainHandSinkSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotTakeOutOnly)?.MainHand == true, null) as ItemSlotTakeOutOnly;
+        ItemSlotTakeOutOnly? offHandHandSinkSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotTakeOutOnly)?.MainHand == false, null) as ItemSlotTakeOutOnly;
+        ItemSlot? mainHandActiveSlot = player.Entity.ActiveHandItemSlot;
+        ItemSlot? offHandActiveSlot = player.Entity.LeftHandItemSlot;
 
-        if (toolSlot == null || sinkSlot == null || activeSlot == null) return;
+        if (mainHandToolSlot != null && mainHandSinkSlot != null && mainHandActiveSlot != null)
+        {
+            ProcessSlots(mainHandToolSlot, mainHandSinkSlot, mainHandActiveSlot, player);
+        }
 
+        if (offHandToolSlot != null && offHandHandSinkSlot != null && offHandActiveSlot != null)
+        {
+            ProcessSlots(offHandToolSlot, offHandHandSinkSlot, offHandActiveSlot, player);
+        }
+    }
+
+    private void ProcessSlots(ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, ItemSlot activeSlot, IServerPlayer player)
+    {
         if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
         {
             PutBack(activeSlot, toolSlot, player);
