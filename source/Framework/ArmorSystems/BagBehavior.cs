@@ -99,10 +99,11 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmptyIntoHotbar(InventoryBasePlayer inventory, int index)
     {
+        if (inventory.Player.Entity?.Api?.Side != EnumAppSide.Server) return;
         if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
 
         DummySlot dummySlot = new(itemstack);
-        ItemSlot? targetSlot = inventory.GetBestSuitedSlot(dummySlot)?.slot ?? inventory.FirstOrDefault(slot => slot?.CanHold(dummySlot) == true, null);
+        ItemSlot? targetSlot = inventory.GetBestSuitedSlot(dummySlot)?.slot ?? inventory.FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true, null);
 
         if (targetSlot == null) return;
 
@@ -116,18 +117,17 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmpty(InventoryBase inventory, int index)
     {
+        if ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api?.Side != EnumAppSide.Server) return;
         if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
 
         DummySlot dummySlot = new(itemstack);
-        ItemSlot? targetSlot =
-            (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory()?.GetBestSuitedSlot(dummySlot)?.slot
-            ?? (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory().FirstOrDefault(slot => slot?.CanHold(dummySlot) == true, null)
-            ?? inventory.GetBestSuitedSlot(dummySlot)?.slot
-            ?? inventory.FirstOrDefault(slot => slot?.CanHold(dummySlot) == true, null);
+        ItemSlot? targetSlot = (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory()?.GetBestSuitedSlot(dummySlot)?.slot;
+        targetSlot ??= (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory().FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true && slot is not ItemSlotTakeOutOnly, null);
+        targetSlot ??= inventory.FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true && slot is not ItemSlotTakeOutOnly, null);
 
         if (targetSlot == null) return;
 
-        if (TryPutInto(inventory.Api.World, dummySlot, dummySlot.Itemstack.StackSize) > 0)
+        if (TryPutInto(inventory.Api.World, targetSlot, dummySlot.Itemstack.StackSize) > 0)
         {
             targetSlot.MarkDirty();
             itemstack = dummySlot.Itemstack?.StackSize == 0 ? null : dummySlot.Itemstack;
@@ -478,8 +478,8 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
 public class ToolBag : GearEquipableBag
 {
-    public SlotConfig? MainHandSlotConfig { get; protected set; } = new([], []);
-    public SlotConfig? OffHandSlotConfig { get; protected set; } = new([], []);
+    public SlotConfig? MainHandSlotConfig { get; protected set; } = null;
+    public SlotConfig? OffHandSlotConfig { get; protected set; } = null;
 
     public string? TakeOutSlotColor { get; protected set; } = null;
     public string HotkeyCode { get; protected set; } = "";
@@ -735,7 +735,7 @@ public class ToolBag : GearEquipableBag
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = slot;
                 }
-                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + ToolSlotNumber - 1 && MainHandSlotConfig != null)
+                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) - (ToolSlotNumber == 2 ? 1 : 0) && MainHandSlotConfig != null)
                 {
                     ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
                     takeOutSLot.MainHand = true;
@@ -755,7 +755,7 @@ public class ToolBag : GearEquipableBag
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = takeOutSLot;
                 }
-                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) - 1 && OffHandSlotConfig != null)
+                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) + (ToolSlotNumber == 2 ? 1 : 0) - 1 && OffHandSlotConfig != null)
                 {
                     ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
                     takeOutSLot.MainHand = false;

@@ -223,6 +223,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly HashSet<string> _offhandVanillaAnimations = new();
     private readonly HashSet<string> _mainHandVanillaAnimations = new();
     private readonly bool _mainPlayer = false;
+    private readonly Dictionary<string, AnimatedElement> _posesNames = Enum.GetValues<AnimatedElement>().ToDictionary(value => value.ToString(), value => value);
+    private readonly Dictionary<ElementPose, AnimatedElement> _posesCache = [];
+    private readonly List<bool> _posesSet = Enum.GetValues<AnimatedElement>().Select(_ => false).ToList();
+    private bool _updatePosesCache = false;
+    private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
     private long _mainHandIdleTimer = -1;
@@ -242,21 +247,46 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     private void OnBeforeFrame(Entity entity, float dt)
     {
+        if (!_frameApplied) return;
+        
         if (!IsOwner(entity)) return;
 
         LoggerUtil.Mark(_api, "fpan-obf-0");
 
-        float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1;
+        //float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1;
 
-        double dtAdjusted = GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
+        double dtAdjusted = dt; // GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
 
         LoggerUtil.Mark(_api, "fpan-obf-1");
+
+        if (_updatePosesCache)
+        {
+            _updatePosesCache = false;
+        }
+        else
+        {
+            for (int index = 0; index < _posesSet.Count; index++)
+            {
+                if (!_posesSet[index])
+                {
+                    _updatePosesCache = true;
+                }
+
+                _posesSet[index] = false;
+            }
+        }
+
+        _frameApplied = false;
+
+        LoggerUtil.Mark(_api, "fpan-obf-2");
     }
     private void OnFrame(Entity entity, ElementPose pose)
     {
         LoggerUtil.Mark(_api, "fpan-of-0");
+
+        _frameApplied = true;
 
         if (IsImmersiveFirstPerson(entity)) return;
         if (!DebugWindowManager.PlayAnimationsInThirdPerson && !IsFirstPerson(entity)) return;
@@ -287,9 +317,24 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     }
     private void ApplyFrame(PlayerItemFrame frame, Entity entity, ElementPose pose, Animatable? animatable)
     {
+        if (!_posesCache.TryGetValue(pose, out AnimatedElement element))
+        {
+            element = AnimatedElement.Unknown;
+            if (_updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
+            {
+                _posesCache[pose] = element;
+            }
+        }
+        else
+        {
+            _posesSet[(int)element] = true;
+        }
+
+        LoggerUtil.Mark(_api, "fpan-appf-1");
+
         Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
 
-        frame.Apply(pose, eyePosition, (float)entity.Properties.EyeHeight);
+        frame.Apply(pose, element, eyePosition, (float)entity.Properties.EyeHeight);
 
         if (animatable != null && frame.DetachedAnchor)
         {
@@ -316,6 +361,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
         }
 
+        LoggerUtil.Mark(_api, "fpan-appf-2");
+
         SetFov(frame.Player.FovMultiplier, true);
 
         _player.HeadBobbingAmplitude /= _previousHeadBobbingAmplitudeFactor;
@@ -323,6 +370,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         _player.HeadBobbingAmplitude *= _previousHeadBobbingAmplitudeFactor;
 
         _resetFov = true;
+
+        LoggerUtil.Mark(_api, "fpan-appf-3");
     }
     private static bool IsOwner(Entity entity) => (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;
     private static bool IsFirstPerson(Entity entity)
@@ -750,6 +799,11 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly List<string> _offhandCategories = new();
     private readonly List<string> _mainHandCategories = new();
     private readonly bool _mainPlayer = false;
+    private readonly Dictionary<string, AnimatedElement> _posesNames = Enum.GetValues<AnimatedElement>().ToDictionary(value => value.ToString(), value => value);
+    private readonly Dictionary<ElementPose, AnimatedElement> _posesCache = [];
+    private readonly List<bool> _posesSet = Enum.GetValues<AnimatedElement>().Select(_ => false).ToList();
+    private bool _updatePosesCache = false;
+    private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
     private long _mainHandIdleTimer = -1;
@@ -764,18 +818,43 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (entity.EntityId != targetEntity.EntityId || !targetEntity.IsRendered) return;
 
+        if (!_frameApplied) return;
+
         LoggerUtil.Mark(_api, "tpan-obf-0");
 
-        float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1f;
+        //float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1f;
 
-        double dtAdjusted = GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
+        double dtAdjusted = dt; // GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
 
         LoggerUtil.Mark(_api, "tpan-obf-1");
+
+        if (_updatePosesCache)
+        {
+            _updatePosesCache = false;
+        }
+        else
+        {
+            for (int index = 0; index < _posesSet.Count; index++)
+            {
+                if (!_posesSet[index])
+                {
+                    _updatePosesCache = true;
+                }
+
+                _posesSet[index] = false;
+            }
+        }
+
+        _frameApplied = false;
+
+        LoggerUtil.Mark(_api, "tpan-obf-2");
     }
     private void OnFrame(Entity entity, ElementPose pose)
     {
+        _frameApplied = true;
+
         if (!entity.IsRendered || DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(entity)) return;
 
         LoggerUtil.Mark(_api, "tpan-of-0");
@@ -797,12 +876,27 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (entity.EntityId != targetEntity.EntityId) return;
 
-        if (pose.ForElement.Name == "LowerTorso") return;
+        if (!_posesCache.TryGetValue(pose, out AnimatedElement element))
+        {
+            element = AnimatedElement.Unknown;
+            if (_updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
+            {
+                _posesCache[pose] = element;
+            }
+        }
+        else
+        {
+            _posesSet[(int)element] = true;
+        }
+
+        LoggerUtil.Mark(_api, "tpan-appf-1");
+
+        if (element == AnimatedElement.LowerTorso) return;
 
         float pitch = targetEntity.Pos.HeadPitch;
         Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
 
-        frame.Apply(pose, eyePosition, (float)entity.Properties.EyeHeight, pitch, true, false);
+        frame.Apply(pose, element, eyePosition, (float)entity.Properties.EyeHeight, pitch, true, false);
 
         if (animatable != null && frame.DetachedAnchor)
         {
@@ -813,6 +907,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         {
             animatable.SwitchArms = true;
         }
+
+        LoggerUtil.Mark(_api, "tpan-appf-2");
     }
     private static bool IsFirstPerson(Entity entity)
     {

@@ -4,6 +4,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul;
@@ -21,8 +22,10 @@ public class WearableFueledLightSourceStats
     public string FuelAttribute { get; set; } = "nightVisionFuelHours";
     public string ToggleAttribute { get; set; } = "turnedOn";
     public bool ConsumeFuelWhileSleeping { get; set; } = false;
-    public byte[] LightHsv { get; set; } = new byte[3] { 0, 0, 0 };
-    public byte[] TurnedOffLightHsv { get; set; } = new byte[3] { 0, 0, 0 };
+    public byte[] LightHsv { get; set; } = [0, 0, 0];
+    public byte[] TurnedOffLightHsv { get; set; } = [0, 0, 0];
+    public Dictionary<string, float> FuelItems { get; set; } = [];
+    public float MaxFuelWasteFraction { get; set; } = 0.5f;
 }
 
 public class WearableFueledLightSource : ItemWearable, IWearableLightSource, IFueledItem, ITogglableItem
@@ -74,7 +77,7 @@ public class WearableFueledLightSource : ItemWearable, IWearableLightSource, IFu
         {
             float stackFuel = GetStackFuel(op.SourceSlot.Itemstack);
             double fuelHours = GetFuelHours(op.ActingPlayer, op.SinkSlot);
-            if (stackFuel > 0f && fuelHours + (double)(stackFuel / 2f) < (double)Stats.FuelCapacityHours)
+            if (stackFuel > 0f && fuelHours + (double)(stackFuel * Stats.MaxFuelWasteFraction) < (double)Stats.FuelCapacityHours)
             {
                 SetFuelHours(op.ActingPlayer, op.SinkSlot, (double)stackFuel + fuelHours);
                 op.MovedQuantity = 1;
@@ -139,7 +142,22 @@ public class WearableFueledLightSource : ItemWearable, IWearableLightSource, IFu
     }
     public virtual bool ConsumeFuelWhenSleeping(IPlayer player, ItemSlot slot) => Stats.ConsumeFuelWhileSleeping;
     public virtual byte[] GetLightHsv(EntityPlayer player, ItemSlot slot) => TurnedOn(player.Player, slot) && Stats.NeedsFuel ? Stats.LightHsv : Stats.TurnedOffLightHsv;
-    public virtual float GetStackFuel(ItemStack stack) => (stack.ItemAttributes?[Stats.FuelAttribute].AsFloat() ?? 0f) * Stats.FuelEfficiency;
+    public virtual float GetStackFuel(ItemStack stack)
+    {
+        foreach ((string itemWildcard, float fuelAmount) in Stats.FuelItems)
+        {
+            if (WildcardUtil.Match(itemWildcard, stack.Item?.Code.ToString() ?? ""))
+            {
+                return fuelAmount * Stats.FuelEfficiency;
+            }
+            else if(WildcardUtil.Match(itemWildcard, stack.Block?.Code.ToString() ?? ""))
+            {
+                return fuelAmount * Stats.FuelEfficiency;
+            }
+        }
+
+        return (stack.ItemAttributes?[Stats.FuelAttribute].AsFloat() ?? 0f) * Stats.FuelEfficiency;
+    }
     public virtual void SetFuelHours(IPlayer player, ItemSlot slot, double fuelHours)
     {
         if (slot?.Itemstack?.Attributes == null) return;
