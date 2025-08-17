@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
+using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -21,6 +22,7 @@ internal static class HarmonyPatches
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
+        _api = api;
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
         _animatorsLock.ReleaseWriterLock();
@@ -105,25 +107,37 @@ internal static class HarmonyPatches
         _reportedEntities.Clear();
 
         api.World.UnregisterGameTickListener(_cleanUpTickListener);
+        _api = null;
     }
 
     public static void OnFrameInvoke(ClientAnimator animator, ElementPose pose)
     {
         if (animator == null) return;
 
+        LoggerUtil.Mark(_api, "hp-ofi-0");
+
         _animatorsLock.AcquireReaderLock(5000);
         if (_animators.TryGetValue(animator, out EntityAgent? entity))
         {
             _animatorsLock.ReleaseReaderLock();
+
+            LoggerUtil.Mark(_api, "hp-ofi-1");
+
             if (entity is EntityPlayer)
             {
                 OnFrame?.Invoke(entity, pose);
             }
+
+            LoggerUtil.Mark(_api, "hp-ofi-2");
         }
         else
         {
             _animatorsLock.ReleaseReaderLock();
+
+            LoggerUtil.Mark(_api, "hp-ofi-1");
         }
+
+        LoggerUtil.Mark(_api, "hp-ofi-3");
     }
 
     private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -190,6 +204,7 @@ internal static class HarmonyPatches
     internal static readonly Dictionary<ClientAnimator, EntityAgent> _animators = new();
     internal static readonly ReaderWriterLock _animatorsLock = new();
     internal static readonly HashSet<long> _reportedEntities = new();
+    private static ICoreAPI? _api;
 
     private static bool RenderHeldItem(EntityShapeRenderer __instance, float dt, bool isShadowPass, bool right)
     {
