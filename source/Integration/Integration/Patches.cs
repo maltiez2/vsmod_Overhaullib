@@ -3,6 +3,7 @@ using CombatOverhaul.Colliders;
 using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
+using CombatOverhaul.Utils;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -21,6 +22,8 @@ internal static class HarmonyPatches
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
+        _api = api;
+        
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
         _animatorsLock.ReleaseWriterLock();
@@ -111,7 +114,8 @@ internal static class HarmonyPatches
     {
         if (animator == null) return;
 
-        _animatorsLock.AcquireReaderLock(5000);
+        _animatorsLock.AcquireReaderLock(1000);
+        
         if (_animators.TryGetValue(animator, out EntityAgent? entity))
         {
             _animatorsLock.ReleaseReaderLock();
@@ -131,6 +135,8 @@ internal static class HarmonyPatches
 
     private static void OnCleanUpTick()
     {
+        LoggerUtil.Mark(_api, "hp-oct-0");
+        
         _animatorsLock.AcquireWriterLock(5000);
 
         try
@@ -150,6 +156,8 @@ internal static class HarmonyPatches
         {
             _animatorsLock.ReleaseWriterLock();
         }
+        
+        LoggerUtil.Mark(_api, "hp-oct-1");
     }
 
     private static void BeforeRender(EntityShapeRenderer __instance, float dt)
@@ -171,6 +179,8 @@ internal static class HarmonyPatches
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
+        LoggerUtil.Mark(_api, "hp-cc-0");
+        
         EntityAgent? entity = (Entity?)_entity?.GetValue(__instance) as EntityAgent;
 
         if (entity?.Api?.Side != EnumAppSide.Client) return true;
@@ -184,17 +194,22 @@ internal static class HarmonyPatches
         }
         _animatorsLock.ReleaseWriterLock();
 
+        LoggerUtil.Mark(_api, "hp-cc-1");
+        
         return true;
     }
 
     internal static readonly Dictionary<ClientAnimator, EntityAgent> _animators = new();
     internal static readonly ReaderWriterLock _animatorsLock = new();
     internal static readonly HashSet<long> _reportedEntities = new();
-
+    private static ICoreAPI? _api;
+    
     private static bool RenderHeldItem(EntityShapeRenderer __instance, float dt, bool isShadowPass, bool right)
     {
         //if (isShadowPass) return true;
-
+        
+        LoggerUtil.Mark(_api, "hp-rhi-0");
+        
         ItemSlot? slot;
 
         if (right)
@@ -226,7 +241,13 @@ internal static class HarmonyPatches
                                           .GetField("lightrgbs", BindingFlags.NonPublic | BindingFlags.Instance)
                                           ?.GetValue(__instance);
 
-        return !behavior.RenderHeldItem(__instance.ModelMat, __instance.capi, slot, __instance.entity, lightrgbs, dt, isShadowPass, right, renderInfo);
+        LoggerUtil.Mark(_api, "hp-rhi-1");
+
+        bool result = !behavior.RenderHeldItem(__instance.ModelMat, __instance.capi, slot, __instance.entity, lightrgbs, dt, isShadowPass, right, renderInfo);
+
+        LoggerUtil.Mark(_api, "hp-rhi-2");
+
+        return result;
     }
 
     private static readonly FieldInfo? _smoothedBodyYaw = typeof(EntityPlayerShapeRenderer).GetField("smoothedBodyYaw", BindingFlags.NonPublic | BindingFlags.Instance);

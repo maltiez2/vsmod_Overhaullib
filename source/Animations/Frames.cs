@@ -7,6 +7,26 @@ using VSImGui.Debug;
 
 namespace CombatOverhaul.Animations;
 
+public enum AnimatedElement
+{
+    Unknown,
+    DetachedAnchor,
+    UpperTorso,
+    LowerTorso,
+    Neck,
+    Head,
+    UpperFootR,
+    UpperFootL,
+    LowerFootR,
+    LowerFootL,
+    ItemAnchor,
+    LowerArmR,
+    UpperArmR,
+    ItemAnchorL,
+    LowerArmL,
+    UpperArmL,
+}
+
 public readonly struct PlayerItemFrame
 {
     public readonly PlayerFrame Player;
@@ -25,10 +45,17 @@ public readonly struct PlayerItemFrame
     public static readonly PlayerItemFrame Zero = new(PlayerFrame.Zero, null);
     public static readonly PlayerItemFrame Empty = new(PlayerFrame.Empty, null);
 
-    public void Apply(ElementPose pose, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
+    public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
     {
-        Player.Apply(pose, eyePosition, eyeHeight, cameraPitch, applyCameraPitch, overrideTorso);
-        Item?.Apply(pose);
+        switch (element)
+        {
+            case AnimatedElement.Unknown:
+                Item?.Apply(pose);
+                break;
+            default:
+                Player.Apply(pose, element, eyePosition, eyeHeight, cameraPitch, applyCameraPitch, overrideTorso);
+                break;
+        }
     }
 
     public static PlayerItemFrame Compose(IEnumerable<(PlayerItemFrame element, float weight)> frames)
@@ -495,28 +522,28 @@ public readonly struct PlayerFrame
     public static readonly PlayerFrame Zero = new(RightHandFrame.Zero, LeftHandFrame.Zero, OtherPartsFrame.Zero);
     public static readonly PlayerFrame Empty = new();
 
-    public void Apply(ElementPose pose, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
+    public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
     {
-        switch (pose.ForElement.Name)
+        switch (element)
         {
-            case "DetachedAnchor":
+            case AnimatedElement.DetachedAnchor:
                 DetachedAnchorFrame?.Apply(pose);
                 break;
-            case "UpperTorso":
+            case AnimatedElement.UpperTorso:
                 UpperTorso?.Apply(pose);
                 if (applyCameraPitch)
                 {
                     pose.degZ += GameMath.Clamp(cameraPitch * GameMath.RAD2DEG * PitchFollow * DetachedAnchorFollow, PitchAngleMin, PitchAngleMax);
                 }
                 break;
-            case "Neck":
-                OtherParts?.Apply(pose);
+            case AnimatedElement.Neck:
+                OtherParts?.Apply(pose, element);
                 if (applyCameraPitch)
                 {
                     pose.degZ = -GameMath.Clamp(cameraPitch * GameMath.RAD2DEG * PitchFollow * DetachedAnchorFollow, PitchAngleMin, PitchAngleMax) / 2;
                 }
                 break;
-            case "LowerTorso":
+            case AnimatedElement.LowerTorso:
                 if (overrideTorso)
                 {
                     if (LowerTorso != null)
@@ -537,9 +564,9 @@ public readonly struct PlayerFrame
                 }
                 break;
             default:
-                OtherParts?.Apply(pose);
-                RightHand?.Apply(pose);
-                LeftHand?.Apply(pose);
+                OtherParts?.Apply(pose, element);
+                RightHand?.Apply(pose, element);
+                LeftHand?.Apply(pose, element);
                 break;
         }
     }
@@ -712,17 +739,17 @@ public readonly struct RightHandFrame
         UpperArmR = upper;
     }
 
-    public void Apply(ElementPose pose)
+    public void Apply(ElementPose pose, AnimatedElement element)
     {
-        switch (pose.ForElement.Name)
+        switch (element)
         {
-            case "ItemAnchor":
+            case AnimatedElement.ItemAnchor:
                 ItemAnchor.Apply(pose);
                 break;
-            case "LowerArmR":
+            case AnimatedElement.LowerArmR:
                 LowerArmR.Apply(pose);
                 break;
-            case "UpperArmR":
+            case AnimatedElement.UpperArmR:
                 UpperArmR.Apply(pose);
                 break;
         }
@@ -776,17 +803,17 @@ public readonly struct LeftHandFrame
         UpperArmL = upper;
     }
 
-    public void Apply(ElementPose pose)
+    public void Apply(ElementPose pose, AnimatedElement element)
     {
-        switch (pose.ForElement.Name)
+        switch (element)
         {
-            case "ItemAnchorL":
+            case AnimatedElement.ItemAnchorL:
                 ItemAnchorL.Apply(pose);
                 break;
-            case "LowerArmL":
+            case AnimatedElement.LowerArmL:
                 LowerArmL.Apply(pose);
                 break;
-            case "UpperArmL":
+            case AnimatedElement.UpperArmL:
                 UpperArmL.Apply(pose);
                 break;
         }
@@ -852,26 +879,26 @@ public readonly struct OtherPartsFrame
         LowerFootL = lowerFootL;
     }
 
-    public void Apply(ElementPose pose)
+    public void Apply(ElementPose pose, AnimatedElement element)
     {
-        switch (pose.ForElement.Name)
+        switch (element)
         {
-            case "Neck":
+            case AnimatedElement.Neck:
                 Neck.Apply(pose);
                 break;
-            case "Head":
+            case AnimatedElement.Head:
                 Head.Apply(pose);
                 break;
-            case "UpperFootR":
+            case AnimatedElement.UpperFootR:
                 UpperFootR.Apply(pose);
                 break;
-            case "UpperFootL":
+            case AnimatedElement.UpperFootL:
                 UpperFootL.Apply(pose);
                 break;
-            case "LowerFootR":
+            case AnimatedElement.LowerFootR:
                 LowerFootR.Apply(pose);
                 break;
-            case "LowerFootL":
+            case AnimatedElement.LowerFootL:
                 LowerFootL.Apply(pose);
                 break;
         }
