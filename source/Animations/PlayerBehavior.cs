@@ -265,14 +265,14 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (Math.Abs(_lastFrame.Player.PitchFollow - PlayerFrame.DefaultPitchFollow) >= PlayerFrame.Epsilon)
         {
-            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+            if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
             {
                 renderer.HeldItemPitchFollowOverride = _lastFrame.Player.PitchFollow;
             }
         }
         else
         {
-            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+            if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
             {
                 renderer.HeldItemPitchFollowOverride = null;
             }

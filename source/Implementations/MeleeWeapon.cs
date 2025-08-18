@@ -15,6 +15,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
+using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.Implementations;
 
@@ -868,6 +869,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             foreach ((string damageType, float tier) in parryStats.BlockTier)
             {
                 parryStats.BlockTier[damageType] += stackStats.ParryTierBonus;
+            }
+
+            if (player.Api.ModLoader.GetModSystem<CharacterSystem>().HasTrait(player.Player, "canParryProjectiles"))
+            {
+                parryStats.CanBlockProjectiles = true;
             }
         }
 
