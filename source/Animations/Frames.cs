@@ -558,7 +558,7 @@ public readonly struct PlayerFrame
     }
 
     public static readonly PlayerFrame Zero = new(RightHandFrame.Zero, LeftHandFrame.Zero, OtherPartsFrame.Zero);
-    public static readonly PlayerFrame Empty = new();
+    public static readonly PlayerFrame Empty = new(null, null, null);
 
     public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
     {

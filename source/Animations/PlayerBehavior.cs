@@ -223,10 +223,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly HashSet<string> _offhandVanillaAnimations = new();
     private readonly HashSet<string> _mainHandVanillaAnimations = new();
     private readonly bool _mainPlayer = false;
-    private readonly Dictionary<string, AnimatedElement> _posesNames = Enum.GetValues<AnimatedElement>().ToDictionary(value => value.ToString(), value => value);
-    private readonly Dictionary<ElementPose, AnimatedElement> _posesCache = [];
-    private readonly List<bool> _posesSet = Enum.GetValues<AnimatedElement>().Select(_ => false).ToList();
-    private bool _updatePosesCache = false;
     private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
@@ -240,41 +236,45 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private int _settingsHandsFOV = ClientSettings.FpHandsFoV;
     private const float _settingsUpdatePeriodSec = 3f;
     private float _settingsUpdateTimeSec = 0;
+    private Animatable? _animatable = null;
+    private Vector3 _eyePosition = new();
+    private float _eyeHeight = 0;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
 
     private readonly FieldInfo _cameraFov = typeof(Camera).GetField("Fov", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new Exception();
 
-    private void OnBeforeFrame(Entity entity, float dt)
+    private void OnBeforeFrame(Entity targetEntity, float dt)
     {
         if (!_frameApplied) return;
         
-        if (!IsOwner(entity)) return;
+        if (!IsOwner(targetEntity)) return;
 
         LoggerUtil.Mark(_api, "fpan-obf-0");
 
-        //float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1;
-
-        double dtAdjusted = dt; // GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
-
-        _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
+        _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dt));
 
         LoggerUtil.Mark(_api, "fpan-obf-1");
 
-        if (_updatePosesCache)
+        SetFov(_lastFrame.Player.FovMultiplier, true);
+        _resetFov = true;
+
+        _animatable = (targetEntity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
+        _eyePosition = new((float)targetEntity.LocalEyePos.X, (float)targetEntity.LocalEyePos.Y, (float)targetEntity.LocalEyePos.Z);
+        _eyeHeight = (float)targetEntity.Properties.EyeHeight;
+
+        if (Math.Abs(_lastFrame.Player.PitchFollow - PlayerFrame.DefaultPitchFollow) >= PlayerFrame.Epsilon)
         {
-            _updatePosesCache = false;
+            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+            {
+                renderer.HeldItemPitchFollowOverride = _lastFrame.Player.PitchFollow;
+            }
         }
         else
         {
-            for (int index = 0; index < _posesSet.Count; index++)
+            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
             {
-                if (!_posesSet[index])
-                {
-                    _updatePosesCache = true;
-                }
-
-                _posesSet[index] = false;
+                renderer.HeldItemPitchFollowOverride = null;
             }
         }
 
@@ -282,7 +282,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "fpan-obf-2");
     }
-    private void OnFrame(Entity entity, ElementPose pose)
+    private void OnFrame(Entity entity, ElementPose pose, AnimatorBase animator)
     {
         LoggerUtil.Mark(_api, "fpan-of-0");
 
@@ -302,72 +302,48 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
             return;
         }
 
-        Animatable? animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
-
         if (FrameOverride != null)
         {
-            ApplyFrame(FrameOverride.Value, entity, pose, animatable);
+            ApplyFrame(FrameOverride.Value, pose, animator);
         }
         else
         {
-            ApplyFrame(_lastFrame, entity, pose, animatable);
+            ApplyFrame(_lastFrame, pose, animator);
         }
 
         LoggerUtil.Mark(_api, "fpan-of-1");
     }
-    private void ApplyFrame(PlayerItemFrame frame, Entity entity, ElementPose pose, Animatable? animatable)
+    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
-        if (!_posesCache.TryGetValue(pose, out AnimatedElement element))
+        if (!Enum.TryParse(pose.ForElement.Name, out AnimatedElement element)) // Cant cache ElementPose because they are new each frame
         {
             element = AnimatedElement.Unknown;
-            if (_updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
-            {
-                _posesCache[pose] = element;
-            }
         }
-        else
+
+        if (element == AnimatedElement.Unknown && animator is not ClientItemAnimator)
         {
-            _posesSet[(int)element] = true;
+            return;
         }
 
         LoggerUtil.Mark(_api, "fpan-appf-1");
 
-        Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
-
-        frame.Apply(pose, element, eyePosition, (float)entity.Properties.EyeHeight);
-
-        if (animatable != null && frame.DetachedAnchor)
-        {
-            animatable.DetachedAnchor = true;
-        }
-
-        if (animatable != null && frame.SwitchArms)
-        {
-            animatable.SwitchArms = true;
-        }
-
-        if (Math.Abs(frame.Player.PitchFollow - PlayerFrame.DefaultPitchFollow) >= PlayerFrame.Epsilon)
-        {
-            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
-            {
-                renderer.HeldItemPitchFollowOverride = frame.Player.PitchFollow;
-            }
-        }
-        else
-        {
-            if (entity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
-            {
-                renderer.HeldItemPitchFollowOverride = null;
-            }
-        }
+        frame.Apply(pose, element, _eyePosition, _eyeHeight);
 
         LoggerUtil.Mark(_api, "fpan-appf-2");
-
-        SetFov(frame.Player.FovMultiplier, true);
 
         _player.HeadBobbingAmplitude /= _previousHeadBobbingAmplitudeFactor;
         _previousHeadBobbingAmplitudeFactor = frame.Player.BobbingAmplitude;
         _player.HeadBobbingAmplitude *= _previousHeadBobbingAmplitudeFactor;
+
+        if (_animatable != null && frame.DetachedAnchor)
+        {
+            _animatable.DetachedAnchor = true;
+        }
+
+        if (_animatable != null && frame.SwitchArms)
+        {
+            _animatable.SwitchArms = true;
+        }
 
         _resetFov = true;
 
@@ -800,7 +776,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly List<string> _mainHandCategories = new();
     private readonly bool _mainPlayer = false;
     private readonly Dictionary<string, AnimatedElement> _posesNames = Enum.GetValues<AnimatedElement>().ToDictionary(value => value.ToString(), value => value);
-    private readonly Dictionary<ElementPose, AnimatedElement> _posesCache = [];
+    private readonly List<ElementPose?> _posesCache = Enum.GetValues<AnimatedElement>().Select(_ => (ElementPose?)null).ToList();
     private readonly List<bool> _posesSet = Enum.GetValues<AnimatedElement>().Select(_ => false).ToList();
     private bool _updatePosesCache = false;
     private bool _frameApplied = false;
@@ -810,6 +786,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private long _offHandIdleTimer = -1;
     private readonly ICoreClientAPI? _api;
     private bool _disposed = false;
+    private Animatable? _animatable = null;
+    private float _pitch = 0;
+    private Vector3 _eyePosition = new();
+    private float _eyeHeight = 0;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
     private static Dictionary<string, ThirdPersonAnimationsBehavior> _existingBehaviors = new();
@@ -822,13 +802,14 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "tpan-obf-0");
 
-        //float factor = (entity.Api as ICoreClientAPI)?.IsSinglePlayer == true ? 0.5f : 1f;
-
-        double dtAdjusted = dt; // GameMath.Clamp(dt * factor, -TimeSpan.MaxValue.TotalSeconds / 2, TimeSpan.MaxValue.TotalSeconds / 2);
-
-        _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dtAdjusted));
+        _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dt));
 
         LoggerUtil.Mark(_api, "tpan-obf-1");
+
+        _animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
+        _pitch = targetEntity.Pos.HeadPitch;
+        _eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
+        _eyeHeight = (float)entity.Properties.EyeHeight;
 
         if (_updatePosesCache)
         {
@@ -851,62 +832,65 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "tpan-obf-2");
     }
-    private void OnFrame(Entity entity, ElementPose pose)
+    private void OnFrame(Entity targetEntity, ElementPose pose, AnimatorBase animator)
     {
-        _frameApplied = true;
-
-        if (!entity.IsRendered || DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(entity)) return;
-
         LoggerUtil.Mark(_api, "tpan-of-0");
 
-        Animatable? animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
+        _frameApplied = true;
+
+        if (entity.EntityId != targetEntity.EntityId) return;
+
+        if (!targetEntity.IsRendered || DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(targetEntity)) return;
 
         if (FrameOverride != null)
         {
-            ApplyFrame(FrameOverride.Value, entity, pose, animatable);
+            ApplyFrame(FrameOverride.Value, pose, animator);
         }
         else
         {
-            ApplyFrame(_lastFrame, entity, pose, animatable);
+            ApplyFrame(_lastFrame, pose, animator);
         }
 
         LoggerUtil.Mark(_api, "tpan-of-1");
     }
-    private void ApplyFrame(PlayerItemFrame frame, Entity targetEntity, ElementPose pose, Animatable? animatable)
+    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
-        if (entity.EntityId != targetEntity.EntityId) return;
-
-        if (!_posesCache.TryGetValue(pose, out AnimatedElement element))
+        AnimatedElement element = AnimatedElement.Unknown;
+        for (int index = 1; index < _posesCache.Count; index++)
         {
-            element = AnimatedElement.Unknown;
-            if (_updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
+            if (_posesCache[index] == pose)
             {
-                _posesCache[pose] = element;
+                element = (AnimatedElement)index;
+                _posesSet[index] = true;
+                break;
             }
         }
-        else
+
+        if (element == AnimatedElement.Unknown && _updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
         {
-            _posesSet[(int)element] = true;
+            _posesCache[(int)element] = pose;
+        }
+
+        if (element == AnimatedElement.Unknown && animator is not ClientItemAnimator)
+        {
+            return;
+        }
+
+        if (_animatable != null && frame.DetachedAnchor)
+        {
+            _animatable.DetachedAnchor = true;
+        }
+
+        if (_animatable != null && frame.SwitchArms)
+        {
+            _animatable.SwitchArms = true;
         }
 
         LoggerUtil.Mark(_api, "tpan-appf-1");
 
         if (element == AnimatedElement.LowerTorso) return;
 
-        float pitch = targetEntity.Pos.HeadPitch;
-        Vector3 eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
-
-        frame.Apply(pose, element, eyePosition, (float)entity.Properties.EyeHeight, pitch, true, false);
-
-        if (animatable != null && frame.DetachedAnchor)
-        {
-            animatable.DetachedAnchor = true;
-        }
-
-        if (animatable != null && frame.SwitchArms)
-        {
-            animatable.SwitchArms = true;
-        }
+        frame.Apply(pose, element, _eyePosition, _eyeHeight, _pitch, true, false);
 
         LoggerUtil.Mark(_api, "tpan-appf-2");
     }

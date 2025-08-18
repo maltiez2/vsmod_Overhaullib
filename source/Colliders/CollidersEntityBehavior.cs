@@ -121,23 +121,15 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
         }
     }
 
-    public override void OnGameTick(float deltaTime)
-    {
-        if (entity.ShouldDespawn)
-        {
-            _dispose = true;
-        }
-    }
-
     public void Update(float deltaTime)
     {
-        if (_dispose)
+        if (entity.State == EnumEntityState.Despawned)
         {
             Dispose();
             return;
         }
 
-        if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider) return;
+        if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider || !entity.Alive) return;
 
         Utils.LoggerUtil.Mark(entity.Api, "col-ogt-0");
 
@@ -187,7 +179,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
     {
         bool firstPerson = entity.Api is ICoreClientAPI { World.Player.CameraMode: EnumCameraMode.FirstPerson };
         if (api.World.Player.Entity.EntityId == entityPlayer.EntityId && firstPerson) return;
-        if (!HasOBBCollider) return;
+        if (!HasOBBCollider || !entity.Alive) return;
 
         IShaderProgram? currentShader = api.Render.CurrentActiveShader;
         currentShader?.Stop();
@@ -346,7 +338,6 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
     private const int _updateFps = 30;
     private const int _updateTimeMs = 1000 / _updateFps;
     private long _listenerId = 0;
-    private bool _dispose = false;
 
     private void SetColliderElement(ShapeElement element)
     {
@@ -546,5 +537,6 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
     public void Dispose()
     {
         Api?.World?.UnregisterGameTickListener(_listenerId);
+        _listenerId = 0;
     }
 }

@@ -8,6 +8,21 @@ using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Animations;
 
+public class ClientItemAnimator : ClientAnimator
+{
+    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, Vintagestory.API.Common.Animation[] animations, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, animations, onAnimationStoppedListener, onShouldPlaySoundListener)
+    {
+    }
+
+    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, Vintagestory.API.Common.Animation[] animations, ShapeElement[] rootElements, Dictionary<int, AnimationJoint> jointsById, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, animations, rootElements, jointsById, onAnimationStoppedListener, onShouldPlaySoundListener)
+    {
+    }
+
+    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, List<ElementPose> rootPoses, Vintagestory.API.Common.Animation[] animations, ShapeElement[] rootElements, Dictionary<int, AnimationJoint> jointsById, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, rootPoses, animations, rootElements, jointsById, onAnimationStoppedListener, onShouldPlaySoundListener)
+    {
+    }
+}
+
 public sealed class AnimatableShape : ITexPositionSource, IDisposable
 {
     public Shape Shape { get; private set; }
@@ -153,7 +168,7 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
         if (animationCache.TryGetValue(cacheDictKey, out AnimCacheEntry? cacheObj))
         {
             animator = clientApi.Side == EnumAppSide.Client ?
-                new ClientAnimator(() => 1, cacheObj.RootPoses, cacheObj.Animations, cacheObj.RootElems, shape.JointsById) :
+                new ClientItemAnimator(() => 1, cacheObj.RootPoses, cacheObj.Animations, cacheObj.RootElems, shape.JointsById) :
                 new ServerAnimator(() => 1, cacheObj.RootPoses, cacheObj.Animations, cacheObj.RootElems, shape.JointsById)
             ;
         }
@@ -169,7 +184,7 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
             }
 
             animator = clientApi.Side == EnumAppSide.Client ?
-                new ClientAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById) :
+                new ClientItemAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById) :
                 new ServerAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById)
             ;
 
