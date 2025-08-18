@@ -50,6 +50,9 @@ public sealed class Settings
     public float DefaultColliderPenetrationResistance { get; set; } = 5f;
 
     public bool AlternativeDirectionControls { get; set; } = false;
+
+    public bool DisableAllAnimations { get; set; } = false;
+    public bool DisableThirdPersonAnimations { get; set; } = false;
 }
 
 public sealed class ArmorConfig
@@ -100,6 +103,8 @@ public sealed class CombatOverhaulSystem : ModSystem
 
     public override void StartPre(ICoreAPI api)
     {
+        HarmonyPatches.Settings = Settings;
+
         // Moved to CO
         //(api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
         //(api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
@@ -215,6 +220,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         IAsset settingsAsset = api.Assets.Get("combatoverhaul:config/settings.json");
         JsonObject settings = JsonObject.FromJson(settingsAsset.ToText());
         Settings = settings.AsObject<Settings>();
+        HarmonyPatches.Settings = Settings;
 
         if (DirectionCursorRenderer != null)
         {

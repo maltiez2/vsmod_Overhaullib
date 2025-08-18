@@ -239,6 +239,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
+        if (HarmonyPatches.Settings.DisableThirdPersonAnimations) return;
+
         if (!_frameApplied) return;
 
         if (!IsOwner(targetEntity)) return;
@@ -292,6 +294,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     }
     private void OnFrame(Entity targetEntity, ElementPose pose, ClientAnimator animator)
     {
+        if (HarmonyPatches.Settings.DisableThirdPersonAnimations) return;
+        
         LoggerUtil.Mark(_api, "fpan-of-0");
         
         _frameApplied = true;

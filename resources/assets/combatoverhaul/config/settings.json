@@ -12,5 +12,7 @@
   "DoVanillaActionsWhileBlocking": true,
   "CollisionRadius": 16,
   "DefaultColliderPenetrationResistance": 5,
-  "AlternativeDirectionControls": false
+  "AlternativeDirectionControls": false,
+  "DisableAllAnimations": false,
+  "DisableThirdPersonAnimations": false
 }

@@ -1,9 +1,10 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
+using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
-using CombatOverhaul.Utils;
+using System.Runtime.CompilerServices;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -17,6 +18,7 @@ internal static class HarmonyPatches
 {
     public static event Action<Entity, float>? OnBeforeFrame;
     public static event Action<Entity, ElementPose, ClientAnimator>? OnFrame;
+    public static Settings Settings = new();
 
     public static bool YawSmoothing { get; set; } = false;
 
@@ -110,25 +112,25 @@ internal static class HarmonyPatches
         api.World.UnregisterGameTickListener(_cleanUpTickListener);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void OnFrameInvoke(ClientAnimator animator, ElementPose pose)
     {
-        if (animator == null) return;
-
-        //_animatorsLock.AcquireReaderLock(1000);
-        
-        if (_animators.TryGetValue(animator, out EntityPlayer? entity))
+        if (!Settings.DisableAllAnimations && animator != null && _animators.TryGetValue(animator, out EntityPlayer? entity))
         {
-            //_animatorsLock.ReleaseReaderLock();
             OnFrame?.Invoke(entity, pose, animator);
-        }
-        else
-        {
-            //_animatorsLock.ReleaseReaderLock();
         }
     }
 
     private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
     private static long _cleanUpTickListener = 0;
+
+    private static void BeforeRender(EntityShapeRenderer __instance, float dt)
+    {
+        if (!Settings.DisableAllAnimations)
+        {
+            OnBeforeFrame?.Invoke(__instance.entity, dt);
+        }
+    }
 
     private static void OnCleanUpTick()
     {
@@ -155,11 +157,6 @@ internal static class HarmonyPatches
         }
         
         LoggerUtil.Mark(_api, "hp-oct-1");
-    }
-
-    private static void BeforeRender(EntityShapeRenderer __instance, float dt)
-    {
-        OnBeforeFrame?.Invoke(__instance.entity, dt);
     }
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
