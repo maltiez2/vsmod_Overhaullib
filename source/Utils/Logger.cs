@@ -46,9 +46,13 @@ public static class LoggerUtil
 
     public static void Mark(ICoreAPI? api, string marker)
     {
-        api?.World?.FrameProfiler?.Mark(_markPrefix + marker);
+        FrameProfilerUtil? profiler = api?.World?.FrameProfiler;
+
+        if (profiler == null || !profiler.Enabled || !profiler.PrintSlowTicks) return;
+
+        profiler.Mark(_markPrefix + marker);
     }
-    
+
     public static string Format(object caller, string format)
     {
         DefaultInterpolatedStringHandler defaultInterpolatedStringHandler = new(4, 3);

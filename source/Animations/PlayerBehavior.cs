@@ -290,7 +290,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "fpan-obf-2");
     }
-    private void OnFrame(Entity targetEntity, ElementPose pose)
+    private void OnFrame(Entity targetEntity, ElementPose pose, ClientAnimator animator)
     {
         LoggerUtil.Mark(_api, "fpan-of-0");
         
@@ -312,22 +312,27 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (FrameOverride != null)
         {
-            ApplyFrame(FrameOverride.Value, pose);
+            ApplyFrame(FrameOverride.Value, pose, animator is ClientItemAnimator);
         }
         else
         {
-            ApplyFrame(_lastFrame, pose);
+            ApplyFrame(_lastFrame, pose, animator is ClientItemAnimator);
         }
         
         LoggerUtil.Mark(_api, "fpan-of-1");
     }
-    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose)
+    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, bool itemAnimator)
     {
         if (!Enum.TryParse(pose.ForElement.Name, out AnimatedElement element)) // Cant cache ElementPose because they are new each frame
         {
             element = AnimatedElement.Unknown;
         }
-        
+
+        if (!itemAnimator && element == AnimatedElement.Unknown)
+        {
+            return;
+        }
+
         /*AnimatedElement element = AnimatedElement.Unknown;
         for (int index = 1; index < _posesCache.Count; index++)
         {
@@ -847,7 +852,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "tpan-obf-2");
     }
-    private void OnFrame(Entity targetEntity, ElementPose pose)
+    private void OnFrame(Entity targetEntity, ElementPose pose, ClientAnimator animator)
     {
         LoggerUtil.Mark(_api, "tpan-of-0");
 
@@ -859,16 +864,16 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (FrameOverride != null)
         {
-            ApplyFrame(FrameOverride.Value, pose);
+            ApplyFrame(FrameOverride.Value, pose, animator is ClientItemAnimator);
         }
         else
         {
-            ApplyFrame(_lastFrame, pose);
+            ApplyFrame(_lastFrame, pose, animator is ClientItemAnimator);
         }
         
         LoggerUtil.Mark(_api, "tpan-of-1");
     }
-    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose)
+    private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, bool itemAnimator)
     {
         AnimatedElement element = AnimatedElement.Unknown;
         for (int index = 1; index < _posesCache.Count; index++)
@@ -884,6 +889,11 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         if (element == AnimatedElement.Unknown && _updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
         {
             _posesCache[(int)element] = pose;
+        }
+
+        if (!itemAnimator && element == AnimatedElement.Unknown)
+        {
+            return;
         }
 
         if (_animatable != null && frame.DetachedAnchor)

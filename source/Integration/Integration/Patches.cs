@@ -16,7 +16,7 @@ namespace CombatOverhaul.Integration;
 internal static class HarmonyPatches
 {
     public static event Action<Entity, float>? OnBeforeFrame;
-    public static event Action<Entity, ElementPose>? OnFrame;
+    public static event Action<Entity, ElementPose, ClientAnimator>? OnFrame;
 
     public static bool YawSmoothing { get; set; } = false;
 
@@ -116,13 +116,10 @@ internal static class HarmonyPatches
 
         //_animatorsLock.AcquireReaderLock(1000);
         
-        if (_animators.TryGetValue(animator, out EntityAgent? entity))
+        if (_animators.TryGetValue(animator, out EntityPlayer? entity))
         {
             //_animatorsLock.ReleaseReaderLock();
-            if (entity is EntityPlayer)
-            {
-                OnFrame?.Invoke(entity, pose);
-            }
+            OnFrame?.Invoke(entity, pose, animator);
         }
         else
         {
@@ -180,15 +177,17 @@ internal static class HarmonyPatches
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
         LoggerUtil.Mark(_api, "hp-cc-0");
-        
-        EntityAgent? entity = (Entity?)_entity?.GetValue(__instance) as EntityAgent;
+
+        EntityPlayer? entity = (Entity?)_entity?.GetValue(__instance) as EntityPlayer;
 
         if (entity?.Api?.Side != EnumAppSide.Client) return true;
 
         ClientAnimator? animator = __instance.Animator as ClientAnimator;
 
+        if (animator == null) return true;
+
         _animatorsLock.AcquireWriterLock(5000);
-        if (animator != null && !_animators.ContainsKey(animator))
+        if (!_animators.ContainsKey(animator))
         {
             _animators.Add(animator, entity);
         }
@@ -199,7 +198,7 @@ internal static class HarmonyPatches
         return true;
     }
 
-    internal static readonly Dictionary<ClientAnimator, EntityAgent> _animators = new();
+    internal static readonly Dictionary<ClientAnimator, EntityPlayer> _animators = new();
     internal static readonly ReaderWriterLock _animatorsLock = new();
     internal static readonly HashSet<long> _reportedEntities = new();
     private static ICoreAPI? _api;
