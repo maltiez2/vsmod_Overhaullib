@@ -345,26 +345,28 @@ public readonly struct ItemKeyFrame
 
 public readonly struct ItemFrame
 {
-    public readonly int ElementsHash = 0;
     public readonly Dictionary<string, AnimationElement> Elements = new();
 
     public ItemFrame(Dictionary<string, AnimationElement> elements)
     {
+        HashSet<char> firstLetters = new();
+        
         foreach ((string code, AnimationElement value) in elements)
         {
             Elements.Add(code, value);
+
+            firstLetters.Add(code[0]);
         }
 
-        if (elements.Any())
-        {
-            ElementsHash = Elements.Select(entry => entry.Key.GetHashCode()).Aggregate((first, second) => HashCode.Combine(first, second));
-        }
+        _firstLetters = firstLetters.ToArray();
     }
 
     public static readonly ItemFrame Empty = new(new Dictionary<string, AnimationElement>());
 
     public void Apply(ElementPose pose)
     {
+        if (!_firstLetters.Contains(pose.ForElement.Name[0])) return;
+        
         if (Elements.TryGetValue(pose.ForElement.Name, out AnimationElement element))
         {
             element.Apply(pose);
@@ -413,6 +415,8 @@ public readonly struct ItemFrame
 
         return new(elements);
     }
+
+    private readonly char[] _firstLetters;
 
 #if DEBUG
     public ItemFrame Edit(string title)
@@ -520,7 +524,7 @@ public readonly struct PlayerFrame
     }
 
     public static readonly PlayerFrame Zero = new(RightHandFrame.Zero, LeftHandFrame.Zero, OtherPartsFrame.Zero);
-    public static readonly PlayerFrame Empty = new();
+    public static readonly PlayerFrame Empty = new(null, null, null);
 
     public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
     {
@@ -696,6 +700,8 @@ public readonly struct PlayerFrame
         float fov = from.FovMultiplier + (to.FovMultiplier - from.FovMultiplier) * progress;
         float bobbing = from.BobbingAmplitude + (to.BobbingAmplitude - from.BobbingAmplitude) * progress;
         float detachedAnchorFollow = from.DetachedAnchorFollow + (to.DetachedAnchorFollow - from.DetachedAnchorFollow) * progress;
+
+        bobbing = GameMath.Clamp(bobbing, 0.1f, 1.5f);
 
         return new(righthand, leftHand, otherParts, torso, anchor, to.DetachedAnchor, to.SwitchArms, pitchFollow, fov, bobbing, detachedAnchorFollow, lowerTorso);
     }

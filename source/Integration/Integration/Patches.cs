@@ -101,7 +101,7 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
 
-        _animatorsLock.AcquireWriterLock(5000);
+        _animatorsLock.AcquireWriterLock(1000);
         _animators.Clear();
         _animatorsLock.ReleaseWriterLock();
 
@@ -114,11 +114,11 @@ internal static class HarmonyPatches
     {
         if (animator == null) return;
 
-        _animatorsLock.AcquireReaderLock(1000);
+        //_animatorsLock.AcquireReaderLock(1000);
         
         if (_animators.TryGetValue(animator, out EntityAgent? entity))
         {
-            _animatorsLock.ReleaseReaderLock();
+            //_animatorsLock.ReleaseReaderLock();
             if (entity is EntityPlayer)
             {
                 OnFrame?.Invoke(entity, pose);
@@ -126,7 +126,7 @@ internal static class HarmonyPatches
         }
         else
         {
-            _animatorsLock.ReleaseReaderLock();
+            //_animatorsLock.ReleaseReaderLock();
         }
     }
 
