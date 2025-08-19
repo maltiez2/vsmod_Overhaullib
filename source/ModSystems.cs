@@ -59,6 +59,9 @@ public sealed class Settings
     public float DefaultColliderPenetrationResistance { get; set; } = 5f;
 
     public bool DirectionsMovementControls { get; set; } = false;
+
+    public bool DisableAllAnimations { get; set; } = false;
+    public bool DisableThirdPersonAnimations { get; set; } = false;
 }
 
 public sealed class ArmorConfig
@@ -111,6 +114,15 @@ public sealed class CombatOverhaulSystem : ModSystem
 
     public override void Start(ICoreAPI api)
     {
+        if (api.Side == EnumAppSide.Client)
+        {
+            HarmonyPatches.ClientSettings = Settings;
+        }
+        else
+        {
+            HarmonyPatches.ServerSettings = Settings;
+        }
+
         api.RegisterEntityBehaviorClass("CombatOverhaul:FirstPersonAnimations", typeof(FirstPersonAnimationsBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ThirdPersonAnimations", typeof(ThirdPersonAnimationsBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:EntityColliders", typeof(CollidersEntityBehavior));
@@ -200,6 +212,12 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         api.Input.RegisterHotKey("toggleWearableLight", "Toggle wearable light source", GlKeys.L);
         api.Input.SetHotKeyHandler("toggleWearableLight", _ => ToggleWearableItem(api.World.Player, "toggleWearableLight"));
+
+        api.Input.RegisterHotKey("toggleTpAnimations", "Toggle CO third person animations", GlKeys.PageUp, ctrlPressed: true);
+        api.Input.RegisterHotKey("toggleAllAnimations", "Toggle all CO animations", GlKeys.PageDown, ctrlPressed: true);
+
+        api.Input.SetHotKeyHandler("toggleTpAnimations", _ => Settings.DisableAllAnimations = !Settings.DisableAllAnimations);
+        api.Input.SetHotKeyHandler("toggleAllAnimations", _ => Settings.DisableThirdPersonAnimations = !Settings.DisableThirdPersonAnimations);
     }
     public override void AssetsLoaded(ICoreAPI api)
     {
@@ -237,8 +255,6 @@ public sealed class CombatOverhaulSystem : ModSystem
     }
     public override void AssetsFinalize(ICoreAPI api)
     {
-        HarmonyPatches.YawSmoothing = Settings.HandsYawSmoothing;
-
         IAsset armorConfigAsset = api.Assets.Get("combatoverhaul:config/armor-config.json");
         JsonObject armorConfig = JsonObject.FromJson(armorConfigAsset.ToText());
         ArmorConfig armorConfigObj = armorConfig.AsObject<ArmorConfig>();

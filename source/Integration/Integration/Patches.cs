@@ -4,6 +4,7 @@ using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -16,9 +17,11 @@ namespace CombatOverhaul.Integration;
 internal static class HarmonyPatches
 {
     public static event Action<Entity, float>? OnBeforeFrame;
-    public static event Action<Entity, ElementPose, AnimatorBase>? OnFrame;
-
-    public static bool YawSmoothing { get; set; } = false;
+    public static Settings ClientSettings = new();
+    public static Settings ServerSettings = new();
+    public static readonly Dictionary<long, ThirdPersonAnimationsBehavior> AnimationBehaviors = new();
+    public static FirstPersonAnimationsBehavior? FirstPersonAnimationBehavior;
+    public static long OwnerEntityId = 0;
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
@@ -110,25 +113,33 @@ internal static class HarmonyPatches
         _api = null;
     }
 
-    public static void OnFrameInvoke(ClientAnimator animator, ElementPose pose)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void OnFrameInvoke(ClientAnimator? animator, ElementPose pose)
     {
-        if (animator == null) return;
-
-        //_animatorsLock.AcquireReaderLock(1000);
-        if (_animators.TryGetValue(animator, out EntityPlayer? entity))
+        if (!ClientSettings.DisableAllAnimations && animator != null && _animators.TryGetValue(animator, out EntityPlayer? entity))
         {
-            //_animatorsLock.ReleaseReaderLock();
-
-            OnFrame?.Invoke(entity, pose, animator);
-        }
-        else
-        {
-            //_animatorsLock.ReleaseReaderLock();
+            if (!ClientSettings.DisableThirdPersonAnimations &&  AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
+            {
+                behavior.OnFrame(entity, pose, animator);
+            }
+            
+            if (entity.EntityId == OwnerEntityId)
+            {
+                FirstPersonAnimationBehavior?.OnFrame(entity, pose, animator);
+            }
         }
     }
 
     private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
     private static long _cleanUpTickListener = 0;
+
+    private static void BeforeRender(EntityShapeRenderer __instance, float dt)
+    {
+        if (!ClientSettings.DisableAllAnimations)
+        {
+            OnBeforeFrame?.Invoke(__instance.entity, dt);
+        }
+    }
 
     private static void OnCleanUpTick()
     {
@@ -155,11 +166,6 @@ internal static class HarmonyPatches
         }
 
         LoggerUtil.Mark(_api, "hp-oct-1");
-    }
-
-    private static void BeforeRender(EntityShapeRenderer __instance, float dt)
-    {
-        OnBeforeFrame?.Invoke(__instance.entity, dt);
     }
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
@@ -252,7 +258,7 @@ internal static class HarmonyPatches
     private static readonly FieldInfo? _smoothedBodyYaw = typeof(EntityPlayerShapeRenderer).GetField("smoothedBodyYaw", BindingFlags.NonPublic | BindingFlags.Instance);
     private static bool SmoothCameraTurning(EntityPlayerShapeRenderer __instance, float bodyYaw, float mdt)
     {
-        if (!YawSmoothing)
+        if (!ClientSettings.HandsYawSmoothing)
         {
             _smoothedBodyYaw?.SetValue(__instance, bodyYaw);
             return false;
