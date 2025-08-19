@@ -291,25 +291,28 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "fpan-obf-1");
 
-        SetFov(_lastFrame.Player.FovMultiplier, true);
-        _resetFov = true;
-
-        _animatable = (targetEntity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
-        _eyePosition = new((float)targetEntity.LocalEyePos.X, (float)targetEntity.LocalEyePos.Y, (float)targetEntity.LocalEyePos.Z);
-        _eyeHeight = (float)targetEntity.Properties.EyeHeight;
-
-        if (Math.Abs(_lastFrame.Player.PitchFollow - PlayerFrame.DefaultPitchFollow) >= PlayerFrame.Epsilon)
+        if (_composer.AnyActiveAnimations())
         {
-            if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+            if (_lastFrame.Player.FovMultiplier != 1) SetFov(_lastFrame.Player.FovMultiplier, true);
+            _resetFov = true;
+
+            _animatable = (targetEntity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
+            _eyePosition = new((float)targetEntity.LocalEyePos.X, (float)targetEntity.LocalEyePos.Y, (float)targetEntity.LocalEyePos.Z);
+            _eyeHeight = (float)targetEntity.Properties.EyeHeight;
+
+            if (Math.Abs(_lastFrame.Player.PitchFollow - PlayerFrame.DefaultPitchFollow) >= PlayerFrame.Epsilon)
             {
-                renderer.HeldItemPitchFollowOverride = _lastFrame.Player.PitchFollow;
+                if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+                {
+                    renderer.HeldItemPitchFollowOverride = _lastFrame.Player.PitchFollow;
+                }
             }
-        }
-        else
-        {
-            if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+            else
             {
-                renderer.HeldItemPitchFollowOverride = null;
+                if (targetEntity.Properties.Client.Renderer is EntityPlayerShapeRenderer renderer)
+                {
+                    renderer.HeldItemPitchFollowOverride = null;
+                }
             }
         }
 
@@ -837,25 +840,28 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "tpan-obf-1");
 
-        _animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
-        _pitch = targetEntity.Pos.HeadPitch;
-        _eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
-        _eyeHeight = (float)entity.Properties.EyeHeight;
+        if (_composer.AnyActiveAnimations())
+        {
+            _animatable = (entity as EntityAgent)?.RightHandItemSlot?.Itemstack?.Item?.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
+            _pitch = targetEntity.Pos.HeadPitch;
+            _eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
+            _eyeHeight = (float)entity.Properties.EyeHeight;
 
-        if (_updatePosesCache)
-        {
-            _updatePosesCache = false;
-        }
-        else
-        {
-            for (int index = 0; index < _posesSet.Count; index++)
+            if (_updatePosesCache)
             {
-                if (!_posesSet[index])
+                _updatePosesCache = false;
+            }
+            else
+            {
+                for (int index = 0; index < _posesSet.Count; index++)
                 {
-                    _updatePosesCache = true;
-                }
+                    if (!_posesSet[index])
+                    {
+                        _updatePosesCache = true;
+                    }
 
-                _posesSet[index] = false;
+                    _posesSet[index] = false;
+                }
             }
         }
 
