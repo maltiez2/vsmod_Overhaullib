@@ -197,6 +197,12 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         api.Input.RegisterHotKey("toggleWearableLight", "Toggle wearable light source", GlKeys.L);
         api.Input.SetHotKeyHandler("toggleWearableLight", _ => ToggleWearableItem(api.World.Player, "toggleWearableLight"));
+
+        api.Input.RegisterHotKey("toggleTpAnimations", "Toggle CO third person animations", GlKeys.PageUp, ctrlPressed: true);
+        api.Input.RegisterHotKey("toggleAllAnimations", "Toggle all CO animations", GlKeys.PageDown, ctrlPressed: true);
+
+        api.Input.SetHotKeyHandler("toggleTpAnimations", _ => Settings.DisableAllAnimations = !Settings.DisableAllAnimations);
+        api.Input.SetHotKeyHandler("toggleAllAnimations", _ => Settings.DisableThirdPersonAnimations = !Settings.DisableThirdPersonAnimations);
     }
     public override void AssetsLoaded(ICoreAPI api)
     {
