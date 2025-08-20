@@ -198,11 +198,23 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.Input.RegisterHotKey("toggleWearableLight", "Toggle wearable light source", GlKeys.L);
         api.Input.SetHotKeyHandler("toggleWearableLight", _ => ToggleWearableItem(api.World.Player, "toggleWearableLight"));
 
-        api.Input.RegisterHotKey("toggleTpAnimations", "Toggle CO third person animations", GlKeys.PageUp, ctrlPressed: true);
-        api.Input.RegisterHotKey("toggleAllAnimations", "Toggle all CO animations", GlKeys.PageDown, ctrlPressed: true);
+        api.Input.RegisterHotKey("toggleAllAnimations", "Toggle all CO animations", GlKeys.PageUp, ctrlPressed: true);
 
-        api.Input.SetHotKeyHandler("toggleTpAnimations", _ => Settings.DisableAllAnimations = !Settings.DisableAllAnimations);
-        api.Input.SetHotKeyHandler("toggleAllAnimations", _ => Settings.DisableThirdPersonAnimations = !Settings.DisableThirdPersonAnimations);
+        api.Input.SetHotKeyHandler("toggleAllAnimations", _ =>
+        {
+            Settings.DisableAllAnimations = !Settings.DisableAllAnimations;
+            if (Settings.DisableAllAnimations)
+            {
+                LoggerUtil.Notify(api, this, $"Animations disabled");
+                api.TriggerIngameError(this, "animationsDisabled", "Overhaul lib animations are DISABLED");
+            }
+            else
+            {
+                LoggerUtil.Notify(api, this, $"Animations enabled");
+                api.TriggerIngameError(this, "animationsDisabled", "Overhaul lib animations are ENABLED");
+            }
+            return true;
+        });
     }
     public override void AssetsLoaded(ICoreAPI api)
     {

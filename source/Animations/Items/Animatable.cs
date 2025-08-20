@@ -77,12 +77,6 @@ public class Animatable : CollectibleBehavior
 
         if (itemStackRenderInfo == null) return false;
 
-        /*if (!AnimationsManager.PlayAnimationsInThirdPerson && (!IsOwner(entity) || !IsFirstPerson(entity)))
-        {
-            //ClientApi?.Render.RenderMultiTextureMesh(renderInfo.ModelRef);
-            return false;
-        }*/
-
         if (isShadowPass)
         {
             //ShadowPass(api, itemStackRenderInfo, ItemModelMat, CurrentAnimatableShape); // Vanilla shadows are bugged and item casts shadows on itself (from tp onto fp)

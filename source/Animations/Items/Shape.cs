@@ -238,7 +238,7 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
             }
             else
             {
-                _clientApi.World.Logger.Warning($"[Animation Manager] texture {texturePath}, not no such texture found.");
+                _clientApi.World.Logger.Warning($"[Animation Manager] texture {texturePath}, no such texture found.");
             }
         }
 
@@ -247,7 +247,7 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
     #endregion
 }
 
-internal class AnimatableShapeRenderer
+public class AnimatableShapeRenderer
 {
     public AnimatableShapeRenderer(ICoreClientAPI api, AnimatableShape shape)
     {
@@ -376,13 +376,13 @@ internal class AnimatableShapeRenderer
             shaderProgram.Uniform("baseUvOrigin", new Vec2f(textureAtlasPosition.x1, textureAtlasPosition.y1));
         }
 
-        int num = (int)itemStack.Collectible.GetTemperature(world, itemStack);
-        float[] incandescenceColorAsColor4f = ColorUtil.GetIncandescenceColorAsColor4f(num);
-        int num2 = GameMath.Clamp((num - 500) / 3, 0, 255);
-        shaderProgram.Uniform("extraGlow", num2);
+        int temperature = (int)itemStack.Collectible.GetTemperature(world, itemStack);
+        float[] incandescenceColorAsColor4f = ColorUtil.GetIncandescenceColorAsColor4f(temperature);
+        int extraGlow = GameMath.Clamp((temperature - 500) / 3, 0, 255);
+        shaderProgram.Uniform("extraGlow", extraGlow);
         shaderProgram.Uniform("rgbaAmbientIn", render.AmbientColor);
         shaderProgram.Uniform("rgbaLightIn", lightrgbs);
-        shaderProgram.Uniform("rgbaGlowIn", new Vec4f(incandescenceColorAsColor4f[0], incandescenceColorAsColor4f[1], incandescenceColorAsColor4f[2], num2 / 255f));
+        shaderProgram.Uniform("rgbaGlowIn", new Vec4f(incandescenceColorAsColor4f[0], incandescenceColorAsColor4f[1], incandescenceColorAsColor4f[2], extraGlow / 255f));
         shaderProgram.Uniform("rgbaFogIn", render.FogColor);
         shaderProgram.Uniform("fogMinIn", render.FogMin);
         shaderProgram.Uniform("fogDensityIn", render.FogDensity);
@@ -391,9 +391,5 @@ internal class AnimatableShapeRenderer
         shaderProgram.UniformMatrix("viewMatrix", render.CameraMatrixOriginf);
         shaderProgram.UniformMatrix("modelMatrix", itemModelMatrix.Values);
         shaderProgram.Uniform("depthOffset", PlayerRenderingPatches.FpHandsOffset);
-    }
-    private static float GetDepthOffset(IWorldAccessor world)
-    {
-        return (world.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false ? 0.0f : -0.3f;
     }
 }
