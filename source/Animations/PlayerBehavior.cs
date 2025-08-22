@@ -277,8 +277,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
 
-    private readonly FieldInfo _cameraFov = typeof(Camera).GetField("Fov", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new Exception();
-
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
         if (!_frameApplied) return;
@@ -385,13 +383,10 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         PlayerCamera? camera = client.MainCamera;
         if (camera == null) return;
 
-        float? fovField = (float?)_cameraFov.GetValue(camera);
-        if (fovField == null) return;
-
         float equalizeMultiplier = MathF.Sqrt(_settingsFOV / (float)_settingsHandsFOV);
 
         PlayerRenderingPatches.HandsFovMultiplier = multiplier * (equalizeFov ? equalizeMultiplier : 1);
-        _cameraFov.SetValue(camera, _settingsFOV * GameMath.DEG2RAD * multiplier);
+        camera.Fov = _settingsFOV * GameMath.DEG2RAD * multiplier;
 
         CurrentFov = _settingsFOV * multiplier;
     }

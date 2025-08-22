@@ -106,11 +106,10 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         {
             RegisterWeapons();
             RegisterHotkeys();
-            clientApi.Event.RegisterGameTickListener(OnGameFrame, 0);
         }
     }
     public override string PropertyName() => _statCategory;
-    public void OnGameFrame(float deltaTime)
+    public override void OnGameTick(float deltaTime)
     {
         if (!_mainPlayer) return;
         

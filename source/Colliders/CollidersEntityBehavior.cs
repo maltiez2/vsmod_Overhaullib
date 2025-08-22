@@ -65,7 +65,7 @@ public class CollidersConfig
     public bool ResistantCollidersStopProjectiles { get; set; } = true;
 }
 
-public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
+public sealed class CollidersEntityBehavior : EntityBehavior
 {
     public CollidersEntityBehavior(Entity entity) : base(entity)
     {
@@ -100,34 +100,33 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
             _defaultConfig = attributes.AsObject<CollidersConfig>();
 
             ApplyConfig(_defaultConfig);
+            _timeSinceLastUpdate = (float)entity.Api.World.Rand.NextDouble() * _updateTimeSec;
         }
         catch (Exception exception)
         {
             Utils.LoggerUtil.Error(entity.Api, this, $"Error on parsing behavior properties for entity: {entity.Code}. Exception:\n{exception}");
             UnprocessedElementsLeft = false;
             HasOBBCollider = false;
-            return;
         }
-
-        _listenerId = entity.Api.World.RegisterGameTickListener(Update, _updateTimeMs, entity.Api.World.Rand.Next(_updateTimeMs));
     }
     public override void AfterInitialized(bool onFirstSpawn)
     {
-        if (Api == null) return;
+        if (entity?.Api == null) return;
 
-        if (Api.ModLoader.IsModEnabled(PlayerModelLibId))
+        if (entity.Api.ModLoader.IsModEnabled(PlayerModelLibId))
         {
             SubscribeOnModelChange();
         }
     }
 
-    public void Update(float deltaTime)
+    public override void OnGameTick(float deltaTime)
     {
-        if (entity.State == EnumEntityState.Despawned)
+        _timeSinceLastUpdate += deltaTime;
+        if (_timeSinceLastUpdate < _updateTimeSec)
         {
-            Dispose();
             return;
         }
+        _timeSinceLastUpdate = 0;
 
         if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider || !entity.Alive) return;
 
@@ -336,8 +335,8 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
     private ICoreAPI? Api => entity?.Api;
     private CollidersConfig _defaultConfig = new();
     private const int _updateFps = 30;
-    private const int _updateTimeMs = 1000 / _updateFps;
-    private long _listenerId = 0;
+    private const float _updateTimeSec = 1f / _updateFps;
+    private float _timeSinceLastUpdate = 0;
 
     private void SetColliderElement(ShapeElement element)
     {
@@ -532,11 +531,5 @@ public sealed class CollidersEntityBehavior : EntityBehavior, IDisposable
         }
 
         UnprocessedElementsLeftCustom = false;
-    }
-
-    public void Dispose()
-    {
-        Api?.World?.UnregisterGameTickListener(_listenerId);
-        _listenerId = 0;
     }
 }

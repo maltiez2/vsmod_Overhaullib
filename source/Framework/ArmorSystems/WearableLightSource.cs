@@ -53,7 +53,7 @@ public class WearableFueledLightSource : ItemWearable, IWearableLightSource, IFu
         _hotkeyToToggle = new()
         {
             ActionLangCode = Lang.Get("combatoverhaul:interaction-toggle-light-source-hotkey"),
-            HotKeyCodes = new string[1] { "toggleWearableLight" },
+            HotKeyCodes = [HotKeyCode],
             MouseButton = EnumMouseButton.None
         };
     }
