@@ -1,4 +1,5 @@
-﻿using ProtoBuf;
+﻿using ConfigLib;
+using ProtoBuf;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -42,13 +43,13 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
             bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
 
             bool matchWithTags = false;
-            if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags != ItemTagRule.Empty)
+            if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
             {
-                matchWithTags = Config.CanHoldItemTags.Intersects(sourceSlot.Itemstack.Item.Tags);
+                matchWithTags = ItemTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Item.Tags, Config.CanHoldItemTags);
             }
-            if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags != BlockTagRule.Empty)
+            if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags.Length != 0 && !matchWithTags)
             {
-                matchWithTags = Config.CanHoldBlockTags.Intersects(sourceSlot.Itemstack.Block.Tags);
+                matchWithTags = BlockTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Block.Tags, Config.CanHoldBlockTags);
             }
 
             return matchWithoutDomain || matchWithDomain || matchWithTags;
@@ -140,6 +141,8 @@ public class SlotConfigJson
 {
     public string[] CanHoldItemTags { get; set; } = [];
     public string[] CanHoldBlockTags { get; set; } = [];
+    public string[][] CanHoldItemTagsCondition { get; set; } = [];
+    public string[][] CanHoldBlockTagsCondition { get; set; } = [];
     public string[] CanHoldWildcards { get; set; } = [];
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
@@ -147,7 +150,17 @@ public class SlotConfigJson
 
     public SlotConfig ToConfig()
     {
-        return new SlotConfig(CanHoldItemTags, CanHoldBlockTags)
+        if (CanHoldItemTagsCondition.Length == 0 && CanHoldItemTags.Length != 0)
+        {
+            CanHoldItemTagsCondition = [CanHoldItemTags];
+        }
+
+        if (CanHoldBlockTagsCondition.Length == 0 && CanHoldBlockTags.Length != 0)
+        {
+            CanHoldBlockTagsCondition = [CanHoldBlockTags];
+        }
+
+        return new SlotConfig(CanHoldItemTagsCondition, CanHoldBlockTagsCondition)
         {
             CanHoldWildcards = CanHoldWildcards,
             SlotColor = SlotColor,
@@ -159,17 +172,18 @@ public class SlotConfigJson
 
 public class SlotConfig
 {
-    public ItemTagRule CanHoldItemTags { get; set; } = ItemTagRule.Empty;
-    public BlockTagRule CanHoldBlockTags { get; set; } = BlockTagRule.Empty;
+    public ItemTagRule[] CanHoldItemTags { get; set; } = [];
+    public BlockTagRule[] CanHoldBlockTags { get; set; } = [];
     public string[] CanHoldWildcards { get; set; } = [];
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
     public int SlotsNumber { get; set; } = 0;
 
-    protected string[] CanHoldItemTagsNames { get; set; }
-    protected string[] CanHoldBlockTagsNames { get; set; }
+    protected string[][] CanHoldItemTagsNames { get; set; }
+    protected string[][] CanHoldBlockTagsNames { get; set; }
+    protected bool Resolved { get; set; } = false;
 
-    public SlotConfig(string[] itemTags, string[] blockTags)
+    public SlotConfig(string[][] itemTags, string[][] blockTags)
     {
         CanHoldItemTagsNames = itemTags;
         CanHoldBlockTagsNames = blockTags;
@@ -177,8 +191,14 @@ public class SlotConfig
 
     public void Resolve(ICoreAPI api)
     {
-        CanHoldItemTags = new(api, CanHoldItemTagsNames);
-        CanHoldBlockTags = new(api, CanHoldBlockTagsNames);
+        if (Resolved) return;
+        Resolved = true;
+
+        CanHoldItemTags = CanHoldItemTagsNames.Select(tags => new ItemTagRule(api, tags)).ToArray();
+        CanHoldBlockTags = CanHoldBlockTagsNames.Select(tags => new BlockTagRule(api, tags)).ToArray();
+
+        CanHoldItemTagsNames = [];
+        CanHoldBlockTagsNames = [];
     }
 }
 
@@ -530,6 +550,9 @@ public class ToolBag : GearEquipableBag
 
         Api = api;
 
+        MainHandSlotConfig?.Resolve(api);
+        OffHandSlotConfig?.Resolve(api);
+
         if (api is not ICoreClientAPI clientApi) return;
 
         ClientApi = clientApi;
@@ -543,9 +566,6 @@ public class ToolBag : GearEquipableBag
         PreviousHotkeyHandler = hotkey.Handler;
 
         clientApi.Input.SetHotKeyHandler(HotkeyCode, OnHotkeyPressed);
-
-        MainHandSlotConfig?.Resolve(api);
-        OffHandSlotConfig?.Resolve(api);
     }
 
     public override List<ItemSlotBagContent?> GetOrCreateSlots(ItemStack bagstack, InventoryBase parentinv, int bagIndex, IWorldAccessor world)
