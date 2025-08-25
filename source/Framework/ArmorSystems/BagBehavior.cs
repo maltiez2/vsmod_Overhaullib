@@ -194,8 +194,14 @@ public class SlotConfig
         if (Resolved) return;
         Resolved = true;
 
-        CanHoldItemTags = CanHoldItemTagsNames.Select(tags => new ItemTagRule(api, tags)).ToArray();
-        CanHoldBlockTags = CanHoldBlockTagsNames.Select(tags => new BlockTagRule(api, tags)).ToArray();
+        CanHoldItemTags = CanHoldItemTagsNames
+            .Select(tags => new ItemTagRule(api, tags))
+            .Where(tags => tags != ItemTagRule.Empty)
+            .ToArray();
+        CanHoldBlockTags = CanHoldBlockTagsNames
+            .Select(tags => new BlockTagRule(api, tags))
+            .Where(tags => tags != BlockTagRule.Empty)
+            .ToArray();
 
         CanHoldItemTagsNames = [];
         CanHoldBlockTagsNames = [];
