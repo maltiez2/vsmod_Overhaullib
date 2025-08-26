@@ -23,6 +23,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
+using Vintagestory.Server;
 
 namespace CombatOverhaul;
 
@@ -111,6 +112,12 @@ public sealed class CombatOverhaulSystem : ModSystem
 
     public Settings Settings { get; set; } = new();
     public bool Disposed { get; private set; } = false;
+
+    public override void StartPre(ICoreAPI api)
+    {
+        (api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
+        (api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
+    }
 
     public override void Start(ICoreAPI api)
     {

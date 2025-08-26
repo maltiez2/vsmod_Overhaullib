@@ -148,6 +148,17 @@ public class SlotConfigJson
     public string? SlotsIcon { get; set; } = null;
     public int SlotsNumber { get; set; } = 0;
 
+    public string SlotVariant { get; set; } = "bag_slot";
+    public string SlotStateVariant { get; set; } = "bag_slot_state";
+    public string EmptyStateCode { get; set; } = "empty";
+    public string FullStateCode { get; set; } = "full";
+    public string SlotMetalVariant { get; set; } = "bag_slot_metal";
+    public string SlotLeatherVariant { get; set; } = "bag_slot_leather";
+    public string SlotWoodVariant { get; set; } = "bag_slot_wood";
+
+    public bool SetVariants { get; set; } = false;
+    public bool SetMaterialVariants { get; set; } = false;
+
     public SlotConfig ToConfig()
     {
         if (CanHoldItemTagsCondition.Length == 0 && CanHoldItemTags.Length != 0)
@@ -165,7 +176,16 @@ public class SlotConfigJson
             CanHoldWildcards = CanHoldWildcards,
             SlotColor = SlotColor,
             SlotsIcon = SlotsIcon,
-            SlotsNumber = SlotsNumber
+            SlotsNumber = SlotsNumber,
+            SlotVariant = SlotVariant,
+            SlotStateVariant = SlotStateVariant,
+            EmptyStateCode = EmptyStateCode,
+            FullStateCode = FullStateCode,
+            SlotMetalVariant = SlotMetalVariant,
+            SlotLeatherVariant = SlotLeatherVariant,
+            SlotWoodVariant = SlotWoodVariant,
+            SetVariants = SetVariants,
+            SetMaterialVariants = SetMaterialVariants
         };
     }
 }
@@ -178,6 +198,17 @@ public class SlotConfig
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
     public int SlotsNumber { get; set; } = 0;
+
+    public string SlotVariant { get; set; } = "bag_slot";
+    public string SlotStateVariant { get; set; } = "bag_slot_state";
+    public string EmptyStateCode { get; set; } = "empty";
+    public string FullStateCode { get; set; } = "full";
+    public string SlotMetalVariant { get; set; } = "bag_slot_metal";
+    public string SlotLeatherVariant { get; set; } = "bag_slot_leather";
+    public string SlotWoodVariant { get; set; } = "bag_slot_wood";
+
+    public bool SetVariants { get; set; } = false;
+    public bool SetMaterialVariants { get; set; } = false;
 
     protected string[][] CanHoldItemTagsNames { get; set; }
     protected string[][] CanHoldBlockTagsNames { get; set; }

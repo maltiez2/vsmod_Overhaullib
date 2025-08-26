@@ -47,7 +47,6 @@ public sealed class DirectionCursorRenderer : IRenderer
 
         if (!_clientApi.Input.MouseGrabbed) return;
 
-
         LoadedTexture texture = _directionCursorTextures[_currentDirection];
 
         float reticleScale = CursorScale * RuntimeEnv.GUIScale * ScaleMultiplier;
