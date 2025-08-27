@@ -1,5 +1,7 @@
 ﻿using ConfigLib;
+using Eto.Drawing;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -61,18 +63,18 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
 
 public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
 {
-    public int ToolBagId { get; set; }
+    public string ToolBagId { get; set; }
     public bool MainHand { get; set; } = true;
 
     public ItemSlotToolHolder(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType, sourceBag, color)
     {
-        ToolBagId = sourceBag.Item?.Code?.GetHashCode() ?? 0;
+        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
     }
 }
 
 public class ItemSlotTakeOutOnly : ItemSlotBagContent
 {
-    public int ToolBagId { get; set; }
+    public string ToolBagId { get; set; }
     public bool CanHoldNow { get; set; } = false;
     public bool MainHand { get; set; } = true;
 
@@ -91,7 +93,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
             }
         }
 
-        ToolBagId = sourceBag.Item?.Code?.GetHashCode() ?? 0;
+        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge) => CanHoldNow;
@@ -871,7 +873,7 @@ public class ToolBag : GearEquipableBag
 
         if (inventory != null)
         {
-            int toolBagId = collObj.Code.GetHashCode();
+            string toolBagId = collObj.Code.ToString();
 
             if (inventory.Any(slot => (slot as ItemSlotToolHolder)?.ToolBagId == toolBagId))
             {
@@ -894,7 +896,7 @@ public class ToolBag : GearEquipableBag
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
 public sealed class ToolBagPacket
 {
-    public int ToolBagId { get; set; } = 0;
+    public string ToolBagId { get; set; } = "";
     public bool MainHand { get; set; } = true;
 }
 
@@ -906,7 +908,7 @@ public class ToolBagSystemClient
             .RegisterMessageType<ToolBagPacket>();
     }
 
-    public void Send(int toolBagId, bool mainHand)
+    public void Send(string toolBagId, bool mainHand)
     {
         _clientChannel.SendPacket(new ToolBagPacket
         {
@@ -932,7 +934,7 @@ public class ToolBagSystemServer
 
     private void HandlePacket(IServerPlayer player, ToolBagPacket packet)
     {
-        InventoryPlayerBackPacks? inventory = GetBackpackInventory(player);
+        IInventory? inventory = GetBackpackInventory(player);
 
         if (inventory == null) return;
 
@@ -950,6 +952,8 @@ public class ToolBagSystemServer
 
         if (offHandToolSlot != null && offHandHandSinkSlot != null && offHandActiveSlot != null)
         {
+            Console.WriteLine($"ToolBagSystemServer.HandlePacket process 2");
+
             ProcessSlots(offHandToolSlot, offHandHandSinkSlot, offHandActiveSlot, player);
         }
     }
@@ -958,14 +962,20 @@ public class ToolBagSystemServer
     {
         if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
         {
+            Console.WriteLine($"ToolBagSystemServer.HandlePacket process PutBack");
+
             PutBack(activeSlot, toolSlot, player);
         }
         else if (!toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
         {
+            Console.WriteLine($"ToolBagSystemServer.HandlePacket process Flip");
+
             Flip(activeSlot, toolSlot);
         }
         else if (!toolSlot.Empty)
         {
+            Console.WriteLine($"ToolBagSystemServer.HandlePacket process TakeOut");
+
             TakeOut(activeSlot, toolSlot, sinkSlot, player);
         }
     }
@@ -981,6 +991,11 @@ public class ToolBagSystemServer
     private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
     {
         if (!sinkSlot.Empty && !activeSlot.Empty) return;
+
+        if (!toolSlot.Inventory.Contains(toolSlot))
+        {
+            return;
+        }
 
         DummySlot dummySlot = new();
 
@@ -1004,8 +1019,8 @@ public class ToolBagSystemServer
         toolSlot.MarkDirty();
     }
 
-    private static InventoryPlayerBackPacks? GetBackpackInventory(IPlayer player)
+    private static IInventory? GetBackpackInventory(IPlayer player)
     {
-        return player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
+        return player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName);
     }
 }

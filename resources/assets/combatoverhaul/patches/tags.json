@@ -1,0 +1,26 @@
+[
+  {
+    "file": "game:itemtypes/tool/blade",
+    "op": "addMerge",
+    "path": "/tags",
+    "value": ["sword", "onehanded"]
+  },
+  {
+    "file": "game:itemtypes/tool/arrow",
+    "op": "add",
+    "path": "/tags",
+    "value": ["arrow", "projectile"]
+  },
+  {
+    "file": "game:itemtypes/tool/bow",
+    "op": "addMerge",
+    "path": "/tags",
+    "value": ["bow"]
+  },
+  {
+    "file": "game:itemtypes/tool/sling",
+    "op": "addMerge",
+    "path": "/tags",
+    "value": ["sling"]
+  }
+]

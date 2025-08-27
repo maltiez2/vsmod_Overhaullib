@@ -213,6 +213,7 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         AimingPatches.Patch("CombatOverhaulAiming");
         MouseWheelPatch.Patch("CombatOverhaul", api);
+        GuiDialogPatches.Patch("ovhlib", api);
 
         _clientToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>();
@@ -310,6 +311,7 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         AimingPatches.Unpatch("CombatOverhaulAiming");
         MouseWheelPatch.Unpatch("CombatOverhaul");
+        GuiDialogPatches.Unpatch("ovhlib");
 
         OnDispose?.Invoke();
 
@@ -427,7 +429,7 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
     {
         _api = api;
 
-        HarmonyPatches.Patch("SomeUnknownMod", api);
+        HarmonyPatches.Patch("IgnoreThisPatchItHasNothingToDoWithYourCrash", api);
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -456,7 +458,7 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
 
     public override void Dispose()
     {
-        HarmonyPatches.Unpatch("SomeUnknownMod", _api);
+        HarmonyPatches.Unpatch("IgnoreThisPatchItHasNothingToDoWithYourCrash", _api);
 
         if (_api is ICoreClientAPI clientApi)
         {

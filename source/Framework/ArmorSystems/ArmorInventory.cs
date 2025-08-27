@@ -27,8 +27,15 @@ public class ClothesSlot : ItemSlotCharacter
     {
         if (Itemstack != null) EmptyBag(Itemstack);
 
-        base.ActivateSlot(sourceSlot, ref op);
-        OnItemSlotModified(null);
+        try
+        {
+            base.ActivateSlot(sourceSlot, ref op);
+            OnItemSlotModified(null);
+        }
+        catch (Exception exception)
+        {
+            LoggerUtil.Debug(World?.Api, this, $"(ActivateSlot) Exception: {exception}");
+        }
     }
 
     public override ItemStack? TakeOutWhole()
@@ -120,7 +127,7 @@ public class GearSlot : ClothesSlot
 
     public override bool CanHold(ItemSlot sourceSlot)
     {
-        return base.CanHold(sourceSlot) && IsGearType(sourceSlot?.Itemstack, SlotType);
+        return IsGearType(sourceSlot?.Itemstack, SlotType);
     }
 
     public static bool IsGearType(IItemStack? itemStack, string gearType)
@@ -167,8 +174,15 @@ public class ArmorSlot : ItemSlot
     {
         if (Itemstack != null) EmptyBag(Itemstack);
 
-        base.ActivateSlot(sourceSlot, ref op);
-        OnItemSlotModified(null);
+        try
+        {
+            base.ActivateSlot(sourceSlot, ref op);
+            OnItemSlotModified(null);
+        }
+        catch (Exception exception)
+        {
+            LoggerUtil.Debug(World?.Api, this, $"(ActivateSlot) Exception: {exception}");
+        }
     }
     public override ItemStack? TakeOutWhole()
     {
@@ -358,10 +372,14 @@ public sealed class ArmorInventory : InventoryCharacter
 
     public static readonly List<string> GearSlotTypes = [
         "headgear",
-        "neckgear",
+        "frontgear",
+        "backgear",
         "rightshouldergear",
         "leftshouldergear",
-        "beltgear"
+        "waistgear",
+        "miscgear",
+        "miscgear",
+        "miscgear"
     ];
 
     public override void FromTreeAttributes(ITreeAttribute tree)
@@ -628,12 +646,12 @@ public sealed class ArmorInventory : InventoryCharacter
     internal static readonly int _vanillaSlots = _clothesSlotsCount + _clothesArmorSlots;
     internal static readonly int _armorSlotsLastIndex = _vanillaSlots + _moddedArmorSlotsCount;
     internal static readonly int _gearSlotsCount = GearSlotTypes.Count;
-    internal static readonly int _gearSlotsLastIndex = _armorSlotsLastIndex + _gearSlotsLastIndex;
+    internal static readonly int _gearSlotsLastIndex = _armorSlotsLastIndex + _gearSlotsCount;
     internal static readonly int _totalSlotsNumber = _clothesSlotsCount + _clothesArmorSlots + _moddedArmorSlotsCount + _gearSlotsCount;
     private static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
     private readonly ICoreAPI _api;
-    private readonly bool _disableVanillaArmorSlots;
+    internal static bool _disableVanillaArmorSlots;
     private bool _clearedArmorSlots = false;
 
 
@@ -718,11 +736,11 @@ public sealed class ArmorInventory : InventoryCharacter
         foreach (string slotType in GearSlotTypes)
         {
             string iconPath = $"combatoverhaul:textures/sloticons/gear-{slotType}.svg";
-            string iconCode = $"combatoverhaul-gear-{slotType}";
+            string iconCode = $"combatoverhaul:gear-{slotType}";
 
             if (api.Assets.Exists(new AssetLocation(iconPath)))
             {
-                _gearSlotsIcons.Add(slotType, iconCode);
+                _gearSlotsIcons.TryAdd(slotType, iconCode);
             }
         }
     }
@@ -843,7 +861,7 @@ public sealed class ArmorInventory : InventoryCharacter
                 {
                     Vec3d? playerPosition = _api.World.PlayerByUid(playerUID)?.Entity?.ServerPos.XYZ.Clone();
                     if (playerPosition == null) return;
-                    _api.World.SpawnItemEntity(slotToEmpty.Itemstack.Clone(), playerPosition, new(0, 1, 0));
+                    _api.World.SpawnItemEntity(slotToEmpty.Itemstack.Clone(), playerPosition, new(0, 0.1, 0));
                     slotToEmpty.TakeOutWhole();
                     slotToEmpty.MarkDirty();
                 }
@@ -872,7 +890,7 @@ public sealed class ArmorInventory : InventoryCharacter
                 {
                     Vec3d? playerPosition = _api.World.PlayerByUid(playerUID)?.Entity?.ServerPos.XYZ.Clone();
                     if (playerPosition == null) return;
-                    _api.World.SpawnItemEntity(slotToEmpty.Itemstack.Clone(), playerPosition, new(0, 1, 0));
+                    _api.World.SpawnItemEntity(slotToEmpty.Itemstack.Clone(), playerPosition, new(0, 0.1, 0));
                     slotToEmpty.TakeOutWhole();
                     slotToEmpty.MarkDirty();
                 }

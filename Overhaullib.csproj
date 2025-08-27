@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ModName>Overhaul Library</ModName>
     <ModType>code</ModType>
-    <ModVersion>1.0.0</ModVersion>
+    <ModVersion>1.1.2</ModVersion>
     <ModId>overhaullib</ModId>
     <Description></Description>
     <Side>universal</Side>
@@ -69,6 +69,9 @@
     <PackageReference Include="VSImGui" Version="0.0.6" />
     <Reference Include="$(GameDirectory)/**/*.dll" Private="false" />
     <Reference Include="$(ExternalLibs)/**/*.dll" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="resources\assets\combatoverhaul\textures\sloticons\" />
   </ItemGroup>
 
   <!-- Forces rebuild -->

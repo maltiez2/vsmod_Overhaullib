@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Animations;
+using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
 using HarmonyLib;
@@ -10,6 +11,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Integration;
@@ -29,7 +31,7 @@ internal static class HarmonyPatches
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
         _animatorsLock.ReleaseWriterLock();
-        
+
         _reportedEntities.Clear();
         new Harmony(harmonyId).Patch(
                 typeof(EntityShapeRenderer).GetMethod("RenderHeldItem", AccessTools.all),
@@ -118,11 +120,11 @@ internal static class HarmonyPatches
     {
         if (!ClientSettings.DisableAllAnimations && animator != null && _animators.TryGetValue(animator, out EntityPlayer? entity))
         {
-            if (!ClientSettings.DisableThirdPersonAnimations &&  AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
+            if (!ClientSettings.DisableThirdPersonAnimations && AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
             {
                 behavior.OnFrame(entity, pose, animator);
             }
-            
+
             if (entity.EntityId == OwnerEntityId)
             {
                 FirstPersonAnimationBehavior?.OnFrame(entity, pose, animator);
@@ -454,4 +456,28 @@ internal static class HarmonyPatches
             return code;
         }
     }
+
+    /*[HarmonyPatch(typeof(GuiManager), "RegisterDefaultDialogs")]
+    [HarmonyPatchCategory("combatoverhaul")]
+    public class GuiManagerRegisterDefaultDialogsPatch
+    {
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            List<CodeInstruction> code = [.. instructions];
+            //ConstructorInfo oldConstructor = AccessTools.Constructor(typeof(GuiDialogCharacter));
+            ConstructorInfo newConstructor = AccessTools.Constructor(typeof(CharacterGuiDialog), [typeof(ICoreClientAPI)]);
+
+            for (int i = 0; i < code.Count; i++)
+            {
+                if (code[i].opcode == OpCodes.Newobj && code[i].operand is ConstructorInfo currentConstructor && currentConstructor.ReflectedType == typeof(GuiDialogCharacter))
+                {
+                    code[i].operand = newConstructor;
+                    return code;
+                }
+            }
+
+            return code;
+        }
+    }*/
 }
