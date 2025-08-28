@@ -120,7 +120,7 @@ public static class GuiDialogPatches
         {
             if (slot.CanHold(mouseSlot))
             {
-                slot.HexBackgroundColor = "#1fffcf";
+                slot.HexBackgroundColor = "#5fbed4";
             }
             else
             {

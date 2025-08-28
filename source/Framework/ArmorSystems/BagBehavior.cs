@@ -1,4 +1,5 @@
-﻿using ConfigLib;
+﻿using CombatOverhaul.Utils;
+using ConfigLib;
 using Eto.Drawing;
 using ProtoBuf;
 using System.Diagnostics;
@@ -952,31 +953,30 @@ public class ToolBagSystemServer
 
         if (offHandToolSlot != null && offHandHandSinkSlot != null && offHandActiveSlot != null)
         {
-            Console.WriteLine($"ToolBagSystemServer.HandlePacket process 2");
-
             ProcessSlots(offHandToolSlot, offHandHandSinkSlot, offHandActiveSlot, player);
         }
     }
 
     private void ProcessSlots(ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, ItemSlot activeSlot, IServerPlayer player)
     {
-        if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
+        try
         {
-            Console.WriteLine($"ToolBagSystemServer.HandlePacket process PutBack");
-
-            PutBack(activeSlot, toolSlot, player);
+            if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
+            {
+                PutBack(activeSlot, toolSlot, player);
+            }
+            else if (!toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
+            {
+                Flip(activeSlot, toolSlot);
+            }
+            else if (!toolSlot.Empty)
+            {
+                TakeOut(activeSlot, toolSlot, sinkSlot, player);
+            }
         }
-        else if (!toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
+        catch (Exception exception)
         {
-            Console.WriteLine($"ToolBagSystemServer.HandlePacket process Flip");
-
-            Flip(activeSlot, toolSlot);
-        }
-        else if (!toolSlot.Empty)
-        {
-            Console.WriteLine($"ToolBagSystemServer.HandlePacket process TakeOut");
-
-            TakeOut(activeSlot, toolSlot, sinkSlot, player);
+            LoggerUtil.Verbose(player.Entity.Api, this, $"(player: {player.PlayerName}) Exception when trying to interact with sheath/quiver:\n{exception}");
         }
     }
 
@@ -984,8 +984,8 @@ public class ToolBagSystemServer
     {
         toolSlot.TryFlipWith(activeSlot);
 
-        activeSlot.MarkDirty();
         toolSlot.MarkDirty();
+        activeSlot.MarkDirty();
     }
 
     private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
@@ -1006,17 +1006,18 @@ public class ToolBagSystemServer
         dummySlot.TryPutInto(player.Entity.World, sinkSlot, dummySlot.Itemstack?.StackSize ?? 1);
         sinkSlot.CanHoldNow = false;
 
-        activeSlot.MarkDirty();
+        
         toolSlot.MarkDirty();
         sinkSlot.MarkDirty();
+        activeSlot.MarkDirty();
     }
 
     private void PutBack(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, IServerPlayer player)
     {
         activeSlot.TryPutInto(player.Entity.World, toolSlot, activeSlot.Itemstack?.StackSize ?? 1);
 
-        activeSlot.MarkDirty();
         toolSlot.MarkDirty();
+        activeSlot.MarkDirty();
     }
 
     private static IInventory? GetBackpackInventory(IPlayer player)
