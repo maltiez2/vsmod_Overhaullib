@@ -56,9 +56,7 @@ public static class GuiDialogPatches
         ElementBounds leftMiscSlotBounds2 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 204, 1, 1).FixedGrow(0, pad);
         ElementBounds leftMiscSlotBounds3 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 255, 1, 1).FixedGrow(0, pad);
 
-
         leftSlotBounds.FixedRightOf(leftArmorSlotBoundsLegs, 2);
-
 
         IInventory? characterInv = (IInventory?)GuiDialogCharacter_characterInv?.GetValue(__instance);
 
@@ -68,13 +66,15 @@ public static class GuiDialogPatches
 
         GuiDialogCharacter_insetSlotBounds?.SetValue(__instance, insetSlotBounds);
 
-
         insetSlotBounds.FixedRightOf(leftSlotBounds, 10);
 
         ElementBounds rightSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 6).FixedGrow(0, pad);
         rightSlotBounds.FixedRightOf(insetSlotBounds, 10);
         ElementBounds rightGearSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 6).FixedGrow(0, pad);
         rightGearSlotBounds.FixedRightOf(rightSlotBounds);
+
+        ElementBounds additionalSlots1Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 306, 1, 1).FixedGrow(0, pad);
+        ElementBounds additionalSlots2Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 306, 1, 1).FixedGrow(0, pad).FixedRightOf(additionalSlots1Bounds, 161);
 
         leftSlotBounds.fixedHeight -= 6;
         rightSlotBounds.fixedHeight -= 6;
@@ -86,13 +86,15 @@ public static class GuiDialogPatches
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [13], leftArmorSlotBoundsBody, "armorSlotsBody")
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [14], leftArmorSlotBoundsLegs, "armorSlotsLegs")
             .EndIf()
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 3], leftMiscSlotBounds1, "miscSlot1")
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 2], leftMiscSlotBounds2, "miscSlot2")
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 1], leftMiscSlotBounds3, "miscSlot3")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 11], leftMiscSlotBounds1, "miscSlot1")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 10], leftMiscSlotBounds2, "miscSlot2")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 9], leftMiscSlotBounds3, "miscSlot3")
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, [0, 1, 2, 11, 3, 4], leftSlotBounds, "leftSlots")
             .AddInset(insetSlotBounds, 0)
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, [6, 7, 8, 10, 5, 9], rightSlotBounds, "rightSlots")
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, Enumerable.Range(ArmorInventory._armorSlotsLastIndex, ArmorInventory._gearSlotsCount - 3).ToArray(), rightGearSlotBounds, "gearSlots")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 1, Enumerable.Range(ArmorInventory._armorSlotsLastIndex, ArmorInventory._gearSlotsCount - 11).ToArray(), rightGearSlotBounds, "gearSlots")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 9, 4).ToArray(), additionalSlots1Bounds, "additionalSlots1")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 13, 4).ToArray(), additionalSlots2Bounds, "additionalSlots2")
         ;
 
         return false;
@@ -120,11 +122,22 @@ public static class GuiDialogPatches
         {
             if (slot.CanHold(mouseSlot))
             {
+                if (slot is ClothesSlot clothesSlot)
+                {
+                    clothesSlot.PreviousColor = clothesSlot.HexBackgroundColor;
+                }
                 slot.HexBackgroundColor = "#5fbed4";
             }
             else
             {
-                slot.HexBackgroundColor = null;
+                if (slot is ClothesSlot clothesSlot)
+                {
+                    clothesSlot.HexBackgroundColor = clothesSlot.PreviousColor;
+                }
+                else
+                {
+                    slot.HexBackgroundColor = null;
+                }
             }
         }
     }

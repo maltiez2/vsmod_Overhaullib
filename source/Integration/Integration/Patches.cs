@@ -68,16 +68,6 @@ internal static class HarmonyPatches
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(HarmonyPatches.OnFallToGround)))
             );
 
-        /*new Harmony(harmonyId).Patch(
-                typeof(BlockDamageOnTouch).GetMethod("OnEntityInside", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(OnEntityInside)))
-            );*/
-
-        /*new Harmony(harmonyId).Patch(
-                typeof(BlockDamageOnTouch).GetMethod("OnEntityCollide", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(OnEntityCollide)))
-            );*/
-
         new Harmony(harmonyId).Patch(
                 typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(ReloadBagInventory)))
@@ -86,6 +76,11 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Patch(
                 typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0],
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(LightHsv)))
+            );
+
+        new Harmony(harmonyId).Patch(
+                typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all),
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BagInventory_SaveSlotIntoBag)))
             );
 
         _cleanUpTickListener = api.World.RegisterGameTickListener(_ => OnCleanUpTick(), 5 * 60 * 1000, 5 * 60 * 1000);
@@ -100,10 +95,9 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetMethod("updateEyeHeight", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        //new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityInside", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        //new Harmony(harmonyId).Unpatch(typeof(BlockDamageOnTouch).GetMethod("OnEntityCollide", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
@@ -366,6 +360,14 @@ internal static class HarmonyPatches
     private static IInventory? GetBackpackInventory(EntityPlayer player)
     {
         return player.Player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName);
+    }
+    private static bool BagInventory_SaveSlotIntoBag(BagInventory __instance, ItemSlotBagContent slot)
+    {
+        ItemStack? backPackStack = __instance.BagSlots[slot.BagIndex]?.Itemstack;
+
+        backPackStack?.Collectible.GetCollectibleInterface<IHeldBag>()?.Store(backPackStack, slot);
+
+        return false;
     }
 
     private static void LightHsv(EntityPlayer __instance, ref byte[] __result)

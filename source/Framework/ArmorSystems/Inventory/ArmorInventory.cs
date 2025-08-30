@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Util;
 using Vintagestory.Common;
 
 namespace CombatOverhaul.Armor;
@@ -17,6 +18,7 @@ public class ClothesSlot : ItemSlotCharacter
     public bool PreviouslyHeldBag { get; set; } = false;
     public int PreviousItemId { get; set; } = 0;
     public int PreviousDurability { get; set; } = 0;
+    public string? PreviousColor { get; set; }
 
     public ClothesSlot(EnumCharacterDressType type, InventoryBase inventory) : base(type, inventory)
     {
@@ -108,10 +110,59 @@ public class ClothesSlot : ItemSlotCharacter
 public class GearSlot : ClothesSlot
 {
     public string SlotType { get; set; }
+    public bool Enabled { get; set; } = true;
+    public ItemSlot? ParentSlot { get; set; }
+    public SlotConfig? Config { get; set; }
 
     public GearSlot(string slotType, InventoryBase inventory) : base(EnumCharacterDressType.Unknown, inventory)
     {
         SlotType = slotType;
+        if (slotType.StartsWith("add"))
+        {
+            Enabled = false;
+        }
+    }
+
+    public virtual void SetParentSlot(InventoryBase inventory)
+    {
+        switch (SlotType)
+        {
+            case "addBeltLeft":
+            case "addBeltRight":
+            case "addBeltBack":
+            case "addBeltFront":
+                ParentSlot = inventory.OfType<GearSlot>().FirstOrDefault(slot => slot.SlotType == "waistgear");
+                break;
+            case "addBackpack1":
+            case "addBackpack2":
+            case "addBackpack3":
+            case "addBackpack4":
+                ParentSlot = inventory.OfType<GearSlot>().FirstOrDefault(slot => slot.SlotType == "backgear");
+                break;
+        }
+    }
+
+    public virtual void CheckParentSlot()
+    {
+        if (ParentSlot == null) return;
+
+        IEnableAdditionalSlots? parent = ParentSlot.Itemstack?.Collectible?.GetCollectibleInterface<IEnableAdditionalSlots>();
+
+        if (ParentSlot.Itemstack == null || parent == null)
+        {
+            HexBackgroundColor = "#999999";
+            PreviousColor = HexBackgroundColor;
+            BackgroundIcon = null;
+            Config = null;
+            Enabled = false;
+            return;
+        }
+
+        BackgroundIcon = parent.GetIcon(ParentSlot.Itemstack, inventory, SlotType);
+        Enabled = parent.GetIfEnabled(ParentSlot.Itemstack, inventory, SlotType);
+        Config = parent.GetConfig(ParentSlot.Itemstack, inventory, SlotType);
+        HexBackgroundColor = Enabled ? null : "#999999";
+        PreviousColor = HexBackgroundColor;
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge)
@@ -126,7 +177,28 @@ public class GearSlot : ClothesSlot
 
     public override bool CanHold(ItemSlot sourceSlot)
     {
-        return IsGearType(sourceSlot?.Itemstack, SlotType);
+        return Enabled && IsGearType(sourceSlot?.Itemstack, SlotType) && CanHoldConfig(sourceSlot);
+    }
+
+    public virtual bool CanHoldConfig(ItemSlot? sourceSlot)
+    {
+        if (Config == null || sourceSlot == null) return true;
+        if (!base.CanHold(sourceSlot) || sourceSlot.Itemstack?.Collectible?.Code == null) return false;
+
+        bool matchWithoutDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.Path);
+        bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
+
+        bool matchWithTags = false;
+        if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
+        {
+            matchWithTags = ItemTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Item.Tags, Config.CanHoldItemTags);
+        }
+        if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags.Length != 0 && !matchWithTags)
+        {
+            matchWithTags = BlockTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Block.Tags, Config.CanHoldBlockTags);
+        }
+
+        return matchWithoutDomain || matchWithDomain || matchWithTags;
     }
 
     public static bool IsGearType(IItemStack? itemStack, string gearType)
@@ -378,7 +450,15 @@ public sealed class ArmorInventory : InventoryCharacter
         "waistgear",
         "miscgear",
         "miscgear",
-        "miscgear"
+        "miscgear",
+        "addBeltLeft",
+        "addBeltRight",
+        "addBeltBack",
+        "addBeltFront",
+        "addBackpack1",
+        "addBackpack2",
+        "addBackpack3",
+        "addBackpack4"
     ];
 
     public override void FromTreeAttributes(ITreeAttribute tree)
@@ -433,6 +513,20 @@ public sealed class ArmorInventory : InventoryCharacter
         }
 
         LoggerUtil.Mark(_api, "inv-sm-1");
+
+        if (slot is GearSlot)
+        {
+            foreach (GearSlot gearSlot in _slots.OfType<GearSlot>())
+            {
+                gearSlot.CheckParentSlot();
+                if (!gearSlot.Enabled && !gearSlot.Empty)
+                {
+                    IInventory targetInv = Player.InventoryManager.GetOwnInventory(GlobalConstants.groundInvClassName);
+                    gearSlot.TryPutInto(Player.Entity.Api.World, targetInv[0]);
+                    gearSlot.MarkDirty();
+                }
+            }
+        }
 
         if (slot is ClothesSlot clothesSlot)
         {
@@ -675,7 +769,7 @@ public sealed class ArmorInventory : InventoryCharacter
                 ClothesSlot slot = new((EnumCharacterDressType)slotId, this);
                 _clothesSlotsIcons.TryGetValue((EnumCharacterDressType)slotId, out slot.BackgroundIcon);
                 return slot;
-            }  
+            }
         }
         else if (slotId < _armorSlotsLastIndex)
         {
@@ -714,6 +808,8 @@ public sealed class ArmorInventory : InventoryCharacter
                 armorSlot.World = Api.World;
             }
         }
+
+        _slots.OfType<GearSlot>().Foreach(slot => slot.SetParentSlot(this));
     }
 
     private void FillArmorIconsDict(ICoreAPI api)
