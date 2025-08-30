@@ -43,7 +43,7 @@ public sealed class BowStats : WeaponStats
     public string TpAimAnimation { get; set; } = "";
     public AimingStatsJson Aiming { get; set; } = new();
     public float ArrowDamageMultiplier { get; set; } = 1;
-    public float ArrowDamageTier { get; set; } = 1;
+    public int ArrowDamageTier { get; set; } = 1;
     public float ArrowVelocity { get; set; } = 1;
     public string ArrowWildcard { get; set; } = "*arrow-*";
     public float Zeroing { get; set; } = 1.5f;
@@ -467,7 +467,7 @@ public class BowServer : RangeWeaponServer
         {
             ProducerEntityId = player.Entity.EntityId,
             DamageMultiplier = Stats.ArrowDamageMultiplier * stackStats.DamageMultiplier,
-            DamageStrength = Stats.ArrowDamageTier + stackStats.DamageTierBonus,
+            DamageTier = Stats.ArrowDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
             Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.ArrowVelocity * stackStats.ProjectileSpeed + playerVelocity
         };

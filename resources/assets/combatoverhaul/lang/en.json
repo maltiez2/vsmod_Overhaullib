@@ -112,6 +112,7 @@
   "iteminfo-melee-weapon-offhanded-block": "Off-handed",
   "iteminfo-melee-weapon-blockStats": "{2} block\n  Tier: {0}\n  Protected body parts: {1}",
   "iteminfo-melee-weapon-parryStats": "{2} parry\n  Tier: {0}\n  Protected body parts: {1}",
+  "iteminfo-melee-weapon-armorpiercing": "Armor piercing tier: {0}",
 
   "interaction-hold-alt": "Hold 'Alt' to interact with objects or place on tool-rack/ground",
   "interaction-grip-change": "Hold 'Right mouse button' and rotate 'mouse wheel' to change grip length",

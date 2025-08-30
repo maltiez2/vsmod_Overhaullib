@@ -9,7 +9,6 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -100,9 +99,11 @@ public struct ProjectileSpawnStats
 {
     public long ProducerEntityId { get; set; }
     public float DamageMultiplier { get; set; }
-    public float DamageStrength { get; set; }
+    public int DamageTier { get; set; }
     public Vector3d Position { get; set; }
     public Vector3d Velocity { get; set; }
+    [Obsolete("Use DamageTier instead")]
+    public float DamageStrength { get => DamageTier; set => DamageTier = (int)value; } // for compatibility
 }
 
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
@@ -387,7 +388,7 @@ public sealed class ProjectileSystemServer
             projectile.DropOnImpactChance = stats.DropChance;
             projectile.ColliderRadius = stats.CollisionRadius;
             projectile.PenetrationDistance = stats.PenetrationDistance;
-            projectile.PenetrationStrength = Math.Max(0, stats.PenetrationBonus + spawnStats.DamageStrength);
+            projectile.PenetrationStrength = Math.Max(0, stats.PenetrationBonus + spawnStats.DamageTier);
             projectile.DurabilityDamageOnImpact = stats.DurabilityDamage;
             projectile.ShooterId = shooter.EntityId;
 
@@ -397,7 +398,7 @@ public sealed class ProjectileSystemServer
         {
             vanillaProjectile.FiredBy = shooter;
             vanillaProjectile.Damage = stats.DamageStats.Damage * spawnStats.DamageMultiplier;
-            vanillaProjectile.DamageTier = (int)spawnStats.DamageStrength + stats.DamageTierBonus;
+            vanillaProjectile.DamageTier = (int)spawnStats.DamageTier + stats.DamageTierBonus;
             vanillaProjectile.ProjectileStack = projectileStack;
             vanillaProjectile.WeaponStack = weaponStack;
             vanillaProjectile.DropOnImpactChance = stats.DropChance;

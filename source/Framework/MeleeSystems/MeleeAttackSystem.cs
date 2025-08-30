@@ -106,11 +106,11 @@ public sealed class MeleeSystemServer : MeleeSystem
             Source = attacker is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity,
             SourceEntity = attacker,
             CauseEntity = attacker,
-            DamageTypeData = new DamageData(Enum.Parse<EnumDamageType>(packet.DamageType), packet.Strength),
+            DamageTypeData = new DamageData(Enum.Parse<EnumDamageType>(packet.DamageType), packet.Tier, packet.ArmorPiercingTier),
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
             Collider = packet.Collider,
             KnockbackStrength = packet.Knockback,
-            DamageTier = (int)packet.Strength,
+            DamageTier = packet.Tier,
             Type = Enum.Parse<EnumDamageType>(packet.DamageType),
             Weapon = packet.MainHand ? serverPlayer?.Entity.RightHandItemSlot.Itemstack : serverPlayer?.Entity.LeftHandItemSlot.Itemstack
         };

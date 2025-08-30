@@ -15,7 +15,6 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
-using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 
 namespace CombatOverhaul.Implementations;
 
@@ -96,7 +95,7 @@ public class ThrowWeaponStats
     public string TpThrowAnimation { get; set; } = "";
 
     public AimingStatsJson Aiming { get; set; } = new();
-    public float DamageStrength { get; set; }
+    public int DamageTier { get; set; }
     public float Knockback { get; set; } = 0;
     public int DurabilityDamage { get; set; } = 1;
     public float Velocity { get; set; } = 1;
@@ -128,8 +127,9 @@ public readonly struct ItemStackMeleeWeaponStats
     public readonly float ThrownAimingDifficulty;
     public readonly float ThrownProjectileSpeedMultiplier;
     public readonly float KnockbackMultiplier;
+    public readonly int ArmorPiercingBonus;
 
-    public ItemStackMeleeWeaponStats(float damageMultiplier, float damageBonus, int damageTierBonus, float attackSpeed, int blockTierBonus, int parryTierBonus, float thrownDamageMultiplier, int thrownDamageTierBonus, float thrownAimingDifficulty, float thrownProjectileSpeedMultiplier, float knockbackMultiplier)
+    public ItemStackMeleeWeaponStats(float damageMultiplier, float damageBonus, int damageTierBonus, float attackSpeed, int blockTierBonus, int parryTierBonus, float thrownDamageMultiplier, int thrownDamageTierBonus, float thrownAimingDifficulty, float thrownProjectileSpeedMultiplier, float knockbackMultiplier, int armorPiercingBonus)
     {
         DamageMultiplier = damageMultiplier;
         DamageBonus = damageBonus;
@@ -142,6 +142,7 @@ public readonly struct ItemStackMeleeWeaponStats
         ThrownAimingDifficulty = thrownAimingDifficulty;
         ThrownProjectileSpeedMultiplier = thrownProjectileSpeedMultiplier;
         KnockbackMultiplier = knockbackMultiplier;
+        ArmorPiercingBonus = armorPiercingBonus;
     }
 
     public ItemStackMeleeWeaponStats()
@@ -172,8 +173,9 @@ public readonly struct ItemStackMeleeWeaponStats
         float thrownAimingDifficulty = stack.Attributes.GetFloat("thrownAimingDifficulty", 1);
         float thrownProjectileSpeedMultiplier = stack.Attributes.GetFloat("thrownProjectileSpeedMultiplier", 1);
         float knockbackMultiplier = stack.Attributes.GetFloat("knockbackMultiplier", 1);
+        int armorPiercingBonus = stack.Attributes.GetInt("armorPiercingBonus", 0);
 
-        return new ItemStackMeleeWeaponStats(damageMultiplier, damageBonus, damageTierBonus, attackSpeed, blockTierBonus, parryTierBonus, thrownDamageMultiplier, thrownDamageTierBonus, thrownAimingDifficulty, thrownProjectileSpeedMultiplier, knockbackMultiplier);
+        return new ItemStackMeleeWeaponStats(damageMultiplier, damageBonus, damageTierBonus, attackSpeed, blockTierBonus, parryTierBonus, thrownDamageMultiplier, thrownDamageTierBonus, thrownAimingDifficulty, thrownProjectileSpeedMultiplier, knockbackMultiplier, armorPiercingBonus);
     }
     public static float GetAttackSpeed(ItemStack stack) => stack.Attributes.GetFloat("attackSpeed", 1);
 }
@@ -1606,6 +1608,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
     {
         float damage = 0;
         float tier = 0;
+        int armorPiercingTier = 0;
         HashSet<string> damageTypes = new();
 
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
@@ -1613,15 +1616,21 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
         foreach (DamageDataJson attack in damageTypesData)
         {
             float attackDamage = attack.Damage * stackStats.DamageMultiplier;
-
             if (attackDamage > damage)
             {
                 damage = attackDamage;
             }
+            
             float currentTier = Math.Max(attack.Strength, attack.Tier) + stackStats.DamageTierBonus;
             if (currentTier > tier)
             {
                 tier = currentTier;
+            }
+
+            int currentArmorPiercingTier = attack.ArmorPiercingTier;
+            if (currentArmorPiercingTier > armorPiercingTier)
+            {
+                armorPiercingTier = currentArmorPiercingTier;
             }
 
             damageTypes.Add(attack.DamageType);
@@ -1629,7 +1638,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
         string damageType = damageTypes.Select(element => Lang.Get($"combatoverhaul:damage-type-{element}")).Aggregate((first, second) => $"{first}, {second}");
 
-        return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType);
+        return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType) + (armorPiercingTier > 0 ? "\n" + Lang.Get("combatoverhaul:iteminfo-melee-weapon-armorpiercing", armorPiercingTier) : "");
     }
 }
 
@@ -1666,7 +1675,7 @@ public class MeleeWeaponServer : RangeWeaponServer
         {
             ProducerEntityId = player.Entity.EntityId,
             DamageMultiplier = 1 * stackStats.ThrownDamageMultiplier,
-            DamageStrength = Stats.ThrowAttack?.DamageStrength ?? 0 + stackStats.ThrownDamageTierBonus,
+            DamageTier = Stats.ThrowAttack?.DamageTier ?? 0 + stackStats.ThrownDamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
             Velocity = Vector3d.Normalize(new Vector3d(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2])) * (Stats.ThrowAttack?.Velocity ?? 1) * stackStats.ThrownProjectileSpeedMultiplier + playerVelocity
         };

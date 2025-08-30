@@ -14,7 +14,8 @@ namespace CombatOverhaul.MeleeSystems;
 public class MeleeDamagePacket
 {
     public string DamageType { get; set; }
-    public float Strength { get; set; }
+    public int Tier { get; set; }
+    public int ArmorPiercingTier { get; set; }
     public float Damage { get; set; }
     public float Knockback { get; set; }
     public double[] Position { get; set; }
@@ -49,7 +50,7 @@ public class MeleeDamageType : IHasLineCollider
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
         Damage = stats.Damage.Damage;
-        DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), Math.Max(stats.Damage.Strength, stats.Damage.Tier));
+        DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), (int)Math.Max(stats.Damage.Strength, stats.Damage.Tier), stats.Damage.ArmorPiercingTier);
         Knockback = stats.Knockback;
         RelativeCollider = new LineSegmentCollider(stats.Collider);
         InWorldCollider = new LineSegmentCollider(stats.Collider);
@@ -100,7 +101,7 @@ public class MeleeDamageType : IHasLineCollider
         damage += stats.DamageBonus;
         damage *= stats.DamageMultiplier;
 
-        DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus);
+        DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus, DamageTypeData.ArmorPiercingTier);
 
         bool damageReceived = target.ReceiveDamage(new DirectionalTypedDamageSource()
         {
@@ -118,7 +119,8 @@ public class MeleeDamageType : IHasLineCollider
         packet = new()
         {
             DamageType = damageTypeData.DamageType.ToString(),
-            Strength = damageTypeData.Tier,
+            Tier = damageTypeData.Tier,
+            ArmorPiercingTier = damageTypeData.ArmorPiercingTier,
             Damage = damage,
             Knockback = Knockback * stats.KnockbackMultiplier,
             Position = new double[3] { position.X, position.Y, position.Z },

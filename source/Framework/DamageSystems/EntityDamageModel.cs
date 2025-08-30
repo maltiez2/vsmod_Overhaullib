@@ -142,7 +142,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         }
         else
         {
-            DamageData damageData = new(damageSource.Type, damageSource.DamageTier);
+            DamageData damageData = new(damageSource.Type, damageSource.DamageTier, 0);
             Resists.ApplyNotPlayerResist(damageData, ref damage);
         }
 

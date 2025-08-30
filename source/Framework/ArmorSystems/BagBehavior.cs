@@ -1,6 +1,5 @@
 ﻿using CombatOverhaul.Utils;
 using ConfigLib;
-using Eto.Drawing;
 using ProtoBuf;
 using System.Diagnostics;
 using Vintagestory.API.Client;
@@ -415,7 +414,7 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
             foreach (KeyValuePair<string, IAttribute> val in slotsTree)
             {
-                int slotIndex = val.Key.Split("-")[1].ToInt();
+                int slotIndex = int.Parse(val.Key.Split("-")[1]);
 
                 SlotConfig config = GetSlotConfig(slotIndex);
 
@@ -721,7 +720,7 @@ public class ToolBag : GearEquipableBag
 
             foreach (KeyValuePair<string, IAttribute> val in slotsTree)
             {
-                int slotIndex = val.Key.Split("-")[1].ToInt();
+                int slotIndex = int.Parse(val.Key.Split("-")[1]);
 
                 if (slotIndex == 0)
                 {
@@ -984,8 +983,8 @@ public class ToolBagSystemServer
     {
         toolSlot.TryFlipWith(activeSlot);
 
-        toolSlot.MarkDirty();
-        activeSlot.MarkDirty();
+        //toolSlot.MarkDirty();
+        //activeSlot.MarkDirty();
     }
 
     private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
@@ -1007,17 +1006,17 @@ public class ToolBagSystemServer
         sinkSlot.CanHoldNow = false;
 
         
-        toolSlot.MarkDirty();
-        sinkSlot.MarkDirty();
-        activeSlot.MarkDirty();
+        //toolSlot.MarkDirty();
+        //sinkSlot.MarkDirty();
+        //activeSlot.MarkDirty();
     }
 
     private void PutBack(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, IServerPlayer player)
     {
         activeSlot.TryPutInto(player.Entity.World, toolSlot, activeSlot.Itemstack?.StackSize ?? 1);
 
-        toolSlot.MarkDirty();
-        activeSlot.MarkDirty();
+        //toolSlot.MarkDirty();
+        //activeSlot.MarkDirty();
     }
 
     private static IInventory? GetBackpackInventory(IPlayer player)

@@ -34,7 +34,7 @@ public sealed class SlingStats : WeaponStats
     public string ReleaseAnimation { get; set; } = "";
     public AimingStatsJson Aiming { get; set; } = new();
     public float BulletDamageMultiplier { get; set; } = 1;
-    public float BulletDamageTier { get; set; } = 1;
+    public int BulletDamageTier { get; set; } = 1;
     public float BulletVelocity { get; set; } = 1;
     public string BulletWildcard { get; set; } = "*slingbullet-*";
     public float Zeroing { get; set; } = 1.5f;
@@ -453,7 +453,7 @@ public class SlingServer : RangeWeaponServer
         {
             ProducerEntityId = player.Entity.EntityId,
             DamageMultiplier = Stats.BulletDamageMultiplier * stackStats.DamageMultiplier * swingSpeed * manipulationSpeed,
-            DamageStrength = Stats.BulletDamageTier + stackStats.DamageTierBonus,
+            DamageTier = Stats.BulletDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
             Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.BulletVelocity * stackStats.ProjectileSpeed * speedFactor + playerVelocity
         };

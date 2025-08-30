@@ -95,7 +95,11 @@ public sealed class ProjectileServer
 
         float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier;
         int damageTierBonus = _stats.DamageTierBonus;
-        DamageData damageData = new(Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType), Math.Max(1, _spawnStats.DamageStrength + damageTierBonus));
+        DamageData damageData = new(
+            Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType),
+            Math.Max(1, (int)_spawnStats.DamageTier + damageTierBonus),
+            0
+            );
 
         if (!CheckPermissions(attacker, target) && damageData.DamageType != EnumDamageType.Heal) return false;
 
@@ -108,7 +112,7 @@ public sealed class ProjectileServer
             Position = position,
             Collider = collider,
             DamageTypeData = damageData,
-            DamageTier = (int)damageData.Tier,
+            DamageTier = damageData.Tier,
             KnockbackStrength = _stats.Knockback,
             Weapon = _entity.WeaponStack,
             IgnoreInvFrames = _entity.IgnoreInvFrames,

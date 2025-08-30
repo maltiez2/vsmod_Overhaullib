@@ -50,6 +50,11 @@ public enum PlayerBodyPart
     RightFoot = 2048
 }
 
+public interface IArmorPiercing
+{
+    int ArmorPiercingTier { get; }
+}
+
 public delegate void OnPlayerReceiveDamageDelegate(ref float damage, DamageSource damageSource, PlayerBodyPart bodyPart);
 
 public class PlayerDamageModelConfig
@@ -304,8 +309,13 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         float previousDamage = damage;
         int durabilityDamage = 0;
+        int apTier = 0;
+        if (damageSource is IArmorPiercing apSource)
+        {
+            apTier = apSource.ArmorPiercingTier;
+        }
 
-        _ = resists.ApplyResist(new(damageSource.Type, damageSource.DamageTier), ref damage, out durabilityDamage);
+        _ = resists.ApplyPlayerResist(new(damageSource.Type, damageSource.DamageTier, apTier), ref damage, out durabilityDamage);
 
         durabilityDamage = GameMath.Clamp(durabilityDamage, 1, durabilityDamage);
         int durabilityDamagePerItem = GameMath.Clamp(durabilityDamage / slots.Count(), 0, durabilityDamage);

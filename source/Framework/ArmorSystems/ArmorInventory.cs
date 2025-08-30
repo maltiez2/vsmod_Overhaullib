@@ -1,6 +1,5 @@
 ﻿using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Utils;
-using CommandLine;
 using System.Diagnostics;
 using System.Reflection;
 using Vintagestory.API.Common;
