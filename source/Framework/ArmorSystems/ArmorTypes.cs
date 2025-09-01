@@ -91,9 +91,10 @@ public sealed class ArmorStatsJson
     public Dictionary<string, float> Resists { get; set; } = new();
     public Dictionary<string, float> FlatReduction { get; set; } = new();
     public Dictionary<string, float> PlayerStats { get; set; } = new();
+    public Dictionary<string, Dictionary<string, float>> ResistsByType { get; set; } = new();
 }
 
-public class ArmorBehavior : CollectibleBehavior, IArmor, IAffectsPlayerStats
+public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffectsPlayerStats
 {
     public ArmorBehavior(CollectibleObject collObj) : base(collObj)
     {
@@ -101,6 +102,7 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IAffectsPlayerStats
 
     public ArmorType ArmorType { get; protected set; } = new(ArmorLayers.None, DamageZone.None);
     public DamageResistData Resists { get; protected set; } = new();
+    public Dictionary<ArmorType, DamageResistData> ResistsByType { get; protected set; } = new();
     public Dictionary<string, float> Stats { get; protected set; } = new();
     public bool StatsChanged { get; set; } = false;
 
@@ -123,6 +125,16 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IAffectsPlayerStats
         Resists = new(
             stats.Resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
             stats.FlatReduction.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value));
+
+        foreach ((string type, Dictionary<string, float> resists) in stats.ResistsByType)
+        {
+            string[] typeSplit = type.Split('-');
+            ArmorLayers layer = Enum.Parse<ArmorLayers>(typeSplit[0]);
+            DamageZone zone = Enum.Parse<DamageZone>(typeSplit[1]);
+            ArmorType typeEnum = new(layer, zone);
+
+            ResistsByType.Add(typeEnum, new(resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value), []));
+        }
     }
     public void Initialize(ArmorType armorType, DamageResistData resists, Dictionary<string, float> stats)
     {
@@ -168,6 +180,16 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IAffectsPlayerStats
         }
         
         dsc.AppendLine();
+    }
+
+    public DamageResistData GetResists(ItemSlot slot, ArmorType type)
+    {
+        if (ResistsByType.ContainsKey(type))
+        {
+            return ResistsByType[type];
+        }
+
+        return Resists;
     }
 }
 

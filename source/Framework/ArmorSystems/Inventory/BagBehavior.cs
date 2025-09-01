@@ -962,7 +962,7 @@ public class ToolBagSystemServer
         {
             if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
             {
-                PutBack(activeSlot, toolSlot, player);
+                Flip(activeSlot, toolSlot);
             }
             else if (!toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
             {
@@ -981,42 +981,52 @@ public class ToolBagSystemServer
 
     private void Flip(ItemSlot activeSlot, ItemSlotToolHolder toolSlot)
     {
-        toolSlot.TryFlipWith(activeSlot);
+        bool canTakeActive = toolSlot.CanTakeFrom(activeSlot) || activeSlot.Itemstack == null;
+        bool canTakeTool = activeSlot.CanTakeFrom(toolSlot) || toolSlot.Itemstack == null;
+        if (!canTakeActive || !canTakeTool) return;
 
-        //toolSlot.MarkDirty();
-        //activeSlot.MarkDirty();
+        ItemStack? toolSlotStack = toolSlot.Itemstack;
+        ItemStack? activeSlotStack = activeSlot.Itemstack;
+
+        toolSlot.Itemstack = activeSlotStack;
+        activeSlot.Itemstack = toolSlotStack;
+
+        toolSlot.MarkDirty();
+        activeSlot.MarkDirty();
     }
 
     private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
     {
         if (!sinkSlot.Empty && !activeSlot.Empty) return;
 
-        if (!toolSlot.Inventory.Contains(toolSlot))
+        bool canTakeActive = sinkSlot.CanTakeFrom(activeSlot) || activeSlot.Itemstack == null;
+        bool canTakeTool = activeSlot.CanTakeFrom(toolSlot) || toolSlot.Itemstack == null;
+        if (!canTakeActive || !canTakeTool) return;
+
+        ItemStack? toolSlotStack = toolSlot.Itemstack;
+        ItemStack? activeSlotStack = activeSlot.Itemstack;
+
+        if (activeSlot.Empty)
         {
-            return;
+            activeSlot.Itemstack = toolSlotStack;
+            toolSlot.Itemstack = null;
         }
 
-        DummySlot dummySlot = new();
+        if (!activeSlot.Empty && sinkSlot.Empty)
+        {
+            activeSlot.Itemstack = toolSlotStack;
+            sinkSlot.Itemstack = activeSlotStack;
+            toolSlot.Itemstack = null;
+        }
 
-        activeSlot.TryPutInto(player.Entity.World, dummySlot, activeSlot.Itemstack?.StackSize ?? 1);
-        toolSlot.TryPutInto(player.Entity.World, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
-
-        sinkSlot.CanHoldNow = true;
-        dummySlot.TryPutInto(player.Entity.World, sinkSlot, dummySlot.Itemstack?.StackSize ?? 1);
-        sinkSlot.CanHoldNow = false;
-
-        
-        //toolSlot.MarkDirty();
-        //sinkSlot.MarkDirty();
-        //activeSlot.MarkDirty();
+        toolSlot.MarkDirty();
+        sinkSlot.MarkDirty();
+        activeSlot.MarkDirty();
     }
 
     private void PutBack(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, IServerPlayer player)
     {
         activeSlot.TryPutInto(player.Entity.World, toolSlot, activeSlot.Itemstack?.StackSize ?? 1);
-
-        //toolSlot.MarkDirty();
-        //activeSlot.MarkDirty();
     }
 
     private static IInventory? GetBackpackInventory(IPlayer player)

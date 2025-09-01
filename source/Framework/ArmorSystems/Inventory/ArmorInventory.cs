@@ -332,13 +332,13 @@ public class ArmorSlot : ItemSlot
     }
     private DamageResistData GetResists()
     {
-        if (Itemstack?.Item != null && IsArmor(Itemstack.Collectible, out IArmor? armor) && armor != null)
-        {
-            return armor.Resists;
-        }
-        else if (Itemstack?.Item != null && IsModularArmor(Itemstack.Collectible, out IModularArmor? modularArmor) && modularArmor != null)
+        if (Itemstack?.Item != null && IsModularArmor(Itemstack.Collectible, out IModularArmor? modularArmor) && modularArmor != null)
         {
             return modularArmor.GetResists(this, ArmorType);
+        }
+        else if (Itemstack?.Item != null && IsArmor(Itemstack.Collectible, out IArmor? armor) && armor != null)
+        {
+            return armor.Resists;
         }
         else
         {
