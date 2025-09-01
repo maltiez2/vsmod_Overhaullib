@@ -954,6 +954,20 @@ public class ToolBagSystemServer
         {
             ProcessSlots(offHandToolSlot, offHandHandSinkSlot, offHandActiveSlot, player);
         }
+
+        try
+        {
+            mainHandToolSlot?.MarkDirty();
+            offHandToolSlot?.MarkDirty();
+            mainHandSinkSlot?.MarkDirty();
+            offHandHandSinkSlot?.MarkDirty();
+            mainHandActiveSlot?.MarkDirty();
+            offHandActiveSlot?.MarkDirty();
+        }
+        catch (Exception exception)
+        {
+            LoggerUtil.Error(player.Entity.Api, this, $"Error when trying to use tool bag/sheath '{packet.ToolBagId}': {exception}");
+        }
     }
 
     private void ProcessSlots(ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, ItemSlot activeSlot, IServerPlayer player)
@@ -990,9 +1004,6 @@ public class ToolBagSystemServer
 
         toolSlot.Itemstack = activeSlotStack;
         activeSlot.Itemstack = toolSlotStack;
-
-        toolSlot.MarkDirty();
-        activeSlot.MarkDirty();
     }
 
     private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
@@ -1018,10 +1029,6 @@ public class ToolBagSystemServer
             sinkSlot.Itemstack = activeSlotStack;
             toolSlot.Itemstack = null;
         }
-
-        toolSlot.MarkDirty();
-        sinkSlot.MarkDirty();
-        activeSlot.MarkDirty();
     }
 
     private void PutBack(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, IServerPlayer player)

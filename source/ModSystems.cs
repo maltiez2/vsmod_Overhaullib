@@ -60,6 +60,7 @@ public sealed class Settings
     public float DefaultColliderPenetrationResistance { get; set; } = 5f;
 
     public bool DirectionsMovementControls { get; set; } = false;
+    public bool DirectionsHotkeysControls { get; set; } = false;
 
     public bool DisableAllAnimations { get; set; } = false;
     public bool DisableThirdPersonAnimations { get; set; } = false;

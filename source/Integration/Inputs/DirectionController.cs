@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+﻿using System.Linq;
+using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Inputs;
@@ -51,6 +52,7 @@ public sealed class DirectionController
     public AttackDirection CurrentDirectionWithInversion => Invert ? _inversionMapping[CurrentDirection] : CurrentDirection;
     public int CurrentDirectionNormalized { get; private set; }
     public bool AlternativeDirectionControls => _settings.DirectionsMovementControls;
+    public bool DirectionsHotkeysControls => _settings.DirectionsHotkeysControls;
 
     public static readonly Dictionary<DirectionsConfiguration, List<int>> Configurations = new()
     {
@@ -73,6 +75,16 @@ public sealed class DirectionController
         }
 
         ConstructInvertedConfigurations();
+
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-forward", "Directions cursor Up", GlKeys.W);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-backward", "Directions cursor Down", GlKeys.S);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-left", "Directions cursor Left", GlKeys.A);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-right", "Directions cursor Right", GlKeys.D);
+
+        _forwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-forward"];
+        _backwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-backward"];
+        _leftHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-left"];
+        _rightHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-right"];
     }
 
     public void OnGameTick(bool forceNewDirection = false)
@@ -97,10 +109,10 @@ public sealed class DirectionController
 
         MouseMovementData previous = _directionQueue.Dequeue();
 
-        if (AlternativeDirectionControls)
+        if (AlternativeDirectionControls || DirectionsHotkeysControls)
         {
-            AttackDirection direction = CalculateDirectionWithAltenrativeControls(out bool changeDirection);
-
+            AttackDirection direction = CalculateDirectionWithAlternativeControls(out bool changeDirection);
+            
             if (changeDirection)
             {
                 CurrentDirectionNormalized = (int)direction;
@@ -121,6 +133,13 @@ public sealed class DirectionController
                 _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
             }
         }
+
+        if (Configurations.TryGetValue(DirectionsConfiguration, out List<int>? allowedDirections) && !allowedDirections.Contains((int)CurrentDirection))
+        {
+            CurrentDirection = (AttackDirection)allowedDirections[0];
+            CurrentDirectionNormalized = allowedDirections[0];
+            _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+        }
     }
 
 
@@ -129,6 +148,10 @@ public sealed class DirectionController
     private readonly Queue<MouseMovementData> _directionQueue = new();
     private readonly DirectionCursorRenderer _directionCursorRenderer;
     private readonly Settings _settings;
+    private readonly HotKey _forwardHotkey;
+    private readonly HotKey _backwardHotkey;
+    private readonly HotKey _leftHotkey;
+    private readonly HotKey _rightHotkey;
 
     private readonly Dictionary<DirectionsConfiguration, List<int>> _invertedConfigurations = new();
     private readonly Dictionary<AttackDirection, AttackDirection> _inversionMapping = new()
@@ -166,13 +189,9 @@ public sealed class DirectionController
         }
     }
 
-    private AttackDirection CalculateDirectionWithAltenrativeControls(out bool changeDirection)
+    private AttackDirection CalculateDirectionWithAlternativeControls(out bool changeDirection)
     {
-        Vintagestory.API.Common.EntityControls controls = _api.World.Player.Entity.Controls;
-        bool forward = controls.Forward;
-        bool backward = controls.Backward;
-        bool left = controls.Left;
-        bool right = controls.Right;
+        (bool forward, bool backward, bool left, bool right) = DirectionsHotkeysControls ? GetHotkeysState() : GetControlsState();
 
         changeDirection = true;
 
@@ -223,5 +242,26 @@ public sealed class DirectionController
         }
 
         return 0;
+    }
+
+    private (bool forward, bool backward, bool left, bool right) GetControlsState()
+    {
+        Vintagestory.API.Common.EntityControls controls = _api.World.Player.Entity.Controls;
+        bool forward = controls.Forward;
+        bool backward = controls.Backward;
+        bool left = controls.Left;
+        bool right = controls.Right;
+
+        return (forward, backward, left, right);
+    }
+
+    private (bool forward, bool backward, bool left, bool right) GetHotkeysState()
+    {
+        bool forward = _api.Input.IsHotKeyPressed(_forwardHotkey);
+        bool backward = _api.Input.IsHotKeyPressed(_backwardHotkey);
+        bool left = _api.Input.IsHotKeyPressed(_leftHotkey);
+        bool right = _api.Input.IsHotKeyPressed(_rightHotkey);
+
+        return (forward, backward, left, right);
     }
 }

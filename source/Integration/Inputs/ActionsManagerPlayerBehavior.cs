@@ -350,12 +350,26 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         if (mainHandId == itemId)
         {
-            mainHandHandled = callback.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, eventData, true, _directionController.CurrentDirection);
+            try
+            {
+                mainHandHandled = callback.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, eventData, true, _directionController.CurrentDirection);
+            }
+            catch (Exception exception)
+            {
+                LoggerUtil.Error(_api, this, $"Error while handling action '{eventData.Action}' for item '{_player.RightHandItemSlot.Itemstack?.Collectible?.Code}':\n{exception}");
+            }
         }
 
         if (offHandId == itemId)
         {
-            offHandHandled = callback.Invoke(_player.LeftHandItemSlot, _player, ref _offHandState, eventData, false, _directionController.CurrentDirection);
+            try
+            {
+                offHandHandled = callback.Invoke(_player.LeftHandItemSlot, _player, ref _offHandState, eventData, false, _directionController.CurrentDirection);
+            }
+            catch (Exception exception)
+            {
+                LoggerUtil.Error(_api, this, $"Error while handling action '{eventData.Action}' for item '{_player.LeftHandItemSlot.Itemstack?.Collectible?.Code}':\n{exception}");
+            }
         }
 
         return mainHandHandled || offHandHandled;
@@ -372,10 +386,17 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         {
             foreach (HotkeyEventCallbackDelegate hotkeyDelegate in delegatesForItemInMainHand)
             {
-                if (hotkeyDelegate.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, keyCombination, true, _directionController.CurrentDirection))
+                try
                 {
-                    mainHandHandled = true;
-                    break;
+                    if (hotkeyDelegate.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, keyCombination, true, _directionController.CurrentDirection))
+                    {
+                        mainHandHandled = true;
+                        break;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LoggerUtil.Error(_api, this, $"Error while handling hotkey '{keyCombination}' for item '{_player.RightHandItemSlot.Itemstack?.Collectible?.Code}':\n{exception}");
                 }
             }
         }
@@ -384,10 +405,17 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         {
             foreach (HotkeyEventCallbackDelegate hotkeyDelegate in delegatesForItemInOffhand)
             {
-                if (hotkeyDelegate.Invoke(_player.RightHandItemSlot, _player, ref _mainHandState, keyCombination, false, _directionController.CurrentDirection))
+                try
                 {
-                    mainHandHandled = true;
-                    break;
+                    if (hotkeyDelegate.Invoke(_player.LeftHandItemSlot, _player, ref _mainHandState, keyCombination, false, _directionController.CurrentDirection))
+                    {
+                        offHandHandled = true;
+                        break;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LoggerUtil.Error(_api, this, $"Error while handling hotkey '{keyCombination}' for item '{_player.LeftHandItemSlot.Itemstack?.Collectible?.Code}':\n{exception}");
                 }
             }
         }

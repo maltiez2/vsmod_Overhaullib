@@ -91,7 +91,7 @@ public sealed class ArmorStatsJson
     public Dictionary<string, float> Resists { get; set; } = new();
     public Dictionary<string, float> FlatReduction { get; set; } = new();
     public Dictionary<string, float> PlayerStats { get; set; } = new();
-    public Dictionary<string, Dictionary<string, float>> ResistsByType { get; set; } = new();
+    public Dictionary<string, Dictionary<string, float>> ResistsByZone { get; set; } = new();
 }
 
 public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffectsPlayerStats
@@ -126,7 +126,7 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
             stats.Resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
             stats.FlatReduction.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value));
 
-        foreach ((string type, Dictionary<string, float> resists) in stats.ResistsByType)
+        foreach ((string type, Dictionary<string, float> resists) in stats.ResistsByZone)
         {
             string[] typeSplit = type.Split('-');
             ArmorLayers layer = Enum.Parse<ArmorLayers>(typeSplit[0]);
