@@ -437,7 +437,23 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 break;
             case MeleeWeaponState.Attacking:
                 {
-                    if (attack != null) TryAttack(attack, handle, stats, slot, player, mainHand);
+                    if (attack != null)
+                    {
+                        TryAttack(attack, handle, stats, slot, player, mainHand, out bool hitTerrain);
+
+                        if (hitTerrain && Settings.MeleeWeaponStopOnTerrainHit)
+                        {
+                            Api.World.AddCameraShake(Stats.ScreenShakeStrength);
+                            if (stats.AttackHitSound != null)
+                            {
+                                SoundsSystem.Play(stats.AttackHitSound);
+                            }
+                            SetState(MeleeWeaponState.Idle, mainHand);
+                            AnimationBehavior?.PlayReadyAnimation(mainHand);
+                            TpAnimationBehavior?.PlayReadyAnimation(mainHand);
+                            StartAttackCooldown(mainHand, TimeSpan.FromSeconds(0.5));
+                        }
+                    }
                 }
                 break;
             default:
@@ -749,8 +765,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
 
         return true;
     }
+    [Obsolete]
     protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand)
     {
+        TryAttack(attack, handle, stats, slot, player, mainHand, out _);
+    }
+    protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain)
+    {
+        hitTerrain = false;
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
 
         if (handle != null)
@@ -769,7 +791,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
                 HandleHitTerrain = true;
             }
 
-            if (handleTerrainCollision.Any()) return;
+            if (handleTerrainCollision.Any())
+            {
+                hitTerrain = true;
+                return;
+            }
         }
 
         attack.Attack(
@@ -781,6 +807,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, 
             stackStats);
 
         if (handle != null) handle.AddAttackedEntities(attack);
+
+        if (terrainCollision.Any())
+        {
+            hitTerrain = true;
+        }
 
         if (entitiesCollision.Any() && stats.AttackHitSound != null)
         {

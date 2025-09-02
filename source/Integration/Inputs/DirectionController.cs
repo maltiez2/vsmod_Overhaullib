@@ -76,10 +76,10 @@ public sealed class DirectionController
 
         ConstructInvertedConfigurations();
 
-        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-forward", "Directions cursor Up", GlKeys.W);
-        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-backward", "Directions cursor Down", GlKeys.S);
-        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-left", "Directions cursor Left", GlKeys.A);
-        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-right", "Directions cursor Right", GlKeys.D);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-forward", "(CO) Directions cursor Up", GlKeys.W);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-backward", "(CO) Directions cursor Down", GlKeys.S);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-left", "(CO) Directions cursor Left", GlKeys.A);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-right", "(CO) Directions cursor Right", GlKeys.D);
 
         _forwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-forward"];
         _backwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-backward"];
