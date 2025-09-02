@@ -49,7 +49,7 @@ public sealed class DirectionController
     public float Sensitivity => _settings.DirectionsSensitivity;
     public bool Invert => _settings.DirectionsInvert;
     public AttackDirection CurrentDirection { get; private set; }
-    public AttackDirection CurrentDirectionWithInversion => Invert ? _inversionMapping[CurrentDirection] : CurrentDirection;
+    public AttackDirection CurrentDirectionWithInversion => Invert ? InvertDirection(CurrentDirection, DirectionsConfiguration) : CurrentDirection;
     public int CurrentDirectionNormalized { get; private set; }
     public bool AlternativeDirectionControls => _settings.DirectionsMovementControls;
     public bool DirectionsHotkeysControls => _settings.DirectionsHotkeysControls;
@@ -73,8 +73,6 @@ public sealed class DirectionController
         {
             _directionQueue.Enqueue(new(0, 0, 0, 0));
         }
-
-        ConstructInvertedConfigurations();
 
         api.Input.RegisterHotKey("combatoverhaul:directions-cursor-forward", "(CO) Directions cursor Up", GlKeys.W);
         api.Input.RegisterHotKey("combatoverhaul:directions-cursor-backward", "(CO) Directions cursor Down", GlKeys.S);
@@ -117,7 +115,7 @@ public sealed class DirectionController
             {
                 CurrentDirectionNormalized = (int)direction;
                 CurrentDirection = direction;
-                _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+                _directionCursorRenderer.CurrentDirection = (int)CurrentDirection;
             }
         }
         else
@@ -130,7 +128,7 @@ public sealed class DirectionController
             {
                 CurrentDirectionNormalized = direction;
                 CurrentDirection = (AttackDirection)Configurations[DirectionsConfiguration][CurrentDirectionNormalized];
-                _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+                _directionCursorRenderer.CurrentDirection = (int)CurrentDirection;
             }
         }
 
@@ -138,7 +136,7 @@ public sealed class DirectionController
         {
             CurrentDirection = (AttackDirection)allowedDirections[0];
             CurrentDirectionNormalized = allowedDirections[0];
-            _directionCursorRenderer.CurrentDirection = (int)CurrentDirectionWithInversion;
+            _directionCursorRenderer.CurrentDirection = (int)CurrentDirection;
         }
     }
 
@@ -153,21 +151,14 @@ public sealed class DirectionController
     private readonly HotKey _leftHotkey;
     private readonly HotKey _rightHotkey;
 
-    private readonly Dictionary<DirectionsConfiguration, List<int>> _invertedConfigurations = new();
-    private readonly Dictionary<AttackDirection, AttackDirection> _inversionMapping = new()
-    {
-        { AttackDirection.Top, AttackDirection.Bottom },
-        { AttackDirection.TopRight, AttackDirection.BottomLeft },
-        { AttackDirection.Right, AttackDirection.Left },
-        { AttackDirection.BottomRight, AttackDirection.TopLeft },
-        { AttackDirection.Bottom, AttackDirection.Top },
-        { AttackDirection.BottomLeft, AttackDirection.TopRight },
-        { AttackDirection.Left, AttackDirection.Right },
-        { AttackDirection.TopLeft, AttackDirection.BottomRight }
-    };
-
     private int CalculateDirection(float yaw, float pitch, int directionsCount)
     {
+        if (Invert)
+        {
+            yaw *= -1;
+            pitch *= -1;
+        }
+        
         float angleSegment = 360f / directionsCount;
         float directionOffset = angleSegment / 2f;
         float angle = MathF.Atan2(yaw, pitch) * GameMath.RAD2DEG;
@@ -175,23 +166,71 @@ public sealed class DirectionController
         return (int)(angleOffset / angleSegment) % directionsCount;
     }
 
-    private int CalculateDirectionWithInversion(float yaw, float pitch, int directionsCount) => CalculateDirection(Invert ? -yaw : yaw, Invert ? -pitch : pitch, directionsCount);
-
-    private void ConstructInvertedConfigurations()
+    private static AttackDirection InvertDirection(AttackDirection direction, DirectionsConfiguration configuration)
     {
-        foreach ((DirectionsConfiguration configuration, List<int> directions) in Configurations)
+        switch (configuration)
         {
-            _invertedConfigurations.Add(configuration, new());
-            foreach (int direction in directions)
-            {
-                _invertedConfigurations[configuration].Add((int)_inversionMapping[(AttackDirection)direction]);
-            }
+            case DirectionsConfiguration.Triangle:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Bottom,
+                    AttackDirection.TopRight => AttackDirection.BottomLeft,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.TopLeft,
+                    AttackDirection.Bottom => AttackDirection.Top,
+                    AttackDirection.BottomLeft => AttackDirection.TopRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.BottomRight,
+                    _ => AttackDirection.Top
+                };
+            case DirectionsConfiguration.Star:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Bottom,
+                    AttackDirection.TopRight => AttackDirection.BottomLeft,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.TopLeft,
+                    AttackDirection.Bottom => AttackDirection.Top,
+                    AttackDirection.BottomLeft => AttackDirection.TopRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.BottomRight,
+                    _ => AttackDirection.Top
+                };
+            case DirectionsConfiguration.None:
+            case DirectionsConfiguration.TopBottom:
+            case DirectionsConfiguration.Square:
+            case DirectionsConfiguration.Eight:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Bottom,
+                    AttackDirection.TopRight => AttackDirection.BottomLeft,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.TopLeft,
+                    AttackDirection.Bottom => AttackDirection.Top,
+                    AttackDirection.BottomLeft => AttackDirection.TopRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.BottomRight,
+                    _ => AttackDirection.Top
+                };
         }
+
+        return AttackDirection.Top;
     }
 
     private AttackDirection CalculateDirectionWithAlternativeControls(out bool changeDirection)
     {
         (bool forward, bool backward, bool left, bool right) = DirectionsHotkeysControls ? GetHotkeysState() : GetControlsState();
+
+        if (Invert)
+        {
+            bool temp = forward;
+            forward = backward;
+            backward = temp;
+
+            temp = left;
+            left = right;
+            right = temp;
+        }
 
         changeDirection = true;
 
