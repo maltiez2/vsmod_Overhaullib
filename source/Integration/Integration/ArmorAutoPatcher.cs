@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Armor;
+using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
@@ -16,13 +17,20 @@ public static class ArmorAutoPatcher
 
             if (!IsVanillaArmor(item) || IsCOArmor(item)) continue;
 
-            Patch(item);
+            try
+            {
+                Patch(item, api);
+            }
+            catch (Exception exception)
+            {
+                LoggerUtil.Error(api, typeof(ArmorAutoPatcher), $"Error while patching armor values for '{item.Code}':\n{exception}");
+            }
         }
     }
 
-    public static void Patch(Item item)
+    public static void Patch(Item item, ICoreAPI api)
     {
-        JsonObject properties = GenerateProperties(item);
+        JsonObject properties = GenerateProperties(item, api);
 
         ArmorBehavior behavior = new(item);
 
@@ -110,7 +118,7 @@ public static class ArmorAutoPatcher
         float multiplier = _minProtectionTierMultiplier + (_maxProtectionTierMultiplier - _minProtectionTierMultiplier) * tierFraction;
         return multiplier;
     }
-    private static JsonObject GenerateProperties(Item item)
+    private static JsonObject GenerateProperties(Item item, ICoreAPI api)
     {
         string armorPart = VanillaArmorPart(item);
         (float relativeProtection, float flatDamageReduction, int protectionTier) = VanillaArmorStats(item);
@@ -118,12 +126,21 @@ public static class ArmorAutoPatcher
 
         string layers = "\"Layers\":[\"Outer\", \"Middle\"]";
         string zones = $"\"Zones\":{_damageZoneFromArmorPart[armorPart]}";
-        string resists = $"\"Resists\":{{\"PiercingAttack\": {newProtectionTier}, \"SlashingAttack\": {newProtectionTier}, \"BluntAttack\": {newProtectionTier * 0.5f}}}";
+        string resists = $"\"Resists\":{{\"PiercingAttack\": {newProtectionTier}, \"SlashingAttack\": {newProtectionTier}, \"BluntAttack\": {(int)(newProtectionTier * 0.5f)}}}";
         string stats = "\"PlayerStats\":{\"walkspeed\": -0.05, \"manipulationSpeed\": -0.05, \"steadyAim\": -0.05, \"healingeffectivness\": -0.05, \"hungerrate\": 0.05}";
 
         string properties = "{" + $"{layers},{zones},{resists},{stats}" + "}";
 
-        JsonObject propertiesJson = JsonObject.FromJson(properties);
+        JsonObject propertiesJson;
+        try
+        {
+            propertiesJson = JsonObject.FromJson(properties);
+        }
+        catch (Exception)
+        {
+            LoggerUtil.Warn(api, typeof(ArmorAutoPatcher), $"Failed parsing:\n{properties}");
+            throw;
+        }
 
         return propertiesJson;
     }
