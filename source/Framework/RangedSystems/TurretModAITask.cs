@@ -94,8 +94,6 @@ public class AiTaskCOTurretMode : AiTaskTurretModeR
             return;
         }
 
-        ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(Config.ProjectileStack);
-
         IBallisticSolver.TargetData target = IBallisticSolver.GetTargetData(entity, targetEntity, Config.ProjectileGravityFactor, Config.ProjectileSpeed);
         IBallisticSolver.BallisticOutput ballisticData = BallisticSolver.SolveBallisticArc(target);
         IBallisticSolver.DispersionData dispersion = new(Angle.FromDegrees(currentYawDispersion), Angle.FromDegrees(currentPitchDispersion), randomFloat);
@@ -109,8 +107,8 @@ public class AiTaskCOTurretMode : AiTaskTurretModeR
             ProjectileSpawnStats spawnStats = new()
             {
                 ProducerEntityId = entity.EntityId,
-                DamageMultiplier = Config.ProjectileDamageMultiplier * stackStats.DamageMultiplier,
-                DamageTier = Config.ProjectileDamageTier + stackStats.DamageTierBonus,
+                DamageMultiplier = Config.ProjectileDamageMultiplier,
+                DamageTier = Config.ProjectileDamageTier,
                 Position = target.ShooterPosition.ToOpenTK(),
                 Velocity = ballisticDataWithDispersion.Velocity.ToOpenTK()
             };
