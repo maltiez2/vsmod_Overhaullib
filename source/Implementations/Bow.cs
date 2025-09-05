@@ -643,6 +643,12 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAni
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
+        if (_stats != null && _stats.ProficiencyStat != "")
+        {
+            string description = Lang.Get("combatoverhaul:iteminfo-proficiency", Lang.Get($"combatoverhaul:proficiency-{_stats.ProficiencyStat}"));
+            dsc.AppendLine(description);
+        }
+
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
 
         if (_stats == null) return;

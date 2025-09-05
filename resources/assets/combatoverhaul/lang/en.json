@@ -84,6 +84,20 @@
   "stat-fallDamageThreshold": "Fall damage threshold",
   "stat-jumpHeightMul": "Jump height",
 
+  "proficiency-bowsProficiency": "Bows",
+  "proficiency-crossbowsProficiency": "Crossbows",
+  "proficiency-firearmsProficiency": "Firearms",
+  "proficiency-oneHandedSwordsProficiency": "One-handed Swords",
+  "proficiency-twoHandedSwordsProficiency": "Two-handed Swords",
+  "proficiency-spearsProficiency": "Spears",
+  "proficiency-javelinsProficiency": "Javelins",
+  "proficiency-macesProficiency": "Maces",
+  "proficiency-clubsProficiency": "Clubs",
+  "proficiency-halberdsProficiency": "Halberds",
+  "proficiency-axesProficiency": "Axes",
+  "proficiency-quarterstaffProficiency": "Quarterstaff",
+  "proficiency-slingsProficiency": "Slings",
+
   "damagelog-missed-block-zone": "Player tried blocking, but {0} was not protected by block",
   "damagelog-missed-block-direction": "Player tried blocking, but directon ({0}) of incomming attack was not covered by block",
   "damagelog-missed-block-damageType": "Player tried blocking, but was not be able to block {0} damage",
@@ -113,6 +127,7 @@
   "iteminfo-melee-weapon-blockStats": "{2} block\n  Tier: {0}\n  Protected body parts: {1}",
   "iteminfo-melee-weapon-parryStats": "{2} parry\n  Tier: {0}\n  Protected body parts: {1}",
   "iteminfo-melee-weapon-armorpiercing": "Armor piercing tier: {0}",
+  "iteminfo-proficiency": "Proficiency: {0}",
 
   "interaction-hold-alt": "Hold 'Alt' to interact with objects or place on tool-rack/ground",
   "interaction-grip-change": "Hold 'Right mouse button' and rotate 'mouse wheel' to change grip length",
