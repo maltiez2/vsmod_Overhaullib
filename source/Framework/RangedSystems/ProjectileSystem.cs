@@ -2,7 +2,6 @@
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -27,6 +26,7 @@ public class ProjectileStats
     public int DurabilityDamage { get; set; } = 0;
     public float DropChance { get; set; } = 0;
     public float PenetrationBonus { get; set; } = 0;
+    public bool CanBeCollected { get; set; } = true;
 
     public ProjectileStats() { }
 
@@ -133,6 +133,7 @@ public class ProjectileCollisionCheckRequest
     public bool CollideWithShooter { get; set; }
     public long[] IgnoreEntities { get; set; } = Array.Empty<long>();
     public int PacketVersion { get; set; }
+    public long ShooterId { get; set; }
 }
 
 public sealed class ProjectileSystemClient
@@ -196,7 +197,7 @@ public sealed class ProjectileSystemClient
     {
         if (target.EntityId == packet.ProjectileEntityId) return false;
 
-        if (!packet.CollideWithShooter && _api.World.Player.Entity.EntityId == target.EntityId) return false;
+        if (!packet.CollideWithShooter && packet.ShooterId == target.EntityId) return false;
 
         if (packet.IgnoreEntities.Contains(target.EntityId)) return false;
 
@@ -214,6 +215,7 @@ public sealed class ProjectileSystemClient
     {
         CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
         EntityDamageModelBehavior? damageModel = target.GetBehavior<EntityDamageModelBehavior>();
+        PlayerDamageModelBehavior? playerDamageModel = target.GetBehavior<PlayerDamageModelBehavior>();
         collider = "";
         point = new();
         penetrationStrengthLoss = 0;
@@ -236,7 +238,7 @@ public sealed class ProjectileSystemClient
 
         penetrationStrengthLoss = colliders.DefaultPenetrationResistance;
 
-        if (damageModel == null && intersections.Count > 0)
+        if (damageModel == null && playerDamageModel == null && intersections.Count > 0)
         {
             collider = intersections[0].key;
             point = intersections[0].point;
@@ -278,13 +280,58 @@ public sealed class ProjectileSystemClient
                 {
                     penetrationResistance = colliders.PenetrationResistances[key];
                 }
-                
+
                 if (!encounteredCollierTypes.Contains(colliderType))
                 {
                     penetrationStrengthLoss += penetrationResistance;
                     encounteredCollierTypes.Add(colliderType);
                 }
-                
+
+                if (penetrationStrengthLoss > penetrationSrength)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (playerDamageModel != null && intersections.Count > 0)
+        {
+            float maxDamageMultiplier = 0;
+            penetrationStrengthLoss = 0;
+
+            List<PlayerBodyPart> encounteredCollierTypes = new();
+
+            foreach ((string key, double parameter, Vector3d intersectionPoint) in intersections)
+            {
+                PlayerBodyPart bodyType = playerDamageModel.CollidersToBodyParts[key];
+                DamageZoneStats damageZone = playerDamageModel.DamageModel.DamageZones.First(element => element.ZoneType == bodyType);
+
+                if (collider == "")
+                {
+                    collider = key;
+                    point = intersectionPoint;
+                }
+
+                float damageMultiplier = damageZone.DamageMultiplier;
+                if (damageMultiplier >= maxDamageMultiplier)
+                {
+                    maxDamageMultiplier = damageMultiplier;
+                    collider = key;
+                    point = intersectionPoint;
+                }
+
+                float penetrationResistance = colliders.DefaultPenetrationResistance;
+                if (colliders.PenetrationResistances.ContainsKey(key))
+                {
+                    penetrationResistance = colliders.PenetrationResistances[key];
+                }
+
+                if (!encounteredCollierTypes.Contains(bodyType))
+                {
+                    penetrationStrengthLoss += penetrationResistance;
+                    encounteredCollierTypes.Add(bodyType);
+                }
+
                 if (penetrationStrengthLoss > penetrationSrength)
                 {
                     break;
@@ -328,7 +375,21 @@ public sealed class ProjectileSystemServer
 
     public void Spawn(Guid id, ProjectileStats projectileStats, ProjectileSpawnStats spawnStats, ItemStack projectileStack, ItemStack? weaponStack, Entity shooter)
     {
-        SpawnProjectile(id, projectileStack, weaponStack, projectileStats, spawnStats, _api, shooter, out ProjectileEntity? projectile);
+        Spawn(id, projectileStats, spawnStats, projectileStack, weaponStack, shooter, shooter);
+    }
+
+    public void Spawn(Guid id, ProjectileStats projectileStats, ProjectileSpawnStats spawnStats, ItemStack projectileStack, ItemStack? weaponStack, Entity shooter, Entity target)
+    {
+        EntityPlayer? owner = (shooter as EntityPlayer) ??
+            (target as EntityPlayer) ??
+            _api.World.GetNearestEntity(target.Pos.XYZ, _nearestPlayerSearchRange, _nearestPlayerSearchRange, entity => entity is EntityPlayer) as EntityPlayer;
+
+        if (owner == null)
+        {
+            return;
+        }
+
+        SpawnProjectile(id, projectileStack, weaponStack, projectileStats, spawnStats, _api, shooter, owner, out ProjectileEntity? projectile);
 
         if (projectile != null)
         {
@@ -342,18 +403,19 @@ public sealed class ProjectileSystemServer
         {
             ProjectileId = projectile.ProjectileId,
             ProjectileEntityId = projectile.EntityId,
-            CurrentPosition = new double[3] { projectile.ServerPos.X, projectile.ServerPos.Y, projectile.ServerPos.Z },
-            PreviousPosition = new double[3] { projectile.PreviousPosition.X, projectile.PreviousPosition.Y, projectile.PreviousPosition.Z },
-            Velocity = new double[3] { projectile.PreviousVelocity.X, projectile.PreviousVelocity.Y, projectile.PreviousVelocity.Z },
+            CurrentPosition = [projectile.ServerPos.X, projectile.ServerPos.Y, projectile.ServerPos.Z],
+            PreviousPosition = [projectile.PreviousPosition.X, projectile.PreviousPosition.Y, projectile.PreviousPosition.Z],
+            Velocity = [projectile.PreviousVelocity.X, projectile.PreviousVelocity.Y, projectile.PreviousVelocity.Z],
             Radius = projectile.ColliderRadius,
             PenetrationDistance = projectile.PenetrationDistance + PenetrationDistanceOffset,
             PenetrationStrength = projectile.PenetrationStrength,
             CollideWithShooter = false,
             IgnoreEntities = projectile.CollidedWith.ToArray(),
-            PacketVersion = projectile.ServerProjectile?.PacketVersion ?? 0
+            PacketVersion = projectile.ServerProjectile?.PacketVersion ?? 0,
+            ShooterId = projectile.ShooterId
         };
 
-        IServerPlayer? player = (_api.World.GetEntityById(projectile.ShooterId) as EntityPlayer)?.Player as IServerPlayer;
+        IServerPlayer? player = (_api.World.GetEntityById(projectile.OwnerId) as EntityPlayer)?.Player as IServerPlayer;
 
         if (player != null) _serverChannel.SendPacket(packet, player);
     }
@@ -365,8 +427,9 @@ public sealed class ProjectileSystemServer
     private readonly ICoreServerAPI _api;
     private readonly IServerNetworkChannel _serverChannel;
     private readonly Dictionary<Guid, ProjectileServer> _projectiles = new();
+    private const float _nearestPlayerSearchRange = 300;
 
-    private static void SpawnProjectile(Guid id, ItemStack projectileStack, ItemStack? weaponStack, ProjectileStats stats, ProjectileSpawnStats spawnStats, ICoreAPI api, Entity shooter, out ProjectileEntity? projectile)
+    private static void SpawnProjectile(Guid id, ItemStack projectileStack, ItemStack? weaponStack, ProjectileStats stats, ProjectileSpawnStats spawnStats, ICoreAPI api, Entity shooter, Entity owner, out ProjectileEntity? projectile)
     {
         AssetLocation entityTypeAsset = new(stats.EntityCode);
 
@@ -391,6 +454,9 @@ public sealed class ProjectileSystemServer
             projectile.PenetrationStrength = Math.Max(0, stats.PenetrationBonus + spawnStats.DamageTier);
             projectile.DurabilityDamageOnImpact = stats.DurabilityDamage;
             projectile.ShooterId = shooter.EntityId;
+            projectile.OwnerId = owner.EntityId;
+            projectile.CanBeCollected = stats.CanBeCollected;
+            projectile.IgnoreInvFrames = true;
 
             projectile.SetRotation();
         }
@@ -398,13 +464,14 @@ public sealed class ProjectileSystemServer
         {
             vanillaProjectile.FiredBy = shooter;
             vanillaProjectile.Damage = stats.DamageStats.Damage * spawnStats.DamageMultiplier;
-            vanillaProjectile.DamageTier = (int)spawnStats.DamageTier + stats.DamageTierBonus;
+            vanillaProjectile.DamageTier = spawnStats.DamageTier + stats.DamageTierBonus;
             vanillaProjectile.ProjectileStack = projectileStack;
             vanillaProjectile.WeaponStack = weaponStack;
             vanillaProjectile.DropOnImpactChance = stats.DropChance;
             vanillaProjectile.DamageStackOnImpact = stats.DurabilityDamage > 0;
             vanillaProjectile.Weight = entity.Properties.Weight;
             vanillaProjectile.IgnoreInvFrames = true;
+            vanillaProjectile.NonCollectible = !stats.CanBeCollected;
 
             vanillaProjectile.PreInitialize();
         }

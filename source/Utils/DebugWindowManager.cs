@@ -142,15 +142,15 @@ public sealed class DebugWindowManager
                     if (collidersTypes.Length > 0)
                     {
                         (Action<LineSegmentCollider> setter, Func<LineSegmentCollider> getter) = selectedColliders[collidersTypes[_colliderIndex]];
-                        System.Numerics.Vector3 position = getter().Position.toSystem();
-                        System.Numerics.Vector3 direction = getter().Direction.toSystem();
+                        System.Numerics.Vector3 position = getter().Position.ToSystem();
+                        System.Numerics.Vector3 direction = getter().Direction.ToSystem();
 
                         float sliderSpeed = ImGui.IsKeyPressed(ImGuiKey.LeftShift) ? 0.01f : 0.1f;
 
                         ImGui.DragFloat3("Position##colliders", ref position, sliderSpeed);
                         ImGui.DragFloat3("Direction##colliders", ref direction, sliderSpeed);
 
-                        _currentCollider = new(position.toOpenTK(), direction.toOpenTK());
+                        _currentCollider = new(position.ToOpenTK(), direction.ToOpenTK());
 
                         setter(_currentCollider.Value);
 

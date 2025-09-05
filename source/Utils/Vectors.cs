@@ -4,18 +4,23 @@ namespace CombatOverhaul.Utils;
 
 static class VectorsUtils
 {
-    public static System.Numerics.Vector2 toSystem(this OpenTK.Mathematics.Vector2 value) => new(value.X, value.Y);
-    public static OpenTK.Mathematics.Vector2 toOpenTK(this System.Numerics.Vector2 value) => new(value.X, value.Y);
+    public static System.Numerics.Vector2 ToSystem(this OpenTK.Mathematics.Vector2 value) => new(value.X, value.Y);
+    public static OpenTK.Mathematics.Vector2 ToOpenTK(this System.Numerics.Vector2 value) => new(value.X, value.Y);
 
-    public static System.Numerics.Vector3 toSystem(this OpenTK.Mathematics.Vector3 value) => new(value.X, value.Y, value.Z);
-    public static OpenTK.Mathematics.Vector3 toOpenTK(this System.Numerics.Vector3 value) => new(value.X, value.Y, value.Z);
+    public static System.Numerics.Vector3 ToSystem(this OpenTK.Mathematics.Vector3 value) => new(value.X, value.Y, value.Z);
+    public static OpenTK.Mathematics.Vector3 ToOpenTK(this System.Numerics.Vector3 value) => new(value.X, value.Y, value.Z);
 
-    public static System.Numerics.Vector4 toSystem(this OpenTK.Mathematics.Vector4 value) => new(value.X, value.Y, value.Z, value.W);
-    public static OpenTK.Mathematics.Vector4 toOpenTK(this System.Numerics.Vector4 value) => new(value.X, value.Y, value.Z, value.W);
+    public static System.Numerics.Vector4 ToSystem(this OpenTK.Mathematics.Vector4 value) => new(value.X, value.Y, value.Z, value.W);
+    public static OpenTK.Mathematics.Vector4 ToOpenTK(this System.Numerics.Vector4 value) => new(value.X, value.Y, value.Z, value.W);
 
-    public static System.Numerics.Vector2 toSystem(this OpenTK.Mathematics.Vector2d value) => new((float)value.X, (float)value.Y);
-    public static System.Numerics.Vector3 toSystem(this OpenTK.Mathematics.Vector3d value) => new((float)value.X, (float)value.Y, (float)value.Z);
-    public static System.Numerics.Vector4 toSystem(this OpenTK.Mathematics.Vector4d value) => new((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
+    public static System.Numerics.Vector2 ToSystem(this OpenTK.Mathematics.Vector2d value) => new((float)value.X, (float)value.Y);
+    public static System.Numerics.Vector3 ToSystem(this OpenTK.Mathematics.Vector3d value) => new((float)value.X, (float)value.Y, (float)value.Z);
+    public static System.Numerics.Vector4 ToSystem(this OpenTK.Mathematics.Vector4d value) => new((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
+
+
+
+    public static OpenTK.Mathematics.Vector3d ToOpenTK(this FastVec3d value) => new(value.X, value.Y, value.Z);
+    public static FastVec3d ToVanilla(this OpenTK.Mathematics.Vector3d value) => new(value.X, value.Y, value.Z);
 }
 
 public class Matrixd

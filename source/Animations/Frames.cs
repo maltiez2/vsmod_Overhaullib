@@ -141,16 +141,16 @@ public readonly struct ParticlesFrame
         float time = DurationFraction * (float)totalDuration.TotalMilliseconds;
         ImGui.InputFloat($"Time##{title}", ref time);
 
-        System.Numerics.Vector3 position = Position.toSystem();
+        System.Numerics.Vector3 position = Position.ToSystem();
         ImGui.DragFloat3($"Position ##{title}", ref position);
 
-        System.Numerics.Vector3 velocity = Velocity.toSystem();
+        System.Numerics.Vector3 velocity = Velocity.ToSystem();
         ImGui.DragFloat3($"Velocity ##{title}", ref velocity);
 
         float intensity = Intensity;
         ImGui.InputFloat($"Intensity ##{title}", ref intensity, 0.1f, 1);
 
-        return new(code, time / (float)totalDuration.TotalMilliseconds, position.toOpenTK(), velocity.toOpenTK(), intensity);
+        return new(code, time / (float)totalDuration.TotalMilliseconds, position.ToOpenTK(), velocity.ToOpenTK(), intensity);
     }
 #endif
 }

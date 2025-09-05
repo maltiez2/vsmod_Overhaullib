@@ -166,14 +166,29 @@ internal static class HarmonyPatches
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
     {
-        CollidersEntityBehavior behavior = __instance.entity.GetBehavior<CollidersEntityBehavior>();
-        behavior?.Render(__instance.entity.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
+        try
+        {
+            CollidersEntityBehavior behavior = __instance.entity?.GetBehavior<CollidersEntityBehavior>();
+            behavior?.Render(__instance.entity?.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
+        }
+        catch (Exception)
+        {
+            // just ignore
+        }
+        
     }
 
     private static void DoRender3DOpaquePlayer(EntityPlayerShapeRenderer __instance, float dt, bool isShadowPass)
     {
-        CollidersEntityBehavior behavior = __instance.entity.GetBehavior<CollidersEntityBehavior>();
-        behavior?.Render(__instance.entity.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
+        try
+        {
+            CollidersEntityBehavior behavior = __instance.entity?.GetBehavior<CollidersEntityBehavior>();
+            behavior?.Render(__instance.entity?.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
+        }
+        catch (Exception)
+        {
+            // just ignore
+        }
     }
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
@@ -452,6 +467,28 @@ internal static class HarmonyPatches
                     code.Insert(i + 1, new CodeInstruction(OpCodes.Ldloc, 4)); // Load shape.
                     code.Insert(i + 2, new CodeInstruction(OpCodes.Call, onFrameInvokeMethod));
                     break;
+                }
+            }
+
+            return code;
+        }
+    }
+
+    [HarmonyPatch(typeof(EntityBehaviorPassivePhysics), "MotionAndCollision")]
+    [HarmonyPatchCategory("combatoverhaul")]
+    public class EntityBehaviorPassivePhysicsMotionAndCollisionPatch
+    {
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            List<CodeInstruction> code = [.. instructions];
+
+            for (int i = 0; i < code.Count; i++)
+            {
+                if (code[i].opcode == OpCodes.Ldc_R8 && (double)code[i].operand == -0.014999999664723873)
+                {
+                    code[i].operand = 0.0;
+                    return code;
                 }
             }
 

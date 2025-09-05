@@ -3,7 +3,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
+using System.Reflection;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -44,6 +44,8 @@ public sealed class ProjectileServer
         _entity.PenetrationStrength = Math.Max(0, _entity.PenetrationStrength - packet.PenetrationStrengthLoss);
 
         Vector3d collisionPoint = new(packet.CollisionPoint[0], packet.CollisionPoint[1], packet.CollisionPoint[2]);
+
+        //receiver.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 255), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new Vec3f(), new Vec3f(), 3, 0, 1, EnumParticleModel.Cube);
 
         bool hit = Attack(_shooter, receiver, collisionPoint, packet.Collider, packet.RelativeSpeed);
 
@@ -97,7 +99,7 @@ public sealed class ProjectileServer
         int damageTierBonus = _stats.DamageTierBonus;
         DamageData damageData = new(
             Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType),
-            Math.Max(1, (int)_spawnStats.DamageTier + damageTierBonus),
+            Math.Max(1, _spawnStats.DamageTier + damageTierBonus),
             0
             );
 
@@ -168,10 +170,12 @@ public class ProjectileEntity : Entity
     public float PenetrationDistance { get; set; }
     public float PenetrationStrength { get; set; }
     public long ShooterId { get; set; }
+    public long OwnerId { get; set; }
     public Vec3d PreviousPosition { get; private set; } = new(0, 0, 0);
     public Vec3d PreviousVelocity { get; private set; } = new(0, 0, 0);
     public List<long> CollidedWith { get; set; } = new();
     public bool IgnoreInvFrames { get; set; } = true;
+    public bool CanBeCollected { get; set; } = true;
 
 
     public bool Stuck
@@ -222,13 +226,6 @@ public class ProjectileEntity : Entity
 
         LoggerUtil.Mark(Api, "prj-ogt-0");
 
-        /*if (SetPosition)
-        {
-            SetPosition = false;
-            ServerPos.SetPos(NewPosition.X, NewPosition.Y, NewPosition.Z);
-            Pos.SetPos(NewPosition.X, NewPosition.Y, NewPosition.Z);
-        }*/
-
         if (Api.Side == EnumAppSide.Server && Stuck && !Collided)
         {
             WatchedAttributes.SetBool("stuck", false);
@@ -246,28 +243,23 @@ public class ProjectileEntity : Entity
         double impactSpeed = Math.Max(MotionBeforeCollide.Length(), SidedPos.Motion.Length());
         if (Stuck)
         {
-            /*if (Api.Side == EnumAppSide.Client)
-            {
-                ServerPos.SetFrom(Pos);
-            }*/
-
             OnTerrainCollision(SidedPos, impactSpeed);
         }
 
-        BeforeCollided = false;
+        //BeforeCollided = false;
         MotionBeforeCollide.Set(SidedPos.Motion.X, SidedPos.Motion.Y, SidedPos.Motion.Z);
 
         LoggerUtil.Mark(Api, "prj-ogt-1");
     }
     public override bool CanCollect(Entity byEntity)
     {
-        return Alive && TimeSpan.FromMilliseconds(World.ElapsedMilliseconds) - SpawnTime > CollisionDelay && ServerPos.Motion.Length() < 0.01;
+        return CanBeCollected && Alive && TimeSpan.FromMilliseconds(World.ElapsedMilliseconds) - SpawnTime > CollisionDelay && ServerPos.Motion.Length() < 0.01;
     }
     public override ItemStack? OnCollected(Entity byEntity)
     {
         ClearCallback?.Invoke(ProjectileId);
         ProjectileStack?.ResolveBlockOrItem(World);
-        return ProjectileStack;
+        return CanBeCollected ? ProjectileStack : null;
     }
     public override void OnCollided()
     {
@@ -284,6 +276,7 @@ public class ProjectileEntity : Entity
         ProjectileStack?.ToBytes(writer);
         writer.Write(WeaponStack != null);
         WeaponStack?.ToBytes(writer);
+        writer.Write(OwnerId);
     }
     public override void FromBytes(BinaryReader reader, bool fromServer)
     {
@@ -292,6 +285,7 @@ public class ProjectileEntity : Entity
         ProjectileId = Guid.Parse(reader.ReadString());
         if (reader.ReadBoolean()) ProjectileStack = new ItemStack(reader);
         if (reader.ReadBoolean()) WeaponStack = new ItemStack(reader);
+        OwnerId = reader.ReadInt64();
     }
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
@@ -369,7 +363,6 @@ public class ProjectileEntity : Entity
         if (impactSpeed >= 0.07)
         {
             World.PlaySoundAt(new AssetLocation("sounds/arrow-impact"), this, null, randomizePitch: false);
-            //TryDestroyOnCollision(); // Projectile can collide with terrain before packet of entity collision arrives
             WatchedAttributes.MarkAllDirty();
         }
 
@@ -466,6 +459,10 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
         base.Initialize(properties, attributes);
 
         Config = attributes.AsObject<ProjectilePhysicsBehaviorConfig>();
+
+        EntityBehaviorPassivePhysics_airDragValue ??= typeof(EntityBehaviorPassivePhysics).GetField("airDragValue", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        EntityBehaviorPassivePhysics_airDragValue?.SetValue(this, 1);
     }
 
     public bool Stuck { get; set; } = false;
@@ -477,11 +474,15 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
     protected BlockPos PosBuffer = new(0);
     protected Cuboidd EntityBox = new();
 
+    protected static FieldInfo? EntityBehaviorPassivePhysics_airDragValue = typeof(EntityBehaviorPassivePhysics).GetField("airDragValue", BindingFlags.NonPublic | BindingFlags.Instance);
+
     protected override void applyCollision(EntityPos pos, float dtFactor)
     {
         LoggerUtil.Mark(entity.Api, "prjphy-ac-0");
 
-        Vector3d WolrdCenter = new(512000, 0, 512000);
+        //dtFactor = dtFactor * 2;
+
+        //Vector3d WolrdCenter = new(512000, 0, 512000);
 
         Vector3d CurrentPosition = new(pos.X, pos.Y, pos.Z);
 
@@ -496,13 +497,17 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
         CuboidAABBCollider._api = entity.Api as ICoreServerAPI;
         if (pos.Motion.Length() > 0.1)
         {
-            //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
+            CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 0.1f, 0, 0.7f, EnumParticleModel.Cube);
         }
 
         //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
 #endif
 
-        if (CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition))
+        bool collided = CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition);
+
+        LoggerUtil.Mark(entity.Api, "prjphy-ac-1");
+
+        if (collided)
         {
             Angle angle = Angle.BetweenVectors(PositionDelta, normal);
             float angleDeg = Math.Abs(angle.Degrees);
@@ -585,6 +590,6 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
             newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
         }
 
-        LoggerUtil.Mark(entity.Api, "prjphy-ac-1");
+        LoggerUtil.Mark(entity.Api, "prjphy-ac-2");
     }
 }

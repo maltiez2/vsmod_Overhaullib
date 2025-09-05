@@ -2,6 +2,8 @@
 using ConfigLib;
 using ProtoBuf;
 using System.Diagnostics;
+using System.Net.Sockets;
+using System.Numerics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -102,8 +104,16 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmptyIntoHotbar(InventoryBasePlayer inventory, int index)
     {
+        if (CanHoldNow) return;
         if (inventory.Player.Entity?.Api?.Side != EnumAppSide.Server) return;
         if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
+
+        if (itemstack.StackSize == 0)
+        {
+            itemstack = null;
+            MarkDirty();
+            return;
+        }
 
         DummySlot dummySlot = new(itemstack);
         ItemSlot? targetSlot = inventory.GetBestSuitedSlot(dummySlot)?.slot ?? inventory.FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true, null);
@@ -120,6 +130,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
     protected virtual void TryEmpty(InventoryBase inventory, int index)
     {
+        if (CanHoldNow) return;
         if ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api?.Side != EnumAppSide.Server) return;
         if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
 
@@ -130,7 +141,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent
 
         if (targetSlot == null) return;
 
-        if (TryPutInto(inventory.Api.World, targetSlot, dummySlot.Itemstack.StackSize) > 0)
+        if (dummySlot.TryPutInto(inventory.Api.World, targetSlot, dummySlot.Itemstack.StackSize) > 0)
         {
             targetSlot.MarkDirty();
             itemstack = dummySlot.Itemstack?.StackSize == 0 ? null : dummySlot.Itemstack;
@@ -889,155 +900,5 @@ public class ToolBag : GearEquipableBag
     protected InventoryPlayerBackPacks? GetBackpackInventory()
     {
         return ClientApi?.World?.Player?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
-    }
-}
-
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class ToolBagPacket
-{
-    public string ToolBagId { get; set; } = "";
-    public bool MainHand { get; set; } = true;
-}
-
-public class ToolBagSystemClient
-{
-    public ToolBagSystemClient(ICoreClientAPI api)
-    {
-        _clientChannel = api.Network.RegisterChannel(_networkChannelId)
-            .RegisterMessageType<ToolBagPacket>();
-    }
-
-    public void Send(string toolBagId, bool mainHand)
-    {
-        _clientChannel.SendPacket(new ToolBagPacket
-        {
-            ToolBagId = toolBagId,
-            MainHand = mainHand
-        });
-    }
-
-    private const string _networkChannelId = "CombatOverhaul:stats";
-    private readonly IClientNetworkChannel _clientChannel;
-}
-
-public class ToolBagSystemServer
-{
-    public ToolBagSystemServer(ICoreServerAPI api)
-    {
-        api.Network.RegisterChannel(_networkChannelId)
-            .RegisterMessageType<ToolBagPacket>()
-            .SetMessageHandler<ToolBagPacket>(HandlePacket);
-    }
-
-    private const string _networkChannelId = "CombatOverhaul:stats";
-
-    private void HandlePacket(IServerPlayer player, ToolBagPacket packet)
-    {
-        IInventory? inventory = GetBackpackInventory(player);
-
-        if (inventory == null) return;
-
-        ItemSlotToolHolder? mainHandToolSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotToolHolder)?.MainHand == true, null) as ItemSlotToolHolder;
-        ItemSlotToolHolder? offHandToolSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotToolHolder)?.MainHand == false, null) as ItemSlotToolHolder;
-        ItemSlotTakeOutOnly? mainHandSinkSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotTakeOutOnly)?.MainHand == true, null) as ItemSlotTakeOutOnly;
-        ItemSlotTakeOutOnly? offHandHandSinkSlot = inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == packet.ToolBagId && (slot as ItemSlotTakeOutOnly)?.MainHand == false, null) as ItemSlotTakeOutOnly;
-        ItemSlot? mainHandActiveSlot = player.Entity.ActiveHandItemSlot;
-        ItemSlot? offHandActiveSlot = player.Entity.LeftHandItemSlot;
-
-        if (mainHandToolSlot != null && mainHandSinkSlot != null && mainHandActiveSlot != null)
-        {
-            ProcessSlots(mainHandToolSlot, mainHandSinkSlot, mainHandActiveSlot, player);
-        }
-
-        if (offHandToolSlot != null && offHandHandSinkSlot != null && offHandActiveSlot != null)
-        {
-            ProcessSlots(offHandToolSlot, offHandHandSinkSlot, offHandActiveSlot, player);
-        }
-
-        try
-        {
-            mainHandToolSlot?.MarkDirty();
-            offHandToolSlot?.MarkDirty();
-            mainHandSinkSlot?.MarkDirty();
-            offHandHandSinkSlot?.MarkDirty();
-            mainHandActiveSlot?.MarkDirty();
-            offHandActiveSlot?.MarkDirty();
-        }
-        catch (Exception exception)
-        {
-            LoggerUtil.Error(player.Entity.Api, this, $"Error when trying to use tool bag/sheath '{packet.ToolBagId}': {exception}");
-        }
-    }
-
-    private void ProcessSlots(ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, ItemSlot activeSlot, IServerPlayer player)
-    {
-        try
-        {
-            if (toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
-            {
-                Flip(activeSlot, toolSlot);
-            }
-            else if (!toolSlot.Empty && !activeSlot.Empty && toolSlot.CanHold(activeSlot))
-            {
-                Flip(activeSlot, toolSlot);
-            }
-            else if (!toolSlot.Empty)
-            {
-                TakeOut(activeSlot, toolSlot, sinkSlot, player);
-            }
-        }
-        catch (Exception exception)
-        {
-            LoggerUtil.Verbose(player.Entity.Api, this, $"(player: {player.PlayerName}) Exception when trying to interact with sheath/quiver:\n{exception}");
-        }
-    }
-
-    private void Flip(ItemSlot activeSlot, ItemSlotToolHolder toolSlot)
-    {
-        bool canTakeActive = toolSlot.CanTakeFrom(activeSlot) || activeSlot.Itemstack == null;
-        bool canTakeTool = activeSlot.CanTakeFrom(toolSlot) || toolSlot.Itemstack == null;
-        if (!canTakeActive || !canTakeTool) return;
-
-        ItemStack? toolSlotStack = toolSlot.Itemstack;
-        ItemStack? activeSlotStack = activeSlot.Itemstack;
-
-        toolSlot.Itemstack = activeSlotStack;
-        activeSlot.Itemstack = toolSlotStack;
-    }
-
-    private void TakeOut(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, ItemSlotTakeOutOnly sinkSlot, IServerPlayer player)
-    {
-        if (!sinkSlot.Empty && !activeSlot.Empty) return;
-
-        bool canTakeActive = sinkSlot.CanTakeFrom(activeSlot) || activeSlot.Itemstack == null;
-        bool canTakeTool = activeSlot.CanTakeFrom(toolSlot) || toolSlot.Itemstack == null;
-        if (!canTakeActive || !canTakeTool) return;
-
-        ItemStack? toolSlotStack = toolSlot.Itemstack;
-        ItemStack? activeSlotStack = activeSlot.Itemstack;
-
-        if (activeSlot.Empty)
-        {
-            activeSlot.Itemstack = toolSlotStack;
-            toolSlot.Itemstack = null;
-        }
-
-        if (!activeSlot.Empty && sinkSlot.Empty)
-        {
-            activeSlot.Itemstack = toolSlotStack;
-            sinkSlot.Itemstack = activeSlotStack;
-            toolSlot.Itemstack = null;
-        }
-    }
-
-    private void PutBack(ItemSlot activeSlot, ItemSlotToolHolder toolSlot, IServerPlayer player)
-    {
-        activeSlot.TryPutInto(player.Entity.World, toolSlot, activeSlot.Itemstack?.StackSize ?? 1);
-    }
-
-    private static IInventory? GetBackpackInventory(IPlayer player)
-    {
-        return player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName);
     }
 }

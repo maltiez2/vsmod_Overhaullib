@@ -3,10 +3,8 @@ using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
-using Newtonsoft.Json.Linq;
 using PlayerModelLib;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -123,6 +121,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
+        _serverSide = entity.Api.Side == EnumAppSide.Server;
         _defaultConfig = attributes.AsObject<PlayerDamageModelConfig>();
 
         ApplyConfig(_defaultConfig);
@@ -131,7 +130,10 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     public override void AfterInitialized(bool onFirstSpawn)
     {
         _colliders = entity.GetBehavior<CollidersEntityBehavior>();
-        entity.GetBehavior<EntityBehaviorHealth>().onDamaged += OnReceiveDamageHandler;
+        if (_serverSide)
+        {
+            entity.GetBehavior<EntityBehaviorHealth>().onDamaged += OnReceiveDamageHandler;
+        }
 
         if (entity.Api.ModLoader.IsModEnabled(CollidersEntityBehavior.PlayerModelLibId))
         {
@@ -141,6 +143,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
+        if (!_serverSide) return;
+
         Utils.LoggerUtil.Mark(entity.Api, "pdm-ogt-0");
         float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
         secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
@@ -152,6 +156,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     private CollidersEntityBehavior? _colliders;
     private readonly float _healthAfterSecondChance = 1;
     private PlayerDamageModelConfig _defaultConfig = new();
+    private bool _serverSide = false;
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
@@ -198,6 +203,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         float multiplier;
         if (_colliders != null && damageSource is ILocationalDamage locationalDamageSource && locationalDamageSource.Collider != "")
         {
+            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 255), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new Vec3f(), new Vec3f(), 2, 0, 1.0f, EnumParticleModel.Cube);
+
             damageZone = CollidersToBodyParts[locationalDamageSource.Collider];
             multiplier = DamageModel.GetMultiplier(damageZone);
         }
@@ -629,7 +636,7 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
         if (behavior != null)
         {
             behavior.CurrentDamageBlock = null;
-        }   
+        }
     }
 
     private static void BlockCallback(IServerPlayer player, bool mainHand, float damageBlocked)
