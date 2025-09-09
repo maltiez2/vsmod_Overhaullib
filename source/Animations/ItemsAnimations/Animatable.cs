@@ -140,7 +140,7 @@ public class Animatable : CollectibleBehavior
     protected virtual AnimatableShape? GetCurrentShape(ItemStack itemStack)
     {
         int renderVariant = itemStack.Attributes.GetAsInt("renderVariant", 0);
-        if (renderVariant == 0) return (CurrentFirstPerson || SwitchModels ? ShapeFirstPerson : Shape) ?? Shape ?? ShapeFirstPerson;
+        if (renderVariant <= 0) return (CurrentFirstPerson || SwitchModels ? ShapeFirstPerson : Shape) ?? Shape ?? ShapeFirstPerson;
         renderVariant -= RenderVariantOffset;
 
         if (CurrentFirstPerson && ShapeFirstPerson != null)

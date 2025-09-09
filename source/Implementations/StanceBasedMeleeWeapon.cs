@@ -220,7 +220,7 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
 
     public virtual DirectionsConfiguration DirectionsType { get; protected set; } = DirectionsConfiguration.None;
 
-    public AnimationRequestByCode? GetIdleAnimation(bool mainHand)
+    public AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, bool mainHand)
     {
         GripSpecificStats? stats = GetGripSpecificStats(mainHand, PlayerBehavior?.entity as EntityPlayer);
 
@@ -228,7 +228,7 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
 
         return new(animation, 1, 1, AnimationCategory(mainHand), TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
     }
-    public AnimationRequestByCode? GetReadyAnimation(bool mainHand)
+    public AnimationRequestByCode? GetReadyAnimation(EntityPlayer player, ItemSlot slot, bool mainHand)
     {
         GripSpecificStats? stats = GetGripSpecificStats(mainHand, PlayerBehavior?.entity as EntityPlayer);
 
@@ -725,8 +725,8 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnim
         };
     }
 
-    public AnimationRequestByCode? GetIdleAnimation(bool mainHand) => ClientLogic?.GetIdleAnimation(mainHand);
-    public AnimationRequestByCode? GetReadyAnimation(bool mainHand) => ClientLogic?.GetReadyAnimation(mainHand);
+    public AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, bool mainHand) => ClientLogic?.GetIdleAnimation(player, slot, mainHand);
+    public AnimationRequestByCode? GetReadyAnimation(EntityPlayer player, ItemSlot slot, bool mainHand) => ClientLogic?.GetReadyAnimation(player, slot, mainHand);
 
     public override void OnHeldRenderOpaque(ItemSlot inSlot, IClientPlayer byPlayer)
     {

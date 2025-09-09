@@ -5,6 +5,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using PlayerModelLib;
 using ProtoBuf;
+using System.Net.Sockets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -292,6 +293,11 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             damage = 0;
         }
 
+        if (CurrentDamageBlock.StaggerTime > TimeSpan.Zero)
+        {
+            damageSource.SourceEntity?.GetBehavior<StaggerBehavior>()?.TriggerStagger(CurrentDamageBlock.StaggerTime, CurrentDamageBlock.StaggerTier);
+        }
+
         CurrentDamageBlock.Callback.Invoke(initialDamage - damage);
 
         if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new(CurrentDamageBlock.Sound), entity);
@@ -512,8 +518,10 @@ public sealed class DamageBlockStats
     public readonly string? Sound;
     public readonly Dictionary<EnumDamageType, float>? BlockTier;
     public readonly bool CanBlockProjectiles;
+    public readonly TimeSpan StaggerTime;
+    public readonly int StaggerTier;
 
-    public DamageBlockStats(PlayerBodyPart type, DirectionConstrain directions, Action<float> callback, string? sound, Dictionary<EnumDamageType, float>? blockTier, bool canBlockProjectiles)
+    public DamageBlockStats(PlayerBodyPart type, DirectionConstrain directions, Action<float> callback, string? sound, Dictionary<EnumDamageType, float>? blockTier, bool canBlockProjectiles, TimeSpan staggerTime, int staggerTier)
     {
         ZoneType = type;
         Directions = directions;
@@ -521,6 +529,8 @@ public sealed class DamageBlockStats
         Sound = sound;
         BlockTier = blockTier;
         CanBlockProjectiles = canBlockProjectiles;
+        StaggerTime = staggerTime;
+        StaggerTier = staggerTier;
     }
 }
 
@@ -533,10 +543,12 @@ public sealed class DamageBlockPacket
     public string? Sound { get; set; } = null;
     public Dictionary<EnumDamageType, float>? BlockTier { get; set; }
     public bool CanBlockProjectiles { get; set; }
+    public int StaggerTimeMs { get; set; }
+    public int StaggerTier { get; set; }
 
     public DamageBlockStats ToBlockStats(Action<float> callback)
     {
-        return new((PlayerBodyPart)Zones, DirectionConstrain.FromArray(Directions), callback, Sound, BlockTier, CanBlockProjectiles);
+        return new((PlayerBodyPart)Zones, DirectionConstrain.FromArray(Directions), callback, Sound, BlockTier, CanBlockProjectiles, TimeSpan.FromMilliseconds(StaggerTimeMs), StaggerTier);
     }
 }
 
@@ -553,6 +565,8 @@ public sealed class DamageBlockJson
     public string? Sound { get; set; } = null;
     public Dictionary<string, float>? BlockTier { get; set; }
     public bool CanBlockProjectiles { get; set; } = true;
+    public int StaggerTimeMs { get; set; } = 0;
+    public int StaggerTier { get; set; } = 1;
 
     public DamageBlockPacket ToPacket()
     {
@@ -562,7 +576,9 @@ public sealed class DamageBlockJson
             Directions = Directions,
             Sound = Sound,
             BlockTier = BlockTier?.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
-            CanBlockProjectiles = CanBlockProjectiles
+            CanBlockProjectiles = CanBlockProjectiles,
+            StaggerTimeMs = StaggerTimeMs,
+            StaggerTier = StaggerTier
         };
     }
 
@@ -574,7 +590,9 @@ public sealed class DamageBlockJson
             Directions = Directions,
             Sound = Sound,
             BlockTier = BlockTier?.ToDictionary(entry => entry.Key, entry => entry.Value),
-            CanBlockProjectiles = CanBlockProjectiles
+            CanBlockProjectiles = CanBlockProjectiles,
+            StaggerTimeMs = StaggerTimeMs,
+            StaggerTier = StaggerTier
         };
     }
 }

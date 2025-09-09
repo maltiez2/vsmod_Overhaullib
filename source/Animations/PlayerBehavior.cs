@@ -1,14 +1,11 @@
 ﻿using CombatOverhaul.Integration;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using ProtoBuf;
 using System.Diagnostics;
-using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
@@ -22,8 +19,24 @@ public interface IHasIdleAnimations
 
 public interface IHasDynamicIdleAnimations
 {
-    AnimationRequestByCode? GetIdleAnimation(bool mainHand);
-    AnimationRequestByCode? GetReadyAnimation(bool mainHand);
+    AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
+    AnimationRequestByCode? GetReadyAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
+}
+
+public interface IHasMoveAnimations : IHasIdleAnimations
+{
+    AnimationRequestByCode WalkAnimation { get; }
+    AnimationRequestByCode RunAnimation { get; }
+    AnimationRequestByCode SwimAnimation { get; }
+    AnimationRequestByCode SwimIdleAnimation { get; }
+}
+
+public interface IHasDynamicMoveAnimations : IHasDynamicIdleAnimations
+{
+    AnimationRequestByCode? GetWalkAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
+    AnimationRequestByCode? GetRunAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
+    AnimationRequestByCode? GetSwimAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
+    AnimationRequestByCode? GetSwimIdleAnimation(EntityPlayer player, ItemSlot slot, bool mainHand);
 }
 
 public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
@@ -42,6 +55,9 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         SoundsSynchronizerClient soundsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().ClientSoundsSynchronizer ?? throw new Exception();
         ParticleEffectsManager particleEffectsManager = player.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().ParticleEffectsManager ?? throw new Exception();
         _composer = new(soundsManager, particleEffectsManager, player);
+
+        _MainHandIdleAnimationsController = new(player, request => PlayImpl(request, mainHand: true), () => Stop("main"), () => _player.RightHandItemSlot, mainHand: true);
+        _OffHandIdleAnimationsController = new(player, request => PlayImpl(request, mainHand: false), () => Stop("mainOffhand"), () => _player.LeftHandItemSlot, mainHand: false);
 
         if (!_mainPlayer) return;
 
@@ -65,14 +81,17 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         if (_mainHandItemId != mainHandItemId)
         {
             _mainHandItemId = mainHandItemId;
-            MainHandItemChanged();
+            InHandItemChanged(mainHand: true);
         }
 
         if (_offHandItemId != offhandItemId)
         {
             _offHandItemId = offhandItemId;
-            OffhandItemChanged();
+            InHandItemChanged(mainHand: false);
         }
+
+        _MainHandIdleAnimationsController.Update();
+        _OffHandIdleAnimationsController.Update();
 
         LoggerUtil.Mark(_api, "fpan-ogt-1");
 
@@ -130,23 +149,19 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     public void Play(AnimationRequest request, bool mainHand = true)
     {
+        if (request.Category == GetIdleAnimationCategory(mainHand))
+        {
+            (mainHand ? _MainHandIdleAnimationsController : _OffHandIdleAnimationsController).Pause();
+        }
         _playRequests.Add((request, mainHand, false, CurrentItemId(mainHand)));
-        StopIdleTimer(mainHand);
     }
     public void Play(AnimationRequestByCode requestByCode, bool mainHand = true)
     {
-        if (_animationsManager == null) return;
+        Animation? animation = GetAnimationFromRequest(requestByCode);
 
-        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
+        if (animation == null) return;
 
-        if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + modelPrefix, out Animation? animation))
-        {
-
-        }
-        else if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
-        {
-            return;
-        }
+        Debug.WriteLine(requestByCode.Animation);
 
         AnimationRequest request = new(animation, requestByCode);
 
@@ -159,44 +174,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     }
     public void PlayReadyAnimation(bool mainHand = true)
     {
-        if (mainHand)
-        {
-            if (_player.RightHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
-            {
-                Play(item.ReadyAnimation, mainHand);
-                StartIdleTimer(item.IdleAnimation, mainHand);
-            }
-            if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
-            {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: mainHand);
-
-                if (readyAnimation != null && idleAnimation != null)
-                {
-                    Play(readyAnimation.Value, mainHand);
-                    StartIdleTimer(idleAnimation.Value, mainHand);
-                }
-            }
-        }
-        else
-        {
-            if (_player.LeftHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
-            {
-                Play(item.ReadyAnimation, mainHand);
-                StartIdleTimer(item.IdleAnimation, mainHand);
-            }
-            if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
-            {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: mainHand);
-
-                if (readyAnimation != null && idleAnimation != null)
-                {
-                    Play(readyAnimation.Value, mainHand);
-                    StartIdleTimer(idleAnimation.Value, mainHand);
-                }
-            }
-        }
+        (mainHand ? _MainHandIdleAnimationsController : _OffHandIdleAnimationsController).Start();
     }
     public void Stop(string category)
     {
@@ -258,11 +236,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly HashSet<string> _mainHandVanillaAnimations = new();
     private readonly bool _mainPlayer = false;
     private readonly Settings _settings;
+    private readonly IdleAnimationsController _MainHandIdleAnimationsController;
+    private readonly IdleAnimationsController _OffHandIdleAnimationsController;
     private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
-    private long _mainHandIdleTimer = -1;
-    private long _offHandIdleTimer = -1;
     private bool _resetFov = false;
     private readonly ICoreClientAPI _api;
     private readonly List<(AnimationRequest request, bool mainHand, bool skip, int itemId)> _playRequests = new();
@@ -275,12 +253,10 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private Vector3 _eyePosition = new();
     private float _eyeHeight = 0;
 
-    private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
-
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
         if (!_frameApplied) return;
-        
+
         if (!IsOwner(targetEntity)) return;
 
         LoggerUtil.Mark(_api, "fpan-obf-0");
@@ -318,7 +294,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "fpan-obf-2");
     }
-    
+
+    private void PlayImpl(AnimationRequestByCode requestByCode, bool mainHand = true)
+    {
+        Animation? animation = GetAnimationFromRequest(requestByCode);
+
+        if (animation == null) return;
+
+        Debug.WriteLine(requestByCode.Animation);
+
+        AnimationRequest request = new(animation, requestByCode);
+
+        _playRequests.Add((request, mainHand, false, CurrentItemId(mainHand)));
+    }
+
     private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
         if (!Enum.TryParse(pose.ForElement.Name, out AnimatedElement element)) // Cant cache ElementPose because they are new each frame
@@ -414,170 +403,24 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
     }
 
-    private void MainHandItemChanged()
+    private string GetIdleAnimationCategory(bool mainHand) => mainHand ? "main" : "mainOffhand";
+
+    private void InHandItemChanged(bool mainHand)
     {
-        StopIdleTimer(mainHand: true);
+        (mainHand ? _MainHandIdleAnimationsController : _OffHandIdleAnimationsController).Stop();
 
-        if (_player.RightHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
+        string readyCategory = GetIdleAnimationCategory(mainHand);
+
+        foreach (string category in _mainHandCategories.Where(element => element != readyCategory))
         {
-            string readyCategory = item.ReadyAnimation.Category;
-
-            foreach (string category in _mainHandCategories.Where(element => element != readyCategory))
-            {
-                _composer.Stop(category);
-            }
-            StopRequestFromPreviousItem(true);
-            _mainHandCategories.Clear();
-
-            Play(item.ReadyAnimation, true);
-            StartIdleTimer(item.IdleAnimation, true);
+            _composer.Stop(category);
         }
-        else if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
-        {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: true);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: true);
+        StopRequestFromPreviousItem(true);
+        _mainHandCategories.Clear();
 
-            if (readyAnimation == null || idleAnimation == null)
-            {
-                foreach (string category in _mainHandCategories)
-                {
-                    _composer.Stop(category);
-                }
-                StopRequestFromPreviousItem(true);
-                _mainHandCategories.Clear();
-            }
-            else
-            {
-                string readyCategory = readyAnimation.Value.Category;
-
-                foreach (string category in _mainHandCategories.Where(element => element != readyCategory))
-                {
-                    _composer.Stop(category);
-                }
-                StopRequestFromPreviousItem(true);
-                _mainHandCategories.Clear();
-
-                Play(readyAnimation.Value, true);
-                StartIdleTimer(idleAnimation.Value, true);
-            }
-        }
-        else
-        {
-            foreach (string category in _mainHandCategories)
-            {
-                _composer.Stop(category);
-            }
-            StopRequestFromPreviousItem(true);
-            _mainHandCategories.Clear();
-        }
-    }
-    private void OffhandItemChanged()
-    {
-        StopIdleTimer(false);
-
-        if (_player.LeftHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
-        {
-            string readyCategory = item.ReadyAnimation.Category;
-
-            foreach (string category in _offhandCategories.Where(element => element != readyCategory))
-            {
-                _composer.Stop(category);
-            }
-            StopRequestFromPreviousItem(false);
-            _offhandCategories.Clear();
-
-            Play(item.ReadyAnimation, false);
-            StartIdleTimer(item.IdleAnimation, false);
-        }
-        else if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
-        {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: false);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: false);
-
-            if (readyAnimation == null || idleAnimation == null)
-            {
-                foreach (string category in _offhandCategories)
-                {
-                    _composer.Stop(category);
-                }
-                StopRequestFromPreviousItem(false);
-                _offhandCategories.Clear();
-            }
-            else
-            {
-                string readyCategory = readyAnimation.Value.Category;
-
-                foreach (string category in _offhandCategories.Where(element => element != readyCategory))
-                {
-                    _composer.Stop(category);
-                }
-                StopRequestFromPreviousItem(false);
-                _offhandCategories.Clear();
-
-                Play(readyAnimation.Value, false);
-                StartIdleTimer(idleAnimation.Value, false);
-            }
-        }
-        else
-        {
-            foreach (string category in _offhandCategories)
-            {
-                _composer.Stop(category);
-            }
-            StopRequestFromPreviousItem(false);
-            _offhandCategories.Clear();
-        }
+        (mainHand ? _MainHandIdleAnimationsController : _OffHandIdleAnimationsController).Start();
     }
 
-    private void StartIdleTimer(AnimationRequestByCode request, bool mainHand)
-    {
-        if (_api?.IsGamePaused == true) return;
-
-        long timer = _api?.World.RegisterCallback(_ => PlayIdleAnimation(request, mainHand), (int)_readyTimeout.TotalMilliseconds) ?? -1;
-        if (mainHand)
-        {
-            _mainHandIdleTimer = timer;
-        }
-        else
-        {
-            _offHandIdleTimer = timer;
-        }
-    }
-    private void StopIdleTimer(bool mainHand)
-    {
-        if (mainHand)
-        {
-            if (_mainHandIdleTimer != -1)
-            {
-                _api?.World.UnregisterCallback(_mainHandIdleTimer);
-                _mainHandIdleTimer = -1;
-            }
-        }
-        else
-        {
-            if (_offHandIdleTimer != -1)
-            {
-                _api?.World.UnregisterCallback(_offHandIdleTimer);
-                _offHandIdleTimer = -1;
-            }
-        }
-    }
-    private void PlayIdleAnimation(AnimationRequestByCode request, bool mainHand)
-    {
-        if (mainHand && _mainHandIdleTimer == -1) return;
-        if (!mainHand && _offHandIdleTimer == -1) return;
-
-        if (mainHand)
-        {
-            _mainHandIdleTimer = -1;
-        }
-        else
-        {
-            _offHandIdleTimer = -1;
-        }
-
-        Play(request, mainHand);
-    }
     private int CurrentItemId(bool mainHand)
     {
         if (mainHand)
@@ -589,7 +432,25 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
             return _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
         }
     }
-    
+
+    private Animation? GetAnimationFromRequest(AnimationRequestByCode request)
+    {
+        if (_animationsManager == null) return null;
+
+        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
+
+        if (_animationsManager.Animations.TryGetValue(request.Animation + modelPrefix, out Animation? animation))
+        {
+
+        }
+        else if (!_animationsManager.Animations.TryGetValue(request.Animation, out animation))
+        {
+            return null;
+        }
+
+        return animation;
+    }
+
     public void Dispose()
     {
         HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
@@ -693,8 +554,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     public void Play(AnimationRequestByCode requestByCode, bool mainHand = true)
     {
         if (_animationsManager == null) return;
-        
-        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':','-');
+
+        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
 
         if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp" + modelPrefix, out Animation? animation))
         {
@@ -704,9 +565,9 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         {
 
         }
-        else if(_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp", out animation))
+        else if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp", out animation))
         {
-            
+
         }
         else if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
         {
@@ -736,8 +597,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
             if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
             {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: mainHand);
+                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
 
                 if (readyAnimation != null && idleAnimation != null)
                 {
@@ -755,8 +616,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
             if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
             {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: mainHand);
+                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
 
                 if (readyAnimation != null && idleAnimation != null)
                 {
@@ -914,6 +775,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         return firstPerson;
     }
+    private static bool IsImmersiveFirstPerson(Entity entity)
+    {
+        return ((entity.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false) && IsFirstPerson(entity);
+    }
     private void PlayRequest(AnimationRequest request, bool mainHand = true)
     {
         _composer.Play(request);
@@ -956,8 +821,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
         else if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
         {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: true);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: true);
+            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: true);
+            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: true);
 
             if (readyAnimation == null || idleAnimation == null)
             {
@@ -1019,8 +884,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
         else if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
         {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(mainHand: false);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(mainHand: false);
+            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
+            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
 
             if (readyAnimation == null || idleAnimation == null)
             {
@@ -1145,134 +1010,5 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
         }
         _existingBehaviors.Clear();
-    }
-}
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class AnimationRequestPacket
-{
-    public bool MainHand { get; set; }
-    public string Animation { get; set; } = "";
-    public float AnimationSpeed { get; set; }
-    public float Weight { get; set; }
-    public string Category { get; set; } = "";
-    public double EaseOutDurationMs { get; set; }
-    public double EaseInDurationMs { get; set; }
-    public bool EaseOut { get; set; }
-    public long EntityId { get; set; }
-    public int ItemId { get; set; }
-
-    public AnimationRequestPacket()
-    {
-
-    }
-
-    public AnimationRequestPacket(AnimationRequestByCode request, bool mainHand, long entityId, int itemId)
-    {
-        MainHand = mainHand;
-        Animation = request.Animation;
-        AnimationSpeed = request.AnimationSpeed;
-        Weight = request.Weight;
-        Category = request.Category;
-        EaseOutDurationMs = request.EaseOutDuration.TotalMilliseconds;
-        EaseInDurationMs = request.EaseInDuration.TotalMilliseconds;
-        EaseOut = request.EaseOut;
-        EntityId = entityId;
-        ItemId = itemId;
-    }
-
-    public (AnimationRequestByCode request, bool mainHand) ToRequest()
-    {
-        AnimationRequestByCode request = new(Animation, AnimationSpeed, Weight, Category, TimeSpan.FromMilliseconds(EaseOutDurationMs), TimeSpan.FromMilliseconds(EaseInDurationMs), EaseOut);
-        return (request, MainHand);
-    }
-}
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class AnimationStopRequestPacket
-{
-    public string Category { get; set; }
-    public long EntityId { get; set; }
-
-    public AnimationStopRequestPacket()
-    {
-
-    }
-
-    public AnimationStopRequestPacket(string category, long entityId)
-    {
-        Category = category;
-        EntityId = entityId;
-    }
-}
-
-
-public sealed class AnimationSystemClient
-{
-    public AnimationSystemClient(ICoreClientAPI api)
-    {
-        _api = api;
-        _clientChannel = api.Network.RegisterChannel("CO-animationsystem")
-            .RegisterMessageType<AnimationRequestPacket>()
-            .RegisterMessageType<AnimationStopRequestPacket>()
-            .SetMessageHandler<AnimationRequestPacket>(HandlePacket)
-            .SetMessageHandler<AnimationStopRequestPacket>(HandlePacket);
-    }
-
-    public void SendPlayPacket(AnimationRequestByCode request, bool mainHand, long entityId, int itemId)
-    {
-        _clientChannel.SendPacket(new AnimationRequestPacket(request, mainHand, entityId, itemId));
-    }
-    public void SendStopPacket(string category, long entityId)
-    {
-        _clientChannel.SendPacket(new AnimationStopRequestPacket(category, entityId));
-    }
-
-    private readonly IClientNetworkChannel _clientChannel;
-    private readonly ICoreClientAPI _api;
-
-    private void HandlePacket(AnimationRequestPacket packet)
-    {
-        EntityPlayer? player = _api.World.GetEntityById(packet.EntityId) as EntityPlayer;
-
-        if (player == null) return;
-
-        if (GetCurrentItemId(packet.MainHand, player) != packet.ItemId) return;
-
-        (AnimationRequestByCode request, bool mainHnad) = packet.ToRequest();
-
-        player.GetBehavior<ThirdPersonAnimationsBehavior>()?.Play(request, mainHnad);
-    }
-
-    private void HandlePacket(AnimationStopRequestPacket packet)
-    {
-        _api.World.GetEntityById(packet.EntityId)?.GetBehavior<ThirdPersonAnimationsBehavior>()?.Stop(packet.Category);
-    }
-
-    private int GetCurrentItemId(bool mainHand, EntityPlayer player) => mainHand ? player?.RightHandItemSlot?.Itemstack?.Item?.Id ?? 0 : player?.LeftHandItemSlot?.Itemstack?.Item?.Id ?? 0;
-}
-
-public sealed class AnimationSystemServer
-{
-    public AnimationSystemServer(ICoreServerAPI api)
-    {
-        _serverChannel = api.Network.RegisterChannel("CO-animationsystem")
-            .RegisterMessageType<AnimationRequestPacket>()
-            .RegisterMessageType<AnimationStopRequestPacket>()
-            .SetMessageHandler<AnimationRequestPacket>(HandlePacket)
-            .SetMessageHandler<AnimationStopRequestPacket>(HandlePacket);
-    }
-
-
-    private readonly IServerNetworkChannel _serverChannel;
-
-    private void HandlePacket(IServerPlayer player, AnimationRequestPacket packet)
-    {
-        _serverChannel.BroadcastPacket(packet, player);
-    }
-
-    private void HandlePacket(IServerPlayer player, AnimationStopRequestPacket packet)
-    {
-        _serverChannel.BroadcastPacket(packet, player);
     }
 }

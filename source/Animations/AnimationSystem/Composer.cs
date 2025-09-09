@@ -309,6 +309,19 @@ public readonly struct AnimationRequestByCode
         FinishCallback = finishCallback;
         CallbackHandler = callbackHandler;
     }
+
+    public AnimationRequestByCode(AnimationRequestByCode request, float animationSpeed, System.Func<bool>? finishCallback = null, Action<string>? callbackHandler = null)
+    {
+        Animation = request.Animation;
+        AnimationSpeed = animationSpeed;
+        Weight = request.Weight;
+        Category = request.Category;
+        EaseOutDuration = request.EaseOutDuration;
+        EaseInDuration= request.EaseInDuration;
+        EaseOut = request.EaseOut;
+        FinishCallback = finishCallback;
+        CallbackHandler = callbackHandler;
+    }
 }
 
 internal class Animator

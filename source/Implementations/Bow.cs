@@ -31,6 +31,10 @@ public class WeaponStats
 {
     public string ReadyAnimation { get; set; } = "";
     public string IdleAnimation { get; set; } = "";
+    public string WalkAnimation { get; set; } = "";
+    public string RunAnimation { get; set; } = "";
+    public string SwimAnimation { get; set; } = "";
+    public string SwimIdleAnimation { get; set; } = "";
     public string ProficiencyStat { get; set; } = "";
 }
 
@@ -594,7 +598,7 @@ public sealed class AmmoSelector
     }
 }
 
-public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAnimations
+public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAnimations
 {
     public BowClient? ClientLogic { get; private set; }
     public BowServer? ServerLogic { get; private set; }
@@ -604,6 +608,10 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAni
 
     public AnimationRequestByCode IdleAnimation { get; set; }
     public AnimationRequestByCode ReadyAnimation { get; set; }
+    public AnimationRequestByCode WalkAnimation { get; set; }
+    public AnimationRequestByCode RunAnimation { get; set; }
+    public AnimationRequestByCode SwimAnimation { get; set; }
+    public AnimationRequestByCode SwimIdleAnimation { get; set; }
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -614,6 +622,11 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAni
             BowStats stats = Attributes.AsObject<BowStats>();
             IdleAnimation = new(stats.IdleAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
             ReadyAnimation = new(stats.ReadyAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            WalkAnimation = new(stats.WalkAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            RunAnimation = new(stats.RunAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            SwimAnimation = new(stats.SwimAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            SwimIdleAnimation = new(stats.SwimIdleAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+
             _stats = stats;
             _ammoSelector = new(clientAPI, _stats.ArrowWildcard);
             _clientApi = clientAPI;

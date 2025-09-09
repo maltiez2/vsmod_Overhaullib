@@ -25,6 +25,8 @@ public class MeleeDamagePacket
     public long TargetEntityId { get; set; }
     public int DurabilityDamage { get; set; }
     public bool MainHand { get; set; }
+    public int StaggerTimeMs { get; set; }
+    public int StaggerTier { get; set; }
 }
 
 public class MeleeDamageTypeJson
@@ -33,6 +35,8 @@ public class MeleeDamageTypeJson
     public float Knockback { get; set; } = 0;
     public int DurabilityDamage { get; set; } = 1;
     public float[] Collider { get; set; } = new float[6];
+    public int StaggerTimeMs { get; set; } = 0;
+    public int StaggerTier { get; set; } = 1;
 
     public MeleeDamageType ToDamageType() => new(this);
 }
@@ -46,6 +50,8 @@ public class MeleeDamageType : IHasLineCollider
     public readonly DamageData DamageTypeData;
     public readonly float Knockback;
     public readonly int DurabilityDamage;
+    public readonly int StaggerTimeMs;
+    public readonly int StaggerTier;
 
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
@@ -55,6 +61,8 @@ public class MeleeDamageType : IHasLineCollider
         RelativeCollider = new LineSegmentCollider(stats.Collider);
         InWorldCollider = new LineSegmentCollider(stats.Collider);
         DurabilityDamage = stats.DurabilityDamage;
+        StaggerTimeMs = stats.StaggerTimeMs;
+        StaggerTier = stats.StaggerTier;
     }
 
     public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter)
@@ -123,13 +131,15 @@ public class MeleeDamageType : IHasLineCollider
             ArmorPiercingTier = damageTypeData.ArmorPiercingTier,
             Damage = damage,
             Knockback = Knockback * stats.KnockbackMultiplier,
-            Position = new double[3] { position.X, position.Y, position.Z },
+            Position = [position.X, position.Y, position.Z],
             Collider = collider,
             ColliderType = (int)colliderType,
             AttackerEntityId = attacker.EntityId,
             TargetEntityId = target.EntityId,
             DurabilityDamage = DurabilityDamage,
-            MainHand = mainHand
+            MainHand = mainHand,
+            StaggerTimeMs = StaggerTimeMs,
+            StaggerTier = StaggerTier
         };
 
         return received;

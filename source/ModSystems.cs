@@ -144,6 +144,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterEntityBehaviorClass("CombatOverhaul:InInventory", typeof(InInventoryPlayerBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ArmorStandInventory", typeof(EntityBehaviorCOArmorStandInventory));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ProjectilePhysics", typeof(ProjectilePhysicsBehavior));
+        api.RegisterEntityBehaviorClass("CombatOverhaul:Stagger", typeof(StaggerBehavior));
 
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:Animatable", typeof(Animatable));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:AnimatableAttachable", typeof(AnimatableAttachable));
@@ -170,6 +171,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterBlockClass("CombatOverhaul:GenericDisplayBlock", typeof(GenericDisplayBlock));
 
         AiTaskRegistry.Register<AiTaskCOTurretMode>("CombatOverhaul:TurretMode");
+        AiTaskRegistry.Register<StaggerAiTask>("CombatOverhaul:Stagger");
 
         new Harmony("CombatOverhaulAuto").PatchAll();
 

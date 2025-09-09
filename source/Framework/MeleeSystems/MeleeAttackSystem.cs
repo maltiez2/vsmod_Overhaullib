@@ -117,6 +117,11 @@ public sealed class MeleeSystemServer : MeleeSystem
 
         bool damageReceived = DealDamage(target, damageSource, slot, packet.Damage);
 
+        if (packet.StaggerTimeMs > 0)
+        {
+            target.GetBehavior<StaggerBehavior>()?.TriggerStagger(TimeSpan.FromMilliseconds(packet.StaggerTimeMs), packet.StaggerTier);
+        }
+
         DealDurabilityDamage(slot, packet, attacker);
 
         PrintLog(attacker, damageReceived, target, packet, targetName);

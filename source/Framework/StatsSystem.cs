@@ -2,7 +2,7 @@
 using Vintagestory.API.Client;
 using Vintagestory.API.Server;
 
-namespace CombatOverhaul.Inputs;
+namespace CombatOverhaul;
 
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
 public sealed class StatsPacket

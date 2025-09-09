@@ -107,9 +107,32 @@ public static class GuiDialogPatches
         _api.Gui.Icons.CustomIcons["armorlegs"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-legs.svg"));
     }
 
+    private static bool _anySlotsHighlighted = false;
     private static void OnRenderGUI()
     {
         int currentItem = _api?.World.Player.InventoryManager.MouseItemSlot?.Itemstack?.Item?.ItemId ?? 0;
+
+        if (_anySlotsHighlighted && currentItem == 0 && _lastItemId  == 0)
+        {
+            InventoryCharacter? inventory2 = GeneralUtils.GetCharacterInventory(_api?.World.Player);
+            if (inventory2 == null) return;
+
+            foreach (ItemSlot slot in inventory2)
+            {
+                if (slot is ClothesSlot clothesSlot)
+                {
+                    clothesSlot.HexBackgroundColor = clothesSlot.PreviousColor;
+                }
+                else
+                {
+                    slot.HexBackgroundColor = null;
+                }
+            }
+
+            _anySlotsHighlighted = false;
+            return;
+        }
+
         if (currentItem == _lastItemId) return;
         _lastItemId = currentItem;
 
@@ -118,15 +141,17 @@ public static class GuiDialogPatches
 
         ItemSlot mouseSlot = _api.World.Player.InventoryManager.MouseItemSlot;
 
+        _anySlotsHighlighted = false;
         foreach (ItemSlot slot in inventory)
         {
             if (slot.CanHold(mouseSlot))
             {
-                if (slot is ClothesSlot clothesSlot)
+                if (slot is ClothesSlot clothesSlot && clothesSlot.HexBackgroundColor != "#5fbed4")
                 {
                     clothesSlot.PreviousColor = clothesSlot.HexBackgroundColor;
                 }
                 slot.HexBackgroundColor = "#5fbed4";
+                _anySlotsHighlighted = true;
             }
             else
             {

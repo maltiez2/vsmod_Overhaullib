@@ -479,7 +479,7 @@ public class SlingServer : RangeWeaponServer
     protected readonly SlingStats Stats;
 }
 
-public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAnimations
+public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAnimations
 {
     public SlingClient? ClientLogic { get; private set; }
     public SlingServer? ServerLogic { get; private set; }
@@ -489,6 +489,10 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleA
 
     public AnimationRequestByCode IdleAnimation { get; set; }
     public AnimationRequestByCode ReadyAnimation { get; set; }
+    public AnimationRequestByCode WalkAnimation { get; set; }
+    public AnimationRequestByCode RunAnimation { get; set; }
+    public AnimationRequestByCode SwimAnimation { get; set; }
+    public AnimationRequestByCode SwimIdleAnimation { get; set; }
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -499,6 +503,11 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleA
             SlingStats stats = Attributes.AsObject<SlingStats>();
             IdleAnimation = new(stats.IdleAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
             ReadyAnimation = new(stats.ReadyAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            WalkAnimation = new(stats.WalkAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            RunAnimation = new(stats.RunAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            SwimAnimation = new(stats.SwimAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+            SwimIdleAnimation = new(stats.SwimIdleAnimation, 1, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), false);
+
             _stats = stats;
             _ammoSelector = new(clientAPI, _stats.BulletWildcard);
             _clientApi = clientAPI;
