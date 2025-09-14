@@ -2,7 +2,6 @@
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
-using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul.RangedSystems.Aiming;
 

@@ -135,6 +135,7 @@ public class ProjectileCollisionCheckRequest
     public long[] IgnoreEntities { get; set; } = Array.Empty<long>();
     public int PacketVersion { get; set; }
     public long ShooterId { get; set; }
+    public bool CheckAABBOnly { get; set; } = false;
 }
 
 public sealed class ProjectileSystemClient
@@ -202,7 +203,7 @@ public sealed class ProjectileSystemClient
 
         if (packet.IgnoreEntities.Contains(target.EntityId)) return false;
 
-        if (!CheckCollision(target, out string collider, out Vector3d point, currentPosition, previousPosition, packet.Radius, packet.PenetrationDistance, packet.PenetrationStrength, out float penetrationStrengthLoss)) return false;
+        if (!CheckCollision(target, out string collider, out Vector3d point, currentPosition, previousPosition, packet.Radius, packet.PenetrationDistance, packet.PenetrationStrength, out float penetrationStrengthLoss, packet.CheckAABBOnly)) return false;
 
         Vector3d targetVelocity = new((float)target.Pos.Motion.X, (float)target.Pos.Motion.Y, (float)target.Pos.Motion.Z);
 
@@ -212,7 +213,7 @@ public sealed class ProjectileSystemClient
 
         return true;
     }
-    private bool CheckCollision(Entity target, out string collider, out Vector3d point, Vector3d currentPosition, Vector3d previousPosition, float radius, float penetrationDistance, float penetrationSrength, out float penetrationStrengthLoss)
+    private bool CheckCollision(Entity target, out string collider, out Vector3d point, Vector3d currentPosition, Vector3d previousPosition, float radius, float penetrationDistance, float penetrationSrength, out float penetrationStrengthLoss, bool checkAABBOnly)
     {
         CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
         EntityDamageModelBehavior? damageModel = target.GetBehavior<EntityDamageModelBehavior>();
@@ -222,7 +223,7 @@ public sealed class ProjectileSystemClient
         penetrationStrengthLoss = 0;
         float defaultColliderPenetrationResistance = _combatOverhaulSystem.Settings.DefaultColliderPenetrationResistance;
 
-        if (colliders == null)
+        if (colliders == null || checkAABBOnly)
         {
             CuboidAABBCollider collisionBox = GetCollisionBox(target);
             if (collisionBox.Collide(currentPosition, previousPosition, radius, out point))
@@ -413,7 +414,8 @@ public sealed class ProjectileSystemServer
             CollideWithShooter = false,
             IgnoreEntities = projectile.CollidedWith.ToArray(),
             PacketVersion = projectile.ServerProjectile?.PacketVersion ?? 0,
-            ShooterId = projectile.ShooterId
+            ShooterId = projectile.ShooterId,
+            CheckAABBOnly = CheckAABBOnly(_api, projectile)
         };
 
         IServerPlayer? player = (_api.World.GetEntityById(projectile.OwnerId) as EntityPlayer)?.Player as IServerPlayer;
@@ -430,6 +432,10 @@ public sealed class ProjectileSystemServer
     private readonly Dictionary<Guid, ProjectileServer> _projectiles = new();
     private const float _nearestPlayerSearchRange = 300;
 
+    private static bool CheckAABBOnly(ICoreAPI api, ProjectileEntity projectile)
+    {
+        return api.World.GetEntityById(projectile.ShooterId) is not EntityPlayer;
+    }
     private static void SpawnProjectile(Guid id, ItemStack projectileStack, ItemStack? weaponStack, ProjectileStats stats, ProjectileSpawnStats spawnStats, ICoreAPI api, Entity shooter, Entity owner, out ProjectileEntity? projectile)
     {
         AssetLocation entityTypeAsset = new(stats.EntityCode);

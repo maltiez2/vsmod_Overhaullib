@@ -7,7 +7,6 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Colliders;
@@ -233,35 +232,11 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         return foundIntersection;
     }
-    public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, double radius, out string collider, out double distance, out Vector3d intersection)
+    public bool CollideAABB(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, float penetrationDistance, out List<(string, double, Vector3d)> intersections)
     {
-        distance = double.MaxValue;
-        bool foundIntersection = false;
-        collider = "";
-
-        if (!HasOBBCollider)
-        {
-            CuboidAABBCollider AABBCollider = new(entity);
-            return AABBCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out intersection);
-        }
-
-        if (!BoundingBox.Collide(thisTickOrigin, previousTickOrigin, radius, out intersection))
-        {
-            return false;
-        }
-
-        foreach ((string key, ShapeElementCollider shapeElementCollider) in Colliders)
-        {
-            if (shapeElementCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out double currentDistance, out Vector3d currentIntersection) && currentDistance < distance)
-            {
-                distance = currentDistance;
-                collider = key;
-                intersection = currentIntersection;
-                foundIntersection = true;
-            }
-        }
-
-        return foundIntersection;
+        intersections = new();
+        CuboidAABBCollider AABBCollider = new(entity);
+        return AABBCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out Vector3d intersection);
     }
     public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, float penetrationDistance, out List<(string, double, Vector3d)> intersections)
     {
