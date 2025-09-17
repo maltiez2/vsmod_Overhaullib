@@ -713,10 +713,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected const string PlayerStatsOffHandCategory = "CombatOverhaul:held-item-offhand";
     protected bool ParryButtonReleased = true;
 
-    protected long MainHandAttackCooldownTimer = -1;
-    protected long OffHandAttackCooldownTimer = -1;
     protected long MainHandBlockCooldownTimer = -1;
     protected long OffHandBlockCooldownTimer = -1;
+    protected long MainHandAttackCooldownUntilMs = 0;
+    protected long OffHandAttackCooldownUntilMs = 0;
     protected int MainHandAttackCounter = 0;
     protected int OffHandAttackCounter = 0;
     protected bool HandleHitTerrain = false;
@@ -1399,33 +1399,25 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         if (mainHand)
         {
-            MainHandAttackCooldownTimer = Api.World.RegisterCallback(_ => MainHandAttackCooldownTimer = -1, (int)(time.TotalMilliseconds / PlayerActionsBehavior?.ManipulationSpeed ?? 1));
+            MainHandAttackCooldownUntilMs = Api.World.ElapsedMilliseconds + (long)(time.TotalMilliseconds / PlayerActionsBehavior?.ManipulationSpeed ?? 1);
         }
         else
         {
-            OffHandAttackCooldownTimer = Api.World.RegisterCallback(_ => OffHandAttackCooldownTimer = -1, (int)(time.TotalMilliseconds / PlayerActionsBehavior?.ManipulationSpeed ?? 1));
+            OffHandAttackCooldownUntilMs = Api.World.ElapsedMilliseconds + (long)(time.TotalMilliseconds / PlayerActionsBehavior?.ManipulationSpeed ?? 1);
         }
     }
     protected virtual void StopAttackCooldown(bool mainHand)
     {
         if (mainHand)
         {
-            if (MainHandAttackCooldownTimer != -1)
-            {
-                Api.World.UnregisterCallback(MainHandAttackCooldownTimer);
-                MainHandAttackCooldownTimer = -1;
-            }
+            MainHandAttackCooldownUntilMs = 0;
         }
         else
         {
-            if (OffHandAttackCooldownTimer != -1)
-            {
-                Api.World.UnregisterCallback(OffHandAttackCooldownTimer);
-                OffHandAttackCooldownTimer = -1;
-            }
+            OffHandAttackCooldownUntilMs = 0;
         }
     }
-    protected virtual bool IsAttackOnCooldown(bool mainHand) => mainHand ? MainHandAttackCooldownTimer != -1 : OffHandAttackCooldownTimer != -1;
+    protected virtual bool IsAttackOnCooldown(bool mainHand) => mainHand ? Api.World.ElapsedMilliseconds <= MainHandAttackCooldownUntilMs : Api.World.ElapsedMilliseconds <= OffHandAttackCooldownUntilMs;
 
     protected virtual void StartBlockCooldown(bool mainHand, TimeSpan time)
     {

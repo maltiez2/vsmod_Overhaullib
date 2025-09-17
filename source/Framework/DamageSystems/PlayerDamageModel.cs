@@ -5,6 +5,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using PlayerModelLib;
 using ProtoBuf;
+using System.Diagnostics;
 using System.Net.Sockets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -204,7 +205,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         float multiplier;
         if (_colliders != null && damageSource is ILocationalDamage locationalDamageSource && locationalDamageSource.Collider != "")
         {
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 255), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new Vec3f(), new Vec3f(), 2, 0, 1.0f, EnumParticleModel.Cube);
+            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 255), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new Vec3f(), new Vec3f(), 2, 0, 1.0f, EnumParticleModel.Cube);
 
             damageZone = CollidersToBodyParts[locationalDamageSource.Collider];
             multiplier = DamageModel.GetMultiplier(damageZone);
@@ -317,7 +318,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         DamageResistData resists = DamageResistData.Combine(slots
             .Where(slot => slot?.Itemstack?.Item != null)
-            .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0)
+            .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
             .Select(slot => slot.Resists));
 
         float previousDamage = damage;
@@ -331,17 +332,12 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         _ = resists.ApplyPlayerResist(new(damageSource.Type, damageSource.DamageTier, apTier), ref damage, out durabilityDamage);
 
         durabilityDamage = GameMath.Clamp(durabilityDamage, 1, durabilityDamage);
-        int durabilityDamagePerItem = GameMath.Clamp(durabilityDamage / slots.Count(), 0, durabilityDamage);
 
-        foreach (ArmorSlot slot in slots)
-        {
-            slot.Itemstack.Item.DamageItem(entity.Api.World, entity, slot, durabilityDamagePerItem);
-            slot.MarkDirty();
-        }
+        DamageArmor(slots, damageType, durabilityDamage, out int totalDurabilityDamage);
 
         if (previousDamage - damage > 0)
         {
-            damageLogMessage = Lang.Get("combatoverhaul:damagelog-armor-damage-negation", $"{previousDamage - damage:F1}", Lang.Get($"combatoverhaul:damage-zone-{zone}"), durabilityDamage, Lang.Get($"combatoverhaul:damage-type-{damageType}"), damageSource.DamageTier);
+            damageLogMessage = Lang.Get("combatoverhaul:damagelog-armor-damage-negation", $"{previousDamage - damage:F1}", Lang.Get($"combatoverhaul:damage-zone-{zone}"), totalDurabilityDamage, Lang.Get($"combatoverhaul:damage-type-{damageType}"), damageSource.DamageTier);
         }
     }
     private void ApplyBlockResists(float blockTier, float damageTier, ref float damage)
@@ -405,6 +401,37 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         CollidersToBodyParts = customModelConfig.DamageModel.BodyParts;
         SecondDefaultChanceCooldown = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceCooldownSec);
         SecondChanceAvailable = customModelConfig.DamageModel.SecondChanceAvailable;
+    }
+    private void DamageArmor(IEnumerable<ArmorSlot> slots, EnumDamageType damageType, int durabilityDamage, out int totalDurabilityDamage)
+    {
+        float totalProtection = slots.Select(slot => slot.Resists.Resists[damageType]).Sum();
+
+        if (totalProtection <= float.Epsilon * 2)
+        {
+            durabilityDamage /= slots.Count();
+            durabilityDamage = Math.Max(durabilityDamage, 1);
+            foreach (ArmorSlot slot in slots)
+            {
+                if (slot.Itemstack.Item.GetMaxDurability(slot.Itemstack) <= 0) continue;
+                slot.Itemstack.Item.DamageItem(entity.Api.World, entity, slot, durabilityDamage);
+                slot.MarkDirty();
+            }
+            totalDurabilityDamage = durabilityDamage * slots.Count();
+            return;
+        }
+
+        totalDurabilityDamage = 0;
+        foreach (ArmorSlot slot in slots)
+        {
+            if (slot.Itemstack.Item.GetMaxDurability(slot.Itemstack) <= 0) continue;
+
+            float protection = slot.Resists.Resists[damageType];
+            int durabilityDamagePerSlot = (int)Math.Ceiling(durabilityDamage * protection / totalProtection);
+            totalDurabilityDamage += durabilityDamagePerSlot;
+
+            slot.Itemstack.Item.DamageItem(entity.Api.World, entity, slot, durabilityDamagePerSlot);
+            slot.MarkDirty();
+        }
     }
 }
 public sealed class PlayerDamageModel

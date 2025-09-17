@@ -18,6 +18,11 @@ public class ItemInventoryBuffer
 
         Id = id;
 
+        if (slot.Itemstack?.Attributes == null)
+        {
+            return;
+        }
+
         if (!slot.Itemstack.Attributes.HasAttribute(Attribute))
         {
             return;

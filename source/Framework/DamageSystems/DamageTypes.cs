@@ -165,7 +165,7 @@ public class DamageResistData
             armorPiercingTier: damageData.ArmorPiercingTier
             );
     }
-    public DamageData ApplyNotPlayerResist(DamageData damageData, ref float damage)
+    public DamageData ApplyNonPlayerResist(DamageData damageData, ref float damage)
     {
         float protectionLevel = 0;
 
@@ -177,7 +177,7 @@ public class DamageResistData
         if (Resists.TryGetValue(damageData.DamageType, out float value))
         {
             protectionLevel = value;
-            damage *= DamageMultiplierNotPlayer(protectionLevel, damageData);
+            damage *= DamageMultiplierNonPlayer(protectionLevel, damageData);
         }
 
         return new(
@@ -260,7 +260,7 @@ public class DamageResistData
             _ => 1
         };
     }
-    private static float DamageMultiplierNotPlayer(float protectionLevel, DamageData damageData)
+    private static float DamageMultiplierNonPlayer(float protectionLevel, DamageData damageData)
     {
         return damageData.DamageType switch
         {

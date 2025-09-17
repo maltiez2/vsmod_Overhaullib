@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using CombatOverhaul.RangedSystems;
+using OpenTK.Mathematics;
 using System.Diagnostics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -282,7 +283,7 @@ public readonly struct DirectionOffset
 
     public static DirectionOffset GetDirection(Entity receiver, Entity source)
     {
-        Vec3d sourceEyesPosition = source.ServerPos.XYZ.Add(0, (float)source.LocalEyePos.Y, 0).Sub(source.ServerPos.Motion);
+        Vec3d sourceEyesPosition = source.ServerPos.XYZ.Add(0, source.LocalEyePos.Y, 0).Sub(source.ServerPos.Motion);
         Vec3d receiverEyesPosition = receiver.SidedPos.XYZ.Add(0, (float)receiver.LocalEyePos.Y, 0);
         Vec3d attackDirection = sourceEyesPosition - receiverEyesPosition;
         Vec3d playerViewDirection = EntityPos.GetViewVector(receiver.SidedPos.Pitch, receiver.SidedPos.Yaw).ToVec3d();

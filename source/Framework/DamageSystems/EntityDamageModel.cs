@@ -133,17 +133,17 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         {
             if (ResistsForColliders.ContainsKey(colliderType))
             {
-                typedDamage.DamageTypeData = ResistsForColliders[colliderType].ApplyNotPlayerResist(typedDamage.DamageTypeData, ref damage);
+                typedDamage.DamageTypeData = ResistsForColliders[colliderType].ApplyNonPlayerResist(typedDamage.DamageTypeData, ref damage);
             }
             else
             {
-                typedDamage.DamageTypeData = Resists.ApplyNotPlayerResist(typedDamage.DamageTypeData, ref damage);
+                typedDamage.DamageTypeData = Resists.ApplyNonPlayerResist(typedDamage.DamageTypeData, ref damage);
             }
         }
         else
         {
             DamageData damageData = new(damageSource.Type, damageSource.DamageTier, 0);
-            Resists.ApplyNotPlayerResist(damageData, ref damage);
+            Resists.ApplyNonPlayerResist(damageData, ref damage);
         }
 
         if (HitSounds.TryGetValue(colliderType, out SoundEffectData? value))

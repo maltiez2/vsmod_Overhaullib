@@ -47,10 +47,6 @@ public sealed class ProjectileServer
 
         //receiver.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 255), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new Vec3f(), new Vec3f(), 3, 0, 1, EnumParticleModel.Cube);
 
-        bool hit = Attack(_shooter, receiver, collisionPoint, packet.Collider, packet.RelativeSpeed);
-
-        if (hit) PlaySound(_shooter);
-
         if (_entity.PenetrationStrength == 0)
         {
             _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
@@ -66,6 +62,10 @@ public sealed class ProjectileServer
             _entity.ServerPos.Motion.Y *= speedReduction;
             _entity.ServerPos.Motion.Z *= speedReduction;
         }
+
+        bool hit = Attack(_shooter, receiver, collisionPoint, packet.Collider, packet.RelativeSpeed);
+
+        if (hit) PlaySound(_shooter);
 
         _entity.OnCollisionWithEntity(receiver, packet.Collider);
 
