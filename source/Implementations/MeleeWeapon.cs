@@ -1416,8 +1416,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         {
             OffHandAttackCooldownUntilMs = 0;
         }
+        SetState(MeleeWeaponState.Idle, mainHand);
     }
     protected virtual bool IsAttackOnCooldown(bool mainHand) => mainHand ? Api.World.ElapsedMilliseconds <= MainHandAttackCooldownUntilMs : Api.World.ElapsedMilliseconds <= OffHandAttackCooldownUntilMs;
+    protected virtual bool IsCooldownStopped(bool mainHand) => mainHand ? MainHandAttackCooldownUntilMs == 0 : OffHandAttackCooldownUntilMs == 0;
 
     protected virtual void StartBlockCooldown(bool mainHand, TimeSpan time)
     {
@@ -1488,6 +1490,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 TpAnimationBehavior?.PlayReadyAnimation(mainHand);
             }
             if (Stats.OneHandedStance != null) DirectionsType = Enum.Parse<DirectionsConfiguration>(Stats.OneHandedStance.AttackDirectionsType);
+        }
+
+        if (CheckState(mainHand, MeleeWeaponState.Cooldown) && !IsAttackOnCooldown(mainHand) && !IsCooldownStopped(mainHand))
+        {
+            StopAttackCooldown(mainHand);
         }
     }
     protected MeleeAttack? GetStanceAttack(bool mainHand = true, AttackDirection direction = AttackDirection.Top)

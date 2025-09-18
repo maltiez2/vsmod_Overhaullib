@@ -3,6 +3,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using OpenTK.Mathematics;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
@@ -35,6 +36,7 @@ public class MeleeDamageTypeJson
     public float Knockback { get; set; } = 0;
     public int DurabilityDamage { get; set; } = 1;
     public float[] Collider { get; set; } = new float[6];
+    public int Subdivisions { get; set; } = 10;
     public int StaggerTimeMs { get; set; } = 0;
     public int StaggerTier { get; set; } = 1;
 
@@ -45,6 +47,7 @@ public class MeleeDamageType : IHasLineCollider
 {
     public LineSegmentCollider RelativeCollider { get; set; }
     public LineSegmentCollider InWorldCollider { get; set; }
+    public LineSegmentCollider PreviousInWorldCollider { get; set; }
 
     public readonly float Damage;
     public readonly DamageData DamageTypeData;
@@ -52,6 +55,7 @@ public class MeleeDamageType : IHasLineCollider
     public readonly int DurabilityDamage;
     public readonly int StaggerTimeMs;
     public readonly int StaggerTier;
+    public readonly int Subdivisions;
 
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
@@ -59,10 +63,12 @@ public class MeleeDamageType : IHasLineCollider
         DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), (int)Math.Max(stats.Damage.Strength, stats.Damage.Tier), stats.Damage.ArmorPiercingTier);
         Knockback = stats.Knockback;
         RelativeCollider = new LineSegmentCollider(stats.Collider);
-        InWorldCollider = new LineSegmentCollider(stats.Collider);
+        InWorldCollider = RelativeCollider;
+        PreviousInWorldCollider = RelativeCollider;
         DurabilityDamage = stats.DurabilityDamage;
         StaggerTimeMs = stats.StaggerTimeMs;
         StaggerTier = stats.StaggerTier;
+        Subdivisions = stats.Subdivisions;
     }
 
     public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter)
@@ -111,6 +117,8 @@ public class MeleeDamageType : IHasLineCollider
 
         DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus, DamageTypeData.ArmorPiercingTier);
 
+        Debug.WriteLine($"(client) TryAttack - damage: {damage}");
+
         bool damageReceived = target.ReceiveDamage(new DirectionalTypedDamageSource()
         {
             Source = attacker is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity,
@@ -119,7 +127,8 @@ public class MeleeDamageType : IHasLineCollider
             DamageTypeData = damageTypeData,
             Position = position,
             Collider = collider,
-            KnockbackStrength = Knockback * stats.KnockbackMultiplier
+            KnockbackStrength = Knockback * stats.KnockbackMultiplier,
+            IgnoreInvFrames = true
         }, damage);
 
         bool received = damageReceived || Damage > 0;
@@ -154,7 +163,7 @@ public class MeleeDamageType : IHasLineCollider
         CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
         if (colliders != null)
         {
-            bool intersects = colliders.Collide(InWorldCollider.Position, InWorldCollider.Direction, out collider, out parameter, out collisionPoint);
+            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Subdivisions, out collider, out parameter, out collisionPoint);
 
             if (intersects) colliders.CollidersTypes.TryGetValue(collider, out colliderType);
 

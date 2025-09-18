@@ -5,6 +5,7 @@ using OpenTK.Mathematics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.MeleeSystems;
 
@@ -102,6 +103,19 @@ public sealed class MeleeAttack
 
         PrepareColliders(player, slot, mainHand);
 
+#if DEBUG
+        var pos1 = DamageTypes[0].InWorldCollider.Position;
+        var pos3 = DamageTypes[0].InWorldCollider.Position + DamageTypes[0].InWorldCollider.Direction;
+        Vec3d pos2 = new(pos1.X, pos1.Y, pos1.Z);
+        Vec3d pos4 = new(pos3.X, pos3.Y, pos3.Z);
+        float c = 16;
+        for (int i = 0; i < c; i++)
+        {
+            Vec3d pos5 = pos2 + (i / c) * (pos4 - pos2);
+            player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * i / c), (int)(255 * i / c), (int)(255 * i / c), 255), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
+        }
+#endif
+
         double parameter = 1f;
 
         if (CollideWithTerrain)
@@ -112,6 +126,15 @@ public sealed class MeleeAttack
         }
 
         TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
+
+#if DEBUG
+        foreach (var entyry in entitiesCollisions)
+        {
+            var pos6 = entyry.point;
+            Vec3d pos7 = new(pos6.X, pos6.Y, pos6.Z);
+            player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+        }
+#endif
 
         LoggerUtil.Mark(player.Entity.Api, "matk-atk-1");
     }

@@ -198,6 +198,12 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         currentShader?.Use();
     }
+    public bool CollideAABB(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, float penetrationDistance, out List<(string, double, Vector3d)> intersections)
+    {
+        intersections = new();
+        CuboidAABBCollider AABBCollider = new(entity);
+        return AABBCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out Vector3d intersection);
+    }
     public bool Collide(Vector3d segmentStart, Vector3d segmentDirection, out string collider, out double parameter, out Vector3d intersection)
     {
 
@@ -231,12 +237,6 @@ public sealed class CollidersEntityBehavior : EntityBehavior
         }
 
         return foundIntersection;
-    }
-    public bool CollideAABB(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, float penetrationDistance, out List<(string, double, Vector3d)> intersections)
-    {
-        intersections = new();
-        CuboidAABBCollider AABBCollider = new(entity);
-        return AABBCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out Vector3d intersection);
     }
     public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, float penetrationDistance, out List<(string, double, Vector3d)> intersections)
     {
@@ -296,6 +296,62 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         return foundIntersection;
     }
+    public bool Collide(Vector3d thisTickOrigin, Vector3d previousTickOrigin, float radius, out string collider, out double parameter, out Vector3d intersection)
+    {
+        collider = "";
+        parameter = 0;
+        intersection = Vector3d.Zero;
+
+        if (!HasOBBCollider)
+        {
+            CuboidAABBCollider AABBCollider = new(entity);
+            return AABBCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out intersection);
+        }
+
+        if (!BoundingBox.Collide(thisTickOrigin, previousTickOrigin, radius, out _))
+        {
+            return false;
+        }
+
+        foreach ((string key, ShapeElementCollider shapeElementCollider) in Colliders)
+        {
+            if (shapeElementCollider.Collide(thisTickOrigin, previousTickOrigin, radius, out double currentDistance, out Vector3d currentIntersection, out Vector3d segmentClosestPoint))
+            {
+                intersection = segmentClosestPoint - previousTickOrigin;
+                parameter = (intersection.Length + currentDistance) / (thisTickOrigin - previousTickOrigin).Length;
+                collider = key;
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+    public bool Collide(Vector3d thisTickStart, Vector3d previousTickStart, Vector3d thisTickDirection, Vector3d previousTickDirection, int subdivisions, out string collider, out double parameter, out Vector3d intersection)
+    {
+        Vector3d startHead = previousTickStart;
+        Vector3d startTail = previousTickStart + previousTickDirection;
+        Vector3d directionHead = thisTickStart - startHead;
+        Vector3d directionTail = thisTickStart + thisTickDirection - startTail;
+        for (int subdivision = 0; subdivision < subdivisions; subdivision++)
+        {
+            float subdivisionParameter = subdivision / (float)subdivisions;
+            Vector3d head = startHead + directionHead * subdivisionParameter;
+            Vector3d tail = startTail + directionTail * subdivisionParameter;
+
+            if (Collide(head, tail - head, out collider, out parameter, out intersection))
+            {
+                return true;
+            }
+        }
+
+        collider = "";
+        parameter = 0;
+        intersection = Vector3d.Zero;
+
+        return false;
+    }
+
 
     private readonly Dictionary<ColliderTypes, int> _colliderColors = new()
     {

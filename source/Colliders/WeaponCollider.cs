@@ -24,6 +24,7 @@ public interface IHasLineCollider
 {
     LineSegmentCollider RelativeCollider { get; }
     LineSegmentCollider InWorldCollider { get; set; }
+    LineSegmentCollider PreviousInWorldCollider { get; set; }
 }
 
 public interface IWeaponCollider : ICollider
@@ -185,7 +186,12 @@ public readonly struct LineSegmentCollider : IWeaponCollider
 
         foreach (IHasLineCollider damageType in segments)
         {
+            damageType.PreviousInWorldCollider = damageType.InWorldCollider;
             damageType.InWorldCollider = TransformSegment(damageType.RelativeCollider, modelMatrix, playerPos);
+            if (damageType.PreviousInWorldCollider.Position == damageType.RelativeCollider.Position)
+            {
+                damageType.PreviousInWorldCollider = damageType.InWorldCollider;
+            }
         }
 
         return true;

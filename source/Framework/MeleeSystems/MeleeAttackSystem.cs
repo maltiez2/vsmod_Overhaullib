@@ -2,11 +2,13 @@
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace CombatOverhaul.MeleeSystems;
 
@@ -112,7 +114,8 @@ public sealed class MeleeSystemServer : MeleeSystem
             KnockbackStrength = packet.Knockback,
             DamageTier = packet.Tier,
             Type = Enum.Parse<EnumDamageType>(packet.DamageType),
-            Weapon = packet.MainHand ? serverPlayer?.Entity.RightHandItemSlot.Itemstack : serverPlayer?.Entity.LeftHandItemSlot.Itemstack
+            Weapon = packet.MainHand ? serverPlayer?.Entity.RightHandItemSlot.Itemstack : serverPlayer?.Entity.LeftHandItemSlot.Itemstack,
+            IgnoreInvFrames = true
         };
 
         bool damageReceived = DealDamage(target, damageSource, slot, packet.Damage);
