@@ -161,7 +161,7 @@ public class MeleeDamageType : IHasLineCollider
         CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
         if (colliders != null)
         {
-            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Radius, out collider, out parameter, out collisionPoint, target.Api);
+            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Radius, out collider, out parameter, out collisionPoint);
 
             if (intersects) colliders.CollidersTypes.TryGetValue(collider, out colliderType);
 

@@ -405,7 +405,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         return false;
     }
-    public bool Collide(Vector3d thisTickStart, Vector3d previousTickStart, Vector3d thisTickDirection, Vector3d previousTickDirection, float radius, out string collider, out double parameter, out Vector3d intersection, ICoreAPI? api = null)
+    public bool Collide(Vector3d thisTickStart, Vector3d previousTickStart, Vector3d thisTickDirection, Vector3d previousTickDirection, float radius, out string collider, out double parameter, out Vector3d intersection)
     {
         collider = "";
         parameter = 0;
@@ -430,15 +430,15 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
 #if DEBUG
             Vec3d pos7 = new(head.X, head.Y, head.Z);
-            api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, (int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
+            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, (int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
             Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
-            api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
+            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
 
             float c = 16;
             for (int i = 0; i < c; i++)
             {
                 Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
-                api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * i / c), (int)(255 * i / c), 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
+                entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * i / c), (int)(255 * i / c), 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
             }
 #endif
 
