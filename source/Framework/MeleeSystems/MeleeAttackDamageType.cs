@@ -36,7 +36,7 @@ public class MeleeDamageTypeJson
     public float Knockback { get; set; } = 0;
     public int DurabilityDamage { get; set; } = 1;
     public float[] Collider { get; set; } = new float[6];
-    public int Subdivisions { get; set; } = 10;
+    public float Radius { get; set; } = 0.1f;
     public int StaggerTimeMs { get; set; } = 0;
     public int StaggerTier { get; set; } = 1;
 
@@ -55,7 +55,7 @@ public class MeleeDamageType : IHasLineCollider
     public readonly int DurabilityDamage;
     public readonly int StaggerTimeMs;
     public readonly int StaggerTier;
-    public readonly int Subdivisions;
+    public readonly float Radius;
 
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
@@ -68,7 +68,7 @@ public class MeleeDamageType : IHasLineCollider
         DurabilityDamage = stats.DurabilityDamage;
         StaggerTimeMs = stats.StaggerTimeMs;
         StaggerTier = stats.StaggerTier;
-        Subdivisions = stats.Subdivisions;
+        Radius = stats.Radius;
     }
 
     public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter)
@@ -117,8 +117,6 @@ public class MeleeDamageType : IHasLineCollider
 
         DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus, DamageTypeData.ArmorPiercingTier);
 
-        Debug.WriteLine($"(client) TryAttack - damage: {damage}");
-
         bool damageReceived = target.ReceiveDamage(new DirectionalTypedDamageSource()
         {
             Source = attacker is EntityPlayer ? EnumDamageSource.Player : EnumDamageSource.Entity,
@@ -163,7 +161,7 @@ public class MeleeDamageType : IHasLineCollider
         CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
         if (colliders != null)
         {
-            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Subdivisions, out collider, out parameter, out collisionPoint);
+            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Radius, out collider, out parameter, out collisionPoint, target.Api);
 
             if (intersects) colliders.CollidersTypes.TryGetValue(collider, out colliderType);
 

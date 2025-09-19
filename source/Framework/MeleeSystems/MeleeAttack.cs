@@ -56,6 +56,8 @@ public sealed class MeleeAttack
         {
             _attackedEntities[entityId] = new();
         }
+
+        LineSegmentCollider.ResetPreviousColliders(DamageTypes.Select(element => element as IHasLineCollider));
     }
 
     public void Start(IPlayer player, ItemStackMeleeWeaponStats stats)
@@ -70,6 +72,8 @@ public sealed class MeleeAttack
         {
             _attackedEntities[entityId] = new();
         }
+
+        LineSegmentCollider.ResetPreviousColliders(DamageTypes.Select(element => element as IHasLineCollider));
     }
 
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions)
@@ -112,7 +116,7 @@ public sealed class MeleeAttack
         for (int i = 0; i < c; i++)
         {
             Vec3d pos5 = pos2 + (i / c) * (pos4 - pos2);
-            player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * i / c), (int)(255 * i / c), (int)(255 * i / c), 255), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
+            //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * i / c), (int)(255 * i / c), (int)(255 * i / c), 255), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
         }
 #endif
 
@@ -132,7 +136,7 @@ public sealed class MeleeAttack
         {
             var pos6 = entyry.point;
             Vec3d pos7 = new(pos6.X, pos6.Y, pos6.Z);
-            player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+            //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
         }
 #endif
 

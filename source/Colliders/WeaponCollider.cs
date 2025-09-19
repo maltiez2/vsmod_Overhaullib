@@ -4,6 +4,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Colliders;
 
@@ -186,7 +187,10 @@ public readonly struct LineSegmentCollider : IWeaponCollider
 
         foreach (IHasLineCollider damageType in segments)
         {
-            damageType.PreviousInWorldCollider = damageType.InWorldCollider;
+            if (damageType.PreviousInWorldCollider.Position != damageType.RelativeCollider.Position)
+            {
+                damageType.PreviousInWorldCollider = damageType.InWorldCollider;
+            }
             damageType.InWorldCollider = TransformSegment(damageType.RelativeCollider, modelMatrix, playerPos);
             if (damageType.PreviousInWorldCollider.Position == damageType.RelativeCollider.Position)
             {
@@ -195,6 +199,13 @@ public readonly struct LineSegmentCollider : IWeaponCollider
         }
 
         return true;
+    }
+    public static void ResetPreviousColliders(IEnumerable<IHasLineCollider> segments)
+    {
+        foreach (IHasLineCollider damageType in segments)
+        {
+            damageType.PreviousInWorldCollider = damageType.RelativeCollider;
+        }
     }
 
     private static readonly BlockPos _blockPosBuffer = new(0, 0, 0, 0);
