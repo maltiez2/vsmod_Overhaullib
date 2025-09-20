@@ -380,7 +380,15 @@ internal static class HarmonyPatches
     {
         ItemStack? backPackStack = __instance.BagSlots[slot.BagIndex]?.Itemstack;
 
-        backPackStack?.Collectible.GetCollectibleInterface<IHeldBag>()?.Store(backPackStack, slot);
+        try
+        {
+            backPackStack?.Collectible.GetCollectibleInterface<IHeldBag>()?.Store(backPackStack, slot);
+        }
+        catch (Exception exception)
+        {
+            
+            return true;
+        }
 
         return false;
     }

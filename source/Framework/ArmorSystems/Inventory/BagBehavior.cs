@@ -351,8 +351,16 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
     public void Store(ItemStack bagstack, ItemSlotBagContent slot)
     {
-        ITreeAttribute stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
-        ITreeAttribute slotsTree = stackBackPackTree.GetTreeAttribute("slots");
+        ITreeAttribute? stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
+        ITreeAttribute? slotsTree = stackBackPackTree?.GetTreeAttribute("slots");
+
+        if (slotsTree == null)
+        {
+            _ = GetOrCreateSlots(bagstack, slot.Inventory, 0, Api.World);
+            stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
+            slotsTree = stackBackPackTree?.GetTreeAttribute("slots");
+            if (slotsTree == null) return;
+        }
 
         slotsTree["slot-" + slot.SlotIndex] = new ItemstackAttribute(slot.Itemstack);
     }

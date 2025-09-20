@@ -80,13 +80,13 @@ public class StanceStats
     public string AttackDirectionsType { get; set; } = "None";
     public Dictionary<string, string[]> AttackAnimation { get; set; } = [];
     public Dictionary<string, string[]> BlockBashAnimation { get; set; } = [];
-    public string BlockAnimation { get; set; } = "";
-    public string ReadyAnimation { get; set; } = "";
-    public string IdleAnimation { get; set; } = "";
-    public string WalkAnimation { get; set; } = "";
-    public string RunAnimation { get; set; } = "";
-    public string SwimAnimation { get; set; } = "";
-    public string SwimIdleAnimation { get; set; } = "";
+    public string? BlockAnimation { get; set; } = null;
+    public string? ReadyAnimation { get; set; } = null;
+    public string? IdleAnimation { get; set; } = null;
+    public string? WalkAnimation { get; set; } = null;
+    public string? RunAnimation { get; set; } = null;
+    public string? SwimAnimation { get; set; } = null;
+    public string? SwimIdleAnimation { get; set; } = null;
 
     public float AttackSpeedMultiplier { get; set; } = 1;
 }

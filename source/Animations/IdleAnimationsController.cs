@@ -138,6 +138,7 @@ public sealed class IdleAnimationsController
         }
         else
         {
+            _stopAnimationCallback?.Invoke();
             _currentAnimation = EnumAnimationType.None;
         }
     }

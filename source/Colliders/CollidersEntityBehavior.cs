@@ -416,8 +416,6 @@ public sealed class CollidersEntityBehavior : EntityBehavior
         Vector3d directionHead = thisTickStart - startHead;
         Vector3d directionTail = thisTickStart + thisTickDirection - startTail;
 
-
-
         int subdivisions = (int)Math.Ceiling(Math.Max((thisTickStart - previousTickStart).Length, (thisTickStart + thisTickDirection - previousTickStart - previousTickDirection).Length) / radius);
 
         List<(string, double, Vector3d)> intersections = [];
@@ -438,7 +436,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
             for (int i = 0; i < c; i++)
             {
                 Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
-                entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * i / c), (int)(255 * i / c), 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
+                entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * (1 - (i / c))), 0, (int)(255 * (i / c)), 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
             }
 #endif
 
