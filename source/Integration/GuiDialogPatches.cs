@@ -93,8 +93,16 @@ public static class GuiDialogPatches
             .AddInset(insetSlotBounds, 0)
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, [6, 7, 8, 10, 5, 9], rightSlotBounds, "rightSlots")
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, Enumerable.Range(ArmorInventory._armorSlotsLastIndex, ArmorInventory._gearSlotsCount - 11).ToArray(), rightGearSlotBounds, "gearSlots")
-            .AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 9, 4).ToArray(), additionalSlots1Bounds, "additionalSlots1")
-            .AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 13, 4).ToArray(), additionalSlots2Bounds, "additionalSlots2")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 9], additionalSlots1Bounds, "additionalSlots10")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 10], additionalSlots1Bounds.RightCopy(), "additionalSlots11")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 11], additionalSlots1Bounds.RightCopy().RightCopy(), "additionalSlots12")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 12], additionalSlots1Bounds.RightCopy().RightCopy().RightCopy(), "additionalSlots13")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 13], additionalSlots2Bounds, "additionalSlots20")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 14], additionalSlots2Bounds.RightCopy(), "additionalSlots21")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 15], additionalSlots2Bounds.RightCopy().RightCopy(), "additionalSlots22")
+            .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 16], additionalSlots2Bounds.RightCopy().RightCopy().RightCopy(), "additionalSlots23")
+        //.AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 9, 4).ToArray(), additionalSlots1Bounds, "additionalSlots1")
+        //.AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 13, 4).ToArray(), additionalSlots2Bounds, "additionalSlots2")
         ;
 
         return false;

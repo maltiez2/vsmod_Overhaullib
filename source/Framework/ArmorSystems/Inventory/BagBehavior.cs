@@ -1,9 +1,4 @@
-﻿using CombatOverhaul.Utils;
-using ConfigLib;
-using ProtoBuf;
-using System.Diagnostics;
-using System.Net.Sockets;
-using System.Numerics;
+﻿using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -16,139 +11,6 @@ using Vintagestory.Common;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Armor;
-
-
-public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
-{
-    public ItemStack SourceBag { get; set; }
-    public SlotConfig Config { get; set; } = new([], []);
-
-    public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
-    {
-        HexBackgroundColor = color;
-        SourceBag = sourceBag;
-    }
-
-    public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge)
-    {
-        if (!CanHold(sourceSlot))
-        {
-            return false;
-        }
-
-        return base.CanTakeFrom(sourceSlot, priority);
-    }
-
-    public override bool CanHold(ItemSlot sourceSlot)
-    {
-        if (base.CanHold(sourceSlot) && sourceSlot?.Itemstack?.Collectible?.Code != null)
-        {
-            bool matchWithoutDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.Path);
-            bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
-
-            bool matchWithTags = false;
-            if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
-            {
-                matchWithTags = ItemTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Item.Tags, Config.CanHoldItemTags);
-            }
-            if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags.Length != 0 && !matchWithTags)
-            {
-                matchWithTags = BlockTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Block.Tags, Config.CanHoldBlockTags);
-            }
-
-            return matchWithoutDomain || matchWithDomain || matchWithTags;
-        }
-
-        return false;
-    }
-}
-
-public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
-{
-    public string ToolBagId { get; set; }
-    public bool MainHand { get; set; } = true;
-
-    public ItemSlotToolHolder(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType, sourceBag, color)
-    {
-        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
-    }
-}
-
-public class ItemSlotTakeOutOnly : ItemSlotBagContent
-{
-    public string ToolBagId { get; set; }
-    public bool CanHoldNow { get; set; } = false;
-    public bool MainHand { get; set; } = true;
-
-    public ItemSlotTakeOutOnly(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
-    {
-        HexBackgroundColor = color;
-        inventory.SlotModified += index => TryEmpty(inventory, index);
-
-        if (inventory is InventoryBasePlayer playerInventory)
-        {
-            InventoryBasePlayer? hotbar = playerInventory.Player?.InventoryManager?.GetHotbarInventory() as InventoryBasePlayer;
-
-            if (hotbar != null)
-            {
-                hotbar.SlotModified += index => TryEmptyIntoHotbar(hotbar, index);
-            }
-        }
-
-        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
-    }
-
-    public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge) => CanHoldNow;
-
-    public override bool CanHold(ItemSlot sourceSlot) => CanHoldNow;
-
-    protected virtual void TryEmptyIntoHotbar(InventoryBasePlayer inventory, int index)
-    {
-        if (CanHoldNow) return;
-        if (inventory.Player.Entity?.Api?.Side != EnumAppSide.Server) return;
-        if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
-
-        if (itemstack.StackSize == 0)
-        {
-            itemstack = null;
-            MarkDirty();
-            return;
-        }
-
-        DummySlot dummySlot = new(itemstack);
-        ItemSlot? targetSlot = inventory.GetBestSuitedSlot(dummySlot)?.slot ?? inventory.FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true, null);
-
-        if (targetSlot == null) return;
-
-        if (dummySlot.TryPutInto(inventory.Api.World, targetSlot, dummySlot.Itemstack.StackSize) > 0)
-        {
-            targetSlot.MarkDirty();
-            itemstack = dummySlot.Itemstack?.StackSize == 0 ? null : dummySlot.Itemstack;
-            MarkDirty();
-        }
-    }
-
-    protected virtual void TryEmpty(InventoryBase inventory, int index)
-    {
-        if (CanHoldNow) return;
-        if ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api?.Side != EnumAppSide.Server) return;
-        if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;
-
-        DummySlot dummySlot = new(itemstack);
-        ItemSlot? targetSlot = (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory()?.GetBestSuitedSlot(dummySlot)?.slot;
-        targetSlot ??= (inventory as InventoryBasePlayer)?.Player?.InventoryManager?.GetHotbarInventory().FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true && slot is not ItemSlotTakeOutOnly, null);
-        targetSlot ??= inventory.FirstOrDefault(slot => slot?.CanTakeFrom(dummySlot) == true && slot is not ItemSlotTakeOutOnly, null);
-
-        if (targetSlot == null) return;
-
-        if (dummySlot.TryPutInto(inventory.Api.World, targetSlot, dummySlot.Itemstack.StackSize) > 0)
-        {
-            targetSlot.MarkDirty();
-            itemstack = dummySlot.Itemstack?.StackSize == 0 ? null : dummySlot.Itemstack;
-            MarkDirty();
-        }
-    }
-}
 
 public class SlotConfigJson
 {
@@ -833,7 +695,7 @@ public class ToolBag : GearEquipableBag
                     while (bagContents.Count <= slotIndex) bagContents.Add(null);
                     bagContents[slotIndex] = takeOutSLot;
                 }
-                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) + (ToolSlotNumber == 2 ? 1 : 0) - 1 && OffHandSlotConfig != null)
+                else if (slotIndex == RegularSlotsNumber + ToolSlotNumber + (ToolSlotNumber == 2 ? 1 : 0) + (ToolSlotNumber == 2 ? 1 : 0) && OffHandSlotConfig != null)
                 {
                     ItemSlotTakeOutOnly takeOutSLot = new(parentinv, bagIndex, slotIndex, flags, bagstack, TakeOutSlotColor);
                     takeOutSLot.MainHand = false;
@@ -883,26 +745,43 @@ public class ToolBag : GearEquipableBag
         return bagContents;
     }
 
+    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
+    {
+        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+
+        dsc.AppendLine($"Uses hotkey: '{HotkeyName}'");
+    }
+
     protected ActionConsumable<KeyCombination>? PreviousHotkeyHandler;
     protected ICoreClientAPI? ClientApi;
+    protected long HotkeyCooldownUntilMs = 0;
+    protected const long HotkeyCooldown = 500;
 
     protected virtual bool OnHotkeyPressed(KeyCombination keyCombination)
     {
         InventoryPlayerBackPacks? inventory = GetBackpackInventory();
 
-        if (inventory != null)
+        bool handled = false;
+
+        if (inventory != null && HotkeyCooldownUntilMs < Api.World.ElapsedMilliseconds)
         {
             string toolBagId = collObj.Code.ToString();
 
-            if (inventory.Any(slot => (slot as ItemSlotToolHolder)?.ToolBagId == toolBagId))
+            ItemSlot? slot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.SourceBag?.Item?.Id == collObj.Id);
+
+            if (slot != null)
             {
                 ToolBagSystemClient? system = ClientApi?.ModLoader?.GetModSystem<CombatOverhaulSystem>()?.ClientToolBagSystem;
 
                 system?.Send(toolBagId, MainHandSlotConfig != null);
+
+                HotkeyCooldownUntilMs = Api.World.ElapsedMilliseconds + HotkeyCooldown;
+
+                handled = false;
             }
         }
 
-        return PreviousHotkeyHandler?.Invoke(keyCombination) ?? true;
+        return PreviousHotkeyHandler?.Invoke(keyCombination) ?? handled;
     }
 
     protected InventoryPlayerBackPacks? GetBackpackInventory()
