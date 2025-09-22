@@ -1,8 +1,8 @@
 ﻿using CombatOverhaul.Animations;
-using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
 using HarmonyLib;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -11,7 +11,6 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
-using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Integration;
@@ -74,6 +73,11 @@ internal static class HarmonyPatches
             );
 
         new Harmony(harmonyId).Patch(
+                typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all),
+                postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(ReloadBagInventoryPostfix)))
+            );
+
+        new Harmony(harmonyId).Patch(
                 typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0],
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(LightHsv)))
             );
@@ -96,6 +100,7 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
@@ -175,7 +180,7 @@ internal static class HarmonyPatches
         {
             // just ignore
         }
-        
+
     }
 
     private static void DoRender3DOpaquePlayer(EntityPlayerShapeRenderer __instance, float dt, bool isShadowPass)
@@ -267,6 +272,7 @@ internal static class HarmonyPatches
     }
 
     private static readonly FieldInfo? _smoothedBodyYaw = typeof(EntityPlayerShapeRenderer).GetField("smoothedBodyYaw", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static readonly FieldInfo? _bagContents = typeof(BagInventory).GetField("bagContents", BindingFlags.NonPublic | BindingFlags.Instance);
     private static bool SmoothCameraTurning(EntityPlayerShapeRenderer __instance, float bodyYaw, float mdt)
     {
         if (!ClientSettings.HandsYawSmoothing)
@@ -355,6 +361,21 @@ internal static class HarmonyPatches
         if (parentinv is not InventoryBasePlayer inventory) return;
 
         bagSlots = AppendGearInventorySlots(bagSlots, inventory.Owner);
+
+        Debug.WriteLine("ReloadBagInventory");
+    }
+    private static void ReloadBagInventoryPostfix(BagInventory __instance, ref InventoryBase parentinv)
+    {
+        if (parentinv is not InventoryBasePlayer inventory) return;
+
+        if (inventory.Owner.Api is ICoreClientAPI capi)
+        {
+            ItemSlot? hslot = ((List<ItemSlot>)_bagContents.GetValue(__instance)).FirstOrDefault();
+            if (hslot != null && capi.World?.Player?.InventoryManager?.CurrentHoveredSlot != null)
+            {
+                capi.World.Player.InventoryManager.CurrentHoveredSlot = hslot;
+            }
+        }
     }
     private static ItemSlot[] AppendGearInventorySlots(ItemSlot[] backpackSlots, Entity owner)
     {
@@ -386,7 +407,8 @@ internal static class HarmonyPatches
         }
         catch (Exception exception)
         {
-            
+            Debug.WriteLine("BagInventory_SaveSlotIntoBag");
+            Debug.WriteLine(exception);
             return true;
         }
 

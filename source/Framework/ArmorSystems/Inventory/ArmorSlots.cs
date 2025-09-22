@@ -1,6 +1,9 @@
 ﻿using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Utils;
+using System.Linq;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Util;
@@ -139,6 +142,18 @@ public class GearSlot : ClothesSlot
         }
     }
 
+    public virtual IEnumerable<ItemSlot> GetChildSlots(InventoryBase inventory)
+    {
+        string[] childSlotCodes = SlotType switch
+        {
+            "waistgear" => ["addBeltLeft", "addBeltRight", "addBeltBack", "addBeltFront"],
+            "backgear" => ["addBackpack1", "addBackpack2", "addBackpack3", "addBackpack4"],
+            _ => []
+        };
+
+        return inventory.OfType<GearSlot>().Where(slot => childSlotCodes.Contains(slot.SlotType));
+    }
+
     public virtual void CheckParentSlot()
     {
         if (ParentSlot == null) return;
@@ -160,6 +175,17 @@ public class GearSlot : ClothesSlot
         Config = parent.GetConfig(ParentSlot.Itemstack, inventory, SlotType);
         HexBackgroundColor = Enabled ? null : "#999999";
         PreviousColor = HexBackgroundColor;
+    }
+
+    public override bool CanTake()
+    {
+        if (GetChildSlots(inventory).Any(slot => !slot.Empty))
+        {
+            ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Some other items attached to it.");
+            return false;
+        }
+        
+        return base.CanTake();
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge)
