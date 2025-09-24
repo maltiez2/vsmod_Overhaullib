@@ -277,6 +277,8 @@ public class ProjectileEntity : Entity
         writer.Write(WeaponStack != null);
         WeaponStack?.ToBytes(writer);
         writer.Write(OwnerId);
+        writer.Write(IgnoreInvFrames);
+        writer.Write(CanBeCollected);
     }
     public override void FromBytes(BinaryReader reader, bool fromServer)
     {
@@ -286,6 +288,8 @@ public class ProjectileEntity : Entity
         if (reader.ReadBoolean()) ProjectileStack = new ItemStack(reader);
         if (reader.ReadBoolean()) WeaponStack = new ItemStack(reader);
         OwnerId = reader.ReadInt64();
+        IgnoreInvFrames = reader.ReadBoolean();
+        CanBeCollected = reader.ReadBoolean();
     }
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {

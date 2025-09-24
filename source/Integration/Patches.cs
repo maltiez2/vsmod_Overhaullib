@@ -1,8 +1,10 @@
 ﻿using CombatOverhaul.Animations;
+using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -73,11 +75,6 @@ internal static class HarmonyPatches
             );
 
         new Harmony(harmonyId).Patch(
-                typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all),
-                postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(ReloadBagInventoryPostfix)))
-            );
-
-        new Harmony(harmonyId).Patch(
                 typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0],
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(LightHsv)))
             );
@@ -100,7 +97,6 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
@@ -362,19 +358,9 @@ internal static class HarmonyPatches
 
         bagSlots = AppendGearInventorySlots(bagSlots, inventory.Owner);
 
-        Debug.WriteLine("ReloadBagInventory");
-    }
-    private static void ReloadBagInventoryPostfix(BagInventory __instance, ref InventoryBase parentinv)
-    {
-        if (parentinv is not InventoryBasePlayer inventory) return;
-
-        if (inventory.Owner.Api is ICoreClientAPI capi)
+        if (bagSlots.Length == 4)
         {
-            ItemSlot? hslot = ((List<ItemSlot>)_bagContents.GetValue(__instance)).FirstOrDefault();
-            if (hslot != null && capi.World?.Player?.InventoryManager?.CurrentHoveredSlot != null)
-            {
-                capi.World.Player.InventoryManager.CurrentHoveredSlot = hslot;
-            }
+            bagSlots = Enumerable.Range(0, ArmorInventory._totalSlotsNumber).Select(_ => new DummySlot() as ItemSlot).Concat(bagSlots).ToArray();
         }
     }
     private static ItemSlot[] AppendGearInventorySlots(ItemSlot[] backpackSlots, Entity owner)
@@ -391,7 +377,7 @@ internal static class HarmonyPatches
     }
     private static IInventory? GetGearInventory(Entity entity)
     {
-        return entity?.GetBehavior<EntityBehaviorPlayerInventory>()?.Inventory;
+        return (entity as EntityPlayer)?.Player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
     }
     private static IInventory? GetBackpackInventory(EntityPlayer player)
     {
