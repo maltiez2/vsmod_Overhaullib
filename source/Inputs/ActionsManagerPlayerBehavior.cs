@@ -437,7 +437,6 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         if (anyChanged && (_currentMainHandItemId != mainHandId || mainHandSlotId != _currentMainHandSlotId))
         {
-            _mainHandState = 0;
             ProcessMainHandItemChanged();
             _currentMainHandItemId = mainHandId;
             _currentMainHandSlotId = mainHandSlotId;
@@ -445,7 +444,6 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         if (anyChanged && _currentOffHandItemId != offHandId)
         {
-            _offHandState = 0;
             ProcessOffHandItemChanged();
             _currentOffHandItemId = offHandId;
         }
@@ -484,6 +482,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         if (stack == null || stack.Item is not IHasWeaponLogic weapon) return;
 
+        _mainHandState = 0;
         weapon.ClientLogic?.OnSelected(_player.ActiveHandItemSlot, _player, true, ref _mainHandState);
         _currentMainHandWeapon = weapon.ClientLogic;
 
@@ -524,6 +523,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         if (stack == null || stack.Item is not IHasWeaponLogic weapon) return;
 
+        _offHandState = 0;
         weapon.ClientLogic?.OnSelected(_player.LeftHandItemSlot, _player, false, ref _offHandState);
         _currentOffHandWeapon = weapon.ClientLogic;
 

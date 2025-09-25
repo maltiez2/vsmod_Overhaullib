@@ -66,6 +66,8 @@ public sealed class Settings
     public bool DisableThirdPersonAnimations { get; set; } = false;
 
     public bool MeleeWeaponStopOnTerrainHit { get; set; } = false;
+
+    public int GlobalAttackCooldownMs { get; set; } = 1000;
 }
 
 public sealed class ArmorConfig

@@ -6,6 +6,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -392,6 +393,20 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     }
     public virtual void OnDeselected(EntityPlayer player, bool mainHand, ref int state)
     {
+        Debug.WriteLine(GetState<MeleeWeaponState>(mainHand));
+        
+        if (CheckState(mainHand,
+            MeleeWeaponState.Attacking,
+            MeleeWeaponState.Cooldown,
+            MeleeWeaponState.Blocking,
+            MeleeWeaponState.Parrying,
+            MeleeWeaponState.BlockBashAttacking,
+            MeleeWeaponState.BlockBashWindingUp,
+            MeleeWeaponState.BlockBashCooldown))
+        {
+            SetGlobalCooldown(Api, Settings.GlobalAttackCooldownMs);
+        }
+        
         MeleeBlockSystem.StopBlock(mainHand);
         StopAttackCooldown(mainHand);
         StopBlockCooldown(mainHand);
@@ -723,6 +738,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected const bool EditColliders = false;
     protected AttackDirection CurrentMainHandDirection = AttackDirection.Top;
     protected AttackDirection CurrentOffHandDirection = AttackDirection.Top;
+
+    protected static long GlobalCooldownUntilMs = 0;
+    protected const long GlobalCooldownMs = 1000;
 
     protected readonly AimingStats? AimingStats;
 
@@ -1418,7 +1436,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         }
         SetState(MeleeWeaponState.Idle, mainHand);
     }
-    protected virtual bool IsAttackOnCooldown(bool mainHand) => mainHand ? Api.World.ElapsedMilliseconds <= MainHandAttackCooldownUntilMs : Api.World.ElapsedMilliseconds <= OffHandAttackCooldownUntilMs;
+    protected virtual bool IsAttackOnCooldown(bool mainHand) => (mainHand ? Api.World.ElapsedMilliseconds <= MainHandAttackCooldownUntilMs : Api.World.ElapsedMilliseconds <= OffHandAttackCooldownUntilMs) || CheckGlobalCooldown(Api);
     protected virtual bool IsCooldownStopped(bool mainHand) => mainHand ? MainHandAttackCooldownUntilMs == 0 : OffHandAttackCooldownUntilMs == 0;
 
     protected virtual void StartBlockCooldown(bool mainHand, TimeSpan time)
@@ -1725,6 +1743,15 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         string damageType = damageTypes.Select(element => Lang.Get($"combatoverhaul:damage-type-{element}")).Aggregate((first, second) => $"{first}, {second}");
 
         return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType) + (armorPiercingTier > 0 ? "\n" + Lang.Get("combatoverhaul:iteminfo-melee-weapon-armorpiercing", armorPiercingTier) : "");
+    }
+
+    protected static void SetGlobalCooldown(ICoreAPI api, long cooldownMs = GlobalCooldownMs)
+    {
+        GlobalCooldownUntilMs = api.World.ElapsedMilliseconds + cooldownMs;
+    }
+    protected static bool CheckGlobalCooldown(ICoreAPI api)
+    {
+        return GlobalCooldownUntilMs > api.World.ElapsedMilliseconds;
     }
 }
 
