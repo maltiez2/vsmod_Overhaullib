@@ -31,6 +31,8 @@ internal static class ElementPosePatches
                 }
             }
         }
+
+        public EntityPlayer? Player { get; set; }
     }
 
     [HarmonyPatch(typeof(Vintagestory.API.Common.Animation), "GenerateFrame")]

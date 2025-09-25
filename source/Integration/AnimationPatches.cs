@@ -3,13 +3,13 @@ using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using static CombatOverhaul.Integration.Transpilers.ElementPosePatches;
 
 namespace CombatOverhaul.Integration;
 
@@ -73,7 +73,29 @@ internal static class AnimationPatches
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void OnFrameInvoke(ClientAnimator? animator, ElementPose pose)
     {
-        if (!ClientSettings.DisableAllAnimations && animator != null && _animators.TryGetValue(animator, out EntityPlayer? entity))
+        if (ClientSettings.DisableAllAnimations || animator == null) return;
+
+        if (pose is ExtendedElementPose extendedPose && animator is not ClientItemAnimator)
+        {
+            if (extendedPose.ElementNameEnum == EnumAnimatedElement.Unknown) return;
+
+            if (extendedPose.Player != null)
+            {
+                if (!ClientSettings.DisableThirdPersonAnimations && AnimationBehaviors.TryGetValue(extendedPose.Player.EntityId, out ThirdPersonAnimationsBehavior? behavior))
+                {
+                    behavior.OnFrame(extendedPose.Player, pose, animator);
+                }
+
+                if (extendedPose.Player.EntityId == OwnerEntityId)
+                {
+                    FirstPersonAnimationBehavior?.OnFrame(extendedPose.Player, pose, animator);
+                }
+
+                return;
+            }
+        }
+
+        if (_animators.TryGetValue(animator, out EntityPlayer? entity))
         {
             if (!ClientSettings.DisableThirdPersonAnimations && AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
             {
@@ -84,10 +106,14 @@ internal static class AnimationPatches
             {
                 FirstPersonAnimationBehavior?.OnFrame(entity, pose, animator);
             }
+
+            if (pose is ExtendedElementPose extendedPose2 && extendedPose2.Player == null)
+            {
+                extendedPose2.Player = entity;
+            }
         }
     }
 
-    private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
     private static long _cleanUpTickListener = 0;
 
     private static void BeforeRender(EntityShapeRenderer __instance, float dt)
