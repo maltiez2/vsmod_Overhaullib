@@ -1,14 +1,9 @@
-﻿using CombatOverhaul.Animations;
-using CombatOverhaul.Armor;
-using CombatOverhaul.Colliders;
+﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Diagnostics;
-using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -19,40 +14,13 @@ namespace CombatOverhaul.Integration;
 
 internal static class HarmonyPatches
 {
-    public static event Action<Entity, float>? OnBeforeFrame;
-    public static Settings ClientSettings = new();
-    public static Settings ServerSettings = new();
-    public static readonly Dictionary<long, ThirdPersonAnimationsBehavior> AnimationBehaviors = new();
-    public static FirstPersonAnimationsBehavior? FirstPersonAnimationBehavior;
-    public static long OwnerEntityId = 0;
+    public static Settings ClientSettings { get; set; } = new();
+    public static Settings ServerSettings { get; set; } = new();
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
         _api = api;
-        _animatorsLock.AcquireWriterLock(5000);
-        _animators.Clear();
-        _animatorsLock.ReleaseWriterLock();
-
         _reportedEntities.Clear();
-        new Harmony(harmonyId).Patch(
-                typeof(EntityShapeRenderer).GetMethod("RenderHeldItem", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(RenderHeldItem)))
-            );
-
-        new Harmony(harmonyId).Patch(
-                typeof(EntityShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(DoRender3DOpaque)))
-            );
-
-        new Harmony(harmonyId).Patch(
-                typeof(EntityPlayerShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(DoRender3DOpaquePlayer)))
-            );
-
-        new Harmony(harmonyId).Patch(
-                typeof(EntityShapeRenderer).GetMethod("BeforeRender", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BeforeRender)))
-            );
 
         new Harmony(harmonyId).Patch(
                 typeof(Vintagestory.API.Common.AnimationManager).GetMethod("OnClientFrame", AccessTools.all),
@@ -75,7 +43,7 @@ internal static class HarmonyPatches
             );
 
         new Harmony(harmonyId).Patch(
-                typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0],
+                typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all)?.GetAccessors()[0],
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(LightHsv)))
             );
 
@@ -83,114 +51,22 @@ internal static class HarmonyPatches
                 typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BagInventory_SaveSlotIntoBag)))
             );
-
-        _cleanUpTickListener = api.World.RegisterGameTickListener(_ => OnCleanUpTick(), 5 * 60 * 1000, 5 * 60 * 1000);
     }
 
     public static void Unpatch(string harmonyId, ICoreAPI api)
     {
-        new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("RenderHeldItem", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(Vintagestory.API.Common.AnimationManager).GetMethod("OnClientFrame", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetMethod("OnSelfBeforeRender", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetMethod("updateEyeHeight", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all).GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all)?.GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-
-        _animatorsLock.AcquireWriterLock(5000);
-        _animators.Clear();
-        _animatorsLock.ReleaseWriterLock();
-
-        _reportedEntities.Clear();
-
-        api.World.UnregisterGameTickListener(_cleanUpTickListener);
         _api = null;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void OnFrameInvoke(ClientAnimator? animator, ElementPose pose)
-    {
-        if (!ClientSettings.DisableAllAnimations && animator != null && _animators.TryGetValue(animator, out EntityPlayer? entity))
-        {
-            if (!ClientSettings.DisableThirdPersonAnimations && AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
-            {
-                behavior.OnFrame(entity, pose, animator);
-            }
-
-            if (entity.EntityId == OwnerEntityId)
-            {
-                FirstPersonAnimationBehavior?.OnFrame(entity, pose, animator);
-            }
-        }
-    }
-
     private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static long _cleanUpTickListener = 0;
 
-    private static void BeforeRender(EntityShapeRenderer __instance, float dt)
-    {
-        if (!ClientSettings.DisableAllAnimations)
-        {
-            OnBeforeFrame?.Invoke(__instance.entity, dt);
-        }
-    }
-
-    private static void OnCleanUpTick()
-    {
-        LoggerUtil.Mark(_api, "hp-oct-0");
-
-        _animatorsLock.AcquireWriterLock(5000);
-
-        try
-        {
-            List<ClientAnimator> animatorsToRemove = new();
-            foreach (ClientAnimator animator in _animators.Where(entry => !entry.Value.Alive).Select(entry => entry.Key))
-            {
-                animatorsToRemove.Add(animator);
-            }
-
-            foreach (ClientAnimator animator in animatorsToRemove)
-            {
-                _animators.Remove(animator);
-            }
-        }
-        finally
-        {
-            _animatorsLock.ReleaseWriterLock();
-        }
-
-        LoggerUtil.Mark(_api, "hp-oct-1");
-    }
-
-    private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
-    {
-        try
-        {
-            CollidersEntityBehavior behavior = __instance.entity?.GetBehavior<CollidersEntityBehavior>();
-            behavior?.Render(__instance.entity?.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
-        }
-        catch (Exception)
-        {
-            // just ignore
-        }
-
-    }
-
-    private static void DoRender3DOpaquePlayer(EntityPlayerShapeRenderer __instance, float dt, bool isShadowPass)
-    {
-        try
-        {
-            CollidersEntityBehavior behavior = __instance.entity?.GetBehavior<CollidersEntityBehavior>();
-            behavior?.Render(__instance.entity?.Api as ICoreClientAPI, __instance.entity as EntityAgent, __instance);
-        }
-        catch (Exception)
-        {
-            // just ignore
-        }
-    }
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
@@ -204,71 +80,24 @@ internal static class HarmonyPatches
 
         if (animator == null) return true;
 
-        _animatorsLock.AcquireWriterLock(1000);
-        if (!_animators.ContainsKey(animator))
+        AnimationPatches._animatorsLock.AcquireWriterLock(1000);
+        if (!AnimationPatches._animators.ContainsKey(animator))
         {
-            _animators.Add(animator, entity);
+            AnimationPatches._animators.Add(animator, entity);
         }
-        _animatorsLock.ReleaseWriterLock();
+        AnimationPatches._animatorsLock.ReleaseWriterLock();
 
         LoggerUtil.Mark(_api, "hp-cc-1");
 
         return true;
     }
 
-    internal static readonly Dictionary<ClientAnimator, EntityPlayer> _animators = new();
-    internal static readonly ReaderWriterLock _animatorsLock = new();
     internal static readonly HashSet<long> _reportedEntities = new();
     private static ICoreAPI? _api;
 
-    private static bool RenderHeldItem(EntityShapeRenderer __instance, float dt, bool isShadowPass, bool right)
-    {
-        //if (isShadowPass) return true;
-
-        LoggerUtil.Mark(_api, "hp-rhi-0");
-
-        ItemSlot? slot;
-
-        if (right)
-        {
-            slot = (__instance.entity as EntityPlayer)?.RightHandItemSlot;
-        }
-        else
-        {
-            slot = (__instance.entity as EntityPlayer)?.LeftHandItemSlot;
-        }
-
-        if (slot?.Itemstack?.Item == null) return true;
-
-        Animatable? behavior = slot.Itemstack.Item.GetCollectibleBehavior(typeof(Animatable), true) as Animatable;
-
-        if (behavior == null) return true;
-
-        ItemRenderInfo renderInfo = __instance.capi.Render.GetItemStackRenderInfo(slot, EnumItemRenderTarget.HandTp, dt);
-
-        behavior.BeforeRender(__instance.capi, slot.Itemstack, __instance.entity, EnumItemRenderTarget.HandFp, dt);
-
-        (string textureName, _) = slot.Itemstack.Item.Textures.First();
-
-        TextureAtlasPosition atlasPos = __instance.capi.ItemTextureAtlas.GetPosition(slot.Itemstack.Item, textureName);
-
-        renderInfo.TextureId = atlasPos.atlasTextureId;
-
-        Vec4f? lightrgbs = (Vec4f?)typeof(EntityShapeRenderer)
-                                          .GetField("lightrgbs", BindingFlags.NonPublic | BindingFlags.Instance)
-                                          ?.GetValue(__instance);
-
-        LoggerUtil.Mark(_api, "hp-rhi-1");
-
-        bool result = !behavior.RenderHeldItem(__instance.ModelMat, __instance.capi, slot, __instance.entity, lightrgbs, dt, isShadowPass, right, renderInfo);
-
-        LoggerUtil.Mark(_api, "hp-rhi-2");
-
-        return result;
-    }
 
     private static readonly FieldInfo? _smoothedBodyYaw = typeof(EntityPlayerShapeRenderer).GetField("smoothedBodyYaw", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static readonly FieldInfo? _bagContents = typeof(BagInventory).GetField("bagContents", BindingFlags.NonPublic | BindingFlags.Instance);
+
     private static bool SmoothCameraTurning(EntityPlayerShapeRenderer __instance, float bodyYaw, float mdt)
     {
         if (!ClientSettings.HandsYawSmoothing)
@@ -316,41 +145,6 @@ internal static class HarmonyPatches
 
         return false;
     }
-
-    /*private static readonly FieldInfo? _immuneCreatures = typeof(BlockDamageOnTouch).GetField("immuneCreatures", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static bool OnEntityInside(BlockDamageOnTouch __instance, IWorldAccessor world, Entity entity, BlockPos pos)
-    {
-        if (world.Side == EnumAppSide.Server && entity is EntityAgent && (entity as EntityAgent).ServerControls.Sprint && entity.ServerPos.Motion.LengthSq() > 0.001)
-        {
-            HashSet<AssetLocation>? immuneCreatures = (HashSet<AssetLocation>?)_immuneCreatures?.GetValue(__instance);
-
-            if (immuneCreatures?.Contains(entity.Code) == true) return false;
-
-            if (world.Rand.NextDouble() < 0.2)
-            {
-                entity.ReceiveDamage(new DamageSource() { Source = EnumDamageSource.Block, SourceBlock = __instance, Type = EnumDamageType.PiercingAttack, SourcePos = pos.ToVec3d() }, __instance.Attributes["sprintIntoDamage"].AsFloat(1));
-                entity.ServerPos.Motion.Set(0, 0, 0);
-            }
-        }
-
-        return false;
-    }
-    private static bool OnEntityCollide(BlockDamageOnTouch __instance, IWorldAccessor world, Entity entity, BlockPos pos, BlockFacing facing, Vec3d collideSpeed, bool isImpact)
-    {
-        if (world.Side == EnumAppSide.Server && isImpact && -collideSpeed.Y >= 0.3)
-        {
-            HashSet<AssetLocation>? immuneCreatures = (HashSet<AssetLocation>?)_immuneCreatures?.GetValue(__instance);
-
-            if (immuneCreatures?.Contains(entity.Code) == true) return false;
-
-            entity.ReceiveDamage(
-                new DamageSource() { Source = EnumDamageSource.Block, SourceBlock = __instance, Type = EnumDamageType.PiercingAttack, SourcePos = pos.ToVec3d() },
-                (float)Math.Abs(collideSpeed.Y * __instance.Attributes["fallIntoDamageMul"].AsFloat(30) / 2)
-            );
-        }
-
-        return false;
-    }*/
 
     private static void ReloadBagInventory(BagInventory __instance, ref InventoryBase parentinv, ref ItemSlot[] bagSlots)
     {
@@ -456,83 +250,4 @@ internal static class HarmonyPatches
         result[1] = (byte)(hsv[1] * brightnessFraction + result[1] * (1 - brightnessFraction));
         result[2] = Math.Max(hsv[2], result[2]);
     }
-
-    [HarmonyPatch(typeof(ClientAnimator), "calculateMatrices", typeof(int),
-        typeof(float),
-        typeof(List<ElementPose>),
-        typeof(ShapeElementWeights[][]),
-        typeof(float[]),
-        typeof(List<ElementPose>[]),
-        typeof(List<ElementPose>[]),
-        typeof(int))]
-    [HarmonyPatchCategory("combatoverhaul")]
-    public class ClientAnimatorCalculateMatricesPatch
-    {
-        [HarmonyTranspiler]
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            List<CodeInstruction> code = new(instructions);
-            MethodInfo onFrameInvokeMethod = AccessTools.Method(typeof(HarmonyPatches), "OnFrameInvoke");
-            MethodInfo getLocalTransformMatrixMethod = AccessTools.Method(typeof(ShapeElement), "GetLocalTransformMatrix");
-
-            for (int i = 0; i < code.Count; i++)
-            {
-                if (code[i].Calls(getLocalTransformMatrixMethod))
-                {
-                    code.Insert(i, new CodeInstruction(OpCodes.Ldarg_0)); // Load own class onto the stack.
-                    code.Insert(i + 1, new CodeInstruction(OpCodes.Ldloc, 4)); // Load shape.
-                    code.Insert(i + 2, new CodeInstruction(OpCodes.Call, onFrameInvokeMethod));
-                    break;
-                }
-            }
-
-            return code;
-        }
-    }
-
-    [HarmonyPatch(typeof(EntityBehaviorPassivePhysics), "MotionAndCollision")]
-    [HarmonyPatchCategory("combatoverhaul")]
-    public class EntityBehaviorPassivePhysicsMotionAndCollisionPatch
-    {
-        [HarmonyTranspiler]
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            List<CodeInstruction> code = [.. instructions];
-
-            for (int i = 0; i < code.Count; i++)
-            {
-                if (code[i].opcode == OpCodes.Ldc_R8 && (double)code[i].operand == -0.014999999664723873)
-                {
-                    code[i].operand = 0.0;
-                    return code;
-                }
-            }
-
-            return code;
-        }
-    }
-
-    /*[HarmonyPatch(typeof(GuiManager), "RegisterDefaultDialogs")]
-    [HarmonyPatchCategory("combatoverhaul")]
-    public class GuiManagerRegisterDefaultDialogsPatch
-    {
-        [HarmonyTranspiler]
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            List<CodeInstruction> code = [.. instructions];
-            //ConstructorInfo oldConstructor = AccessTools.Constructor(typeof(GuiDialogCharacter));
-            ConstructorInfo newConstructor = AccessTools.Constructor(typeof(CharacterGuiDialog), [typeof(ICoreClientAPI)]);
-
-            for (int i = 0; i < code.Count; i++)
-            {
-                if (code[i].opcode == OpCodes.Newobj && code[i].operand is ConstructorInfo currentConstructor && currentConstructor.ReflectedType == typeof(GuiDialogCharacter))
-                {
-                    code[i].operand = newConstructor;
-                    return code;
-                }
-            }
-
-            return code;
-        }
-    }*/
 }

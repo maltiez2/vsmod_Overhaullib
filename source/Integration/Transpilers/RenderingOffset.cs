@@ -6,7 +6,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 
-namespace CombatOverhaul.Integration;
+namespace CombatOverhaul.Integration.Transpilers;
 
 internal static class PlayerRenderingPatches
 {

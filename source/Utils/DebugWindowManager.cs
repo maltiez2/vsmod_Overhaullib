@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.Integration;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using ImGuiNET;

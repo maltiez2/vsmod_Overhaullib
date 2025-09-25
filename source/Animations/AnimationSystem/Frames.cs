@@ -6,10 +6,12 @@ using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Animations;
 
-public enum AnimatedElement
+public enum EnumAnimatedElement
 {
-    Unknown,
-    DetachedAnchor,
+    Unknown = 0,
+    Custom = -1,
+    HeldItem = -2,
+    DetachedAnchor = 1,
     UpperTorso,
     LowerTorso,
     Neck,
@@ -44,11 +46,11 @@ public readonly struct PlayerItemFrame
     public static readonly PlayerItemFrame Zero = new(PlayerFrame.Zero, null);
     public static readonly PlayerItemFrame Empty = new(PlayerFrame.Empty, null);
 
-    public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
+    public void Apply(ElementPose pose, EnumAnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
     {
         switch (element)
         {
-            case AnimatedElement.Unknown:
+            case EnumAnimatedElement.Unknown:
                 Item?.Apply(pose);
                 break;
             default:
@@ -560,28 +562,28 @@ public readonly struct PlayerFrame
     public static readonly PlayerFrame Zero = new(RightHandFrame.Zero, LeftHandFrame.Zero, OtherPartsFrame.Zero);
     public static readonly PlayerFrame Empty = new(null, null, null);
 
-    public void Apply(ElementPose pose, AnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
+    public void Apply(ElementPose pose, EnumAnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch, bool applyCameraPitch, bool overrideTorso)
     {
         switch (element)
         {
-            case AnimatedElement.DetachedAnchor:
+            case EnumAnimatedElement.DetachedAnchor:
                 DetachedAnchorFrame?.Apply(pose);
                 break;
-            case AnimatedElement.UpperTorso:
+            case EnumAnimatedElement.UpperTorso:
                 UpperTorso?.Apply(pose);
                 if (applyCameraPitch)
                 {
                     pose.degZ += GameMath.Clamp(cameraPitch * GameMath.RAD2DEG * PitchFollow * DetachedAnchorFollow, PitchAngleMin, PitchAngleMax);
                 }
                 break;
-            case AnimatedElement.Neck:
+            case EnumAnimatedElement.Neck:
                 OtherParts?.Apply(pose, element);
                 if (applyCameraPitch)
                 {
                     pose.degZ = -GameMath.Clamp(cameraPitch * GameMath.RAD2DEG * PitchFollow * DetachedAnchorFollow, PitchAngleMin, PitchAngleMax) / 2;
                 }
                 break;
-            case AnimatedElement.LowerTorso:
+            case EnumAnimatedElement.LowerTorso:
                 if (overrideTorso)
                 {
                     if (LowerTorso != null)
@@ -777,17 +779,17 @@ public readonly struct RightHandFrame
         UpperArmR = upper;
     }
 
-    public void Apply(ElementPose pose, AnimatedElement element)
+    public void Apply(ElementPose pose, EnumAnimatedElement element)
     {
         switch (element)
         {
-            case AnimatedElement.ItemAnchor:
+            case EnumAnimatedElement.ItemAnchor:
                 ItemAnchor.Apply(pose);
                 break;
-            case AnimatedElement.LowerArmR:
+            case EnumAnimatedElement.LowerArmR:
                 LowerArmR.Apply(pose);
                 break;
-            case AnimatedElement.UpperArmR:
+            case EnumAnimatedElement.UpperArmR:
                 UpperArmR.Apply(pose);
                 break;
         }
@@ -841,17 +843,17 @@ public readonly struct LeftHandFrame
         UpperArmL = upper;
     }
 
-    public void Apply(ElementPose pose, AnimatedElement element)
+    public void Apply(ElementPose pose, EnumAnimatedElement element)
     {
         switch (element)
         {
-            case AnimatedElement.ItemAnchorL:
+            case EnumAnimatedElement.ItemAnchorL:
                 ItemAnchorL.Apply(pose);
                 break;
-            case AnimatedElement.LowerArmL:
+            case EnumAnimatedElement.LowerArmL:
                 LowerArmL.Apply(pose);
                 break;
-            case AnimatedElement.UpperArmL:
+            case EnumAnimatedElement.UpperArmL:
                 UpperArmL.Apply(pose);
                 break;
         }
@@ -917,26 +919,26 @@ public readonly struct OtherPartsFrame
         LowerFootL = lowerFootL;
     }
 
-    public void Apply(ElementPose pose, AnimatedElement element)
+    public void Apply(ElementPose pose, EnumAnimatedElement element)
     {
         switch (element)
         {
-            case AnimatedElement.Neck:
+            case EnumAnimatedElement.Neck:
                 Neck.Apply(pose);
                 break;
-            case AnimatedElement.Head:
+            case EnumAnimatedElement.Head:
                 Head.Apply(pose);
                 break;
-            case AnimatedElement.UpperFootR:
+            case EnumAnimatedElement.UpperFootR:
                 UpperFootR.Apply(pose);
                 break;
-            case AnimatedElement.UpperFootL:
+            case EnumAnimatedElement.UpperFootL:
                 UpperFootL.Apply(pose);
                 break;
-            case AnimatedElement.LowerFootR:
+            case EnumAnimatedElement.LowerFootR:
                 LowerFootR.Apply(pose);
                 break;
-            case AnimatedElement.LowerFootL:
+            case EnumAnimatedElement.LowerFootL:
                 LowerFootL.Apply(pose);
                 break;
         }

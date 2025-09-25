@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Integration;
+using CombatOverhaul.Integration.Transpilers;
 using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;

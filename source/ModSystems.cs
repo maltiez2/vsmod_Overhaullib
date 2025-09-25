@@ -24,6 +24,7 @@ using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 using Vintagestory.Server;
+using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul;
 
@@ -129,10 +130,12 @@ public sealed class CombatOverhaulSystem : ModSystem
         if (api.Side == EnumAppSide.Client)
         {
             HarmonyPatches.ClientSettings = Settings;
+            AnimationPatches.ClientSettings = Settings;
         }
         else
         {
             HarmonyPatches.ServerSettings = Settings;
+            AnimationPatches.ServerSettings = Settings;
         }
 
         api.RegisterEntityBehaviorClass("CombatOverhaul:FirstPersonAnimations", typeof(FirstPersonAnimationsBehavior));
@@ -439,7 +442,8 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
     {
         _api = api;
 
-        HarmonyPatches.Patch("IgnoreThisPatchItHasNothingToDoWithYourCrash", api);
+        HarmonyPatches.Patch("Overhaul lib", api);
+        AnimationPatches.Patch("IgnoreThisPatchItHasNothingToDoWithYourCrash", api);
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -468,7 +472,8 @@ public sealed class CombatOverhaulAnimationsSystem : ModSystem
 
     public override void Dispose()
     {
-        HarmonyPatches.Unpatch("IgnoreThisPatchItHasNothingToDoWithYourCrash", _api);
+        HarmonyPatches.Unpatch("Overhaul lib", _api);
+        AnimationPatches.Unpatch("IgnoreThisPatchItHasNothingToDoWithYourCrash", _api);
 
         if (_api is ICoreClientAPI clientApi)
         {

@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Integration;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Diagnostics;
@@ -61,9 +62,9 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (!_mainPlayer) return;
 
-        HarmonyPatches.OnBeforeFrame += OnBeforeFrame;
-        HarmonyPatches.FirstPersonAnimationBehavior = this;
-        HarmonyPatches.OwnerEntityId = player.EntityId;
+        AnimationPatches.OnBeforeFrame += OnBeforeFrame;
+        AnimationPatches.FirstPersonAnimationBehavior = this;
+        AnimationPatches.OwnerEntityId = player.EntityId;
         player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
     }
 
@@ -310,12 +311,22 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
-        if (!Enum.TryParse(pose.ForElement.Name, out AnimatedElement element)) // Cant cache ElementPose because they are new each frame
-        {
-            element = AnimatedElement.Unknown;
-        }
+        EnumAnimatedElement element;
 
-        if (element == AnimatedElement.Unknown && animator is not ClientItemAnimator)
+        if (pose is ElementPosePatches.ExtendedElementPose extendedPose)
+        {
+            element = extendedPose.ElementNameEnum;
+        }
+        else
+        {
+            if (!Enum.TryParse(pose.ForElement.Name, out element)) // Cant cache ElementPose because they are new each frame
+            {
+                element = EnumAnimatedElement.Unknown;
+            }
+        }
+        
+
+        if (element == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator)
         {
             return;
         }
@@ -453,10 +464,10 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     public void Dispose()
     {
-        HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
-        if (HarmonyPatches.FirstPersonAnimationBehavior == this)
+        AnimationPatches.OnBeforeFrame -= OnBeforeFrame;
+        if (AnimationPatches.FirstPersonAnimationBehavior == this)
         {
-            HarmonyPatches.FirstPersonAnimationBehavior = null;
+            AnimationPatches.FirstPersonAnimationBehavior = null;
         }
     }
 }
@@ -474,8 +485,8 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         _composer = new(null, null, player);
 
-        HarmonyPatches.OnBeforeFrame += OnBeforeFrame;
-        HarmonyPatches.AnimationBehaviors[player.EntityId] = this;
+        AnimationPatches.OnBeforeFrame += OnBeforeFrame;
+        AnimationPatches.AnimationBehaviors[player.EntityId] = this;
         player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
 
         _mainPlayer = (entity as EntityPlayer)?.PlayerUID == _api?.Settings.String["playeruid"];
@@ -662,9 +673,9 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly List<string> _offhandCategories = new();
     private readonly List<string> _mainHandCategories = new();
     private readonly bool _mainPlayer = false;
-    private readonly Dictionary<string, AnimatedElement> _posesNames = Enum.GetValues<AnimatedElement>().ToDictionary(value => value.ToString(), value => value);
-    private readonly List<ElementPose?> _posesCache = Enum.GetValues<AnimatedElement>().Select(_ => (ElementPose?)null).ToList();
-    private readonly List<bool> _posesSet = Enum.GetValues<AnimatedElement>().Select(_ => false).ToList();
+    private readonly Dictionary<string, EnumAnimatedElement> _posesNames = Enum.GetValues<EnumAnimatedElement>().ToDictionary(value => value.ToString(), value => value);
+    private readonly List<ElementPose?> _posesCache = Enum.GetValues<EnumAnimatedElement>().Select(_ => (ElementPose?)null).ToList();
+    private readonly List<bool> _posesSet = Enum.GetValues<EnumAnimatedElement>().Select(_ => false).ToList();
     private readonly Settings _settings;
     private bool _updatePosesCache = false;
     private bool _frameApplied = false;
@@ -727,23 +738,31 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     }
     private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
-        AnimatedElement element = AnimatedElement.Unknown;
-        for (int index = 1; index < _posesCache.Count; index++)
+        EnumAnimatedElement element = EnumAnimatedElement.Unknown;
+
+        if (pose is ElementPosePatches.ExtendedElementPose extendedPose)
         {
-            if (_posesCache[index] == pose)
+            element = extendedPose.ElementNameEnum;
+        }
+        else
+        {
+            for (int index = 1; index < _posesCache.Count; index++)
             {
-                element = (AnimatedElement)index;
-                _posesSet[index] = true;
-                break;
+                if (_posesCache[index] == pose)
+                {
+                    element = (EnumAnimatedElement)index;
+                    _posesSet[index] = true;
+                    break;
+                }
+            }
+
+            if (element == EnumAnimatedElement.Unknown && _updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
+            {
+                _posesCache[(int)element] = pose;
             }
         }
 
-        if (element == AnimatedElement.Unknown && _updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
-        {
-            _posesCache[(int)element] = pose;
-        }
-
-        if (element == AnimatedElement.Unknown && animator is not ClientItemAnimator)
+        if (element == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator)
         {
             return;
         }
@@ -760,7 +779,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         LoggerUtil.Mark(_api, "tpan-appf-1");
 
-        if (element == AnimatedElement.LowerTorso) return;
+        if (element == EnumAnimatedElement.LowerTorso) return;
 
         frame.Apply(pose, element, _eyePosition, _eyeHeight, _pitch, _composer.AnyActiveAnimations(), false);
 
@@ -988,10 +1007,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             _disposed = true;
             _offhandCategories.Clear();
             _mainHandCategories.Clear();
-            HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
-            if (HarmonyPatches.AnimationBehaviors[_player.EntityId] == this)
+            AnimationPatches.OnBeforeFrame -= OnBeforeFrame;
+            if (AnimationPatches.AnimationBehaviors[_player.EntityId] == this)
             {
-                HarmonyPatches.AnimationBehaviors.Remove(_player.EntityId);
+                AnimationPatches.AnimationBehaviors.Remove(_player.EntityId);
             }
             _existingBehaviors.Remove(_player.PlayerUID);
         }
@@ -1003,10 +1022,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             _disposed = true;
             _offhandCategories.Clear();
             _mainHandCategories.Clear();
-            HarmonyPatches.OnBeforeFrame -= OnBeforeFrame;
-            if (HarmonyPatches.AnimationBehaviors[_player.EntityId] == this)
+            AnimationPatches.OnBeforeFrame -= OnBeforeFrame;
+            if (AnimationPatches.AnimationBehaviors[_player.EntityId] == this)
             {
-                HarmonyPatches.AnimationBehaviors.Remove(_player.EntityId);
+                AnimationPatches.AnimationBehaviors.Remove(_player.EntityId);
             }
         }
         _existingBehaviors.Clear();

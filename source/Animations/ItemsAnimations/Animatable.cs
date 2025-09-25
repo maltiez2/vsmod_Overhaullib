@@ -186,9 +186,9 @@ public class Animatable : CollectibleBehavior
             target == EnumItemRenderTarget.HandFp
         )
         {
-            HarmonyPatches._animatorsLock.AcquireWriterLock(1000);
-            if (animator is ClientAnimator clientAnimator && entity is EntityPlayer agent) HarmonyPatches._animators[clientAnimator] = agent;
-            HarmonyPatches._animatorsLock.ReleaseWriterLock();
+            AnimationPatches._animatorsLock.AcquireWriterLock(1000);
+            if (animator is ClientAnimator clientAnimator && entity is EntityPlayer agent) AnimationPatches._animators[clientAnimator] = agent;
+            AnimationPatches._animatorsLock.ReleaseWriterLock();
 
             animator.OnFrame(ActiveAnimationsByCode, dt);
         }
