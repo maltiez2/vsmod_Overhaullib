@@ -70,7 +70,7 @@ internal static class HarmonyPatches
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
-        LoggerUtil.Mark(_api, "hp-cc-0");
+        
 
         EntityPlayer? entity = (Entity?)_entity?.GetValue(__instance) as EntityPlayer;
 
@@ -87,7 +87,7 @@ internal static class HarmonyPatches
         }
         AnimationPatches._animatorsLock.ReleaseWriterLock();
 
-        LoggerUtil.Mark(_api, "hp-cc-1");
+        
 
         return true;
     }

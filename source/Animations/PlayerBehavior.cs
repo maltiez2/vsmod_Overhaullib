@@ -74,8 +74,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (!_mainPlayer || _player.RightHandItemSlot == null || _player.LeftHandItemSlot == null) return;
 
-        LoggerUtil.Mark(_api, "fpan-ogt-0");
-
         int mainHandItemId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0;
         int offhandItemId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
 
@@ -94,15 +92,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         _MainHandIdleAnimationsController.Update();
         _OffHandIdleAnimationsController.Update();
 
-        LoggerUtil.Mark(_api, "fpan-ogt-1");
-
         foreach ((AnimationRequest request, bool mainHand, bool skip, int itemId) in _playRequests)
         {
             if (!skip) PlayRequest(request, mainHand);
         }
         _playRequests.Clear();
-
-        LoggerUtil.Mark(_api, "fpan-ogt-2");
 
         _settingsUpdateTimeSec += deltaTime;
         if (_settingsUpdateTimeSec > _settingsUpdatePeriodSec)
@@ -111,11 +105,16 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
             _settingsFOV = ClientSettings.FieldOfView;
             _settingsHandsFOV = ClientSettings.FieldOfView;
         }
+
+        if (_api != null && _ownerEntityId == 0)
+        {
+            _ownerEntityId = _api.World?.Player?.Entity?.EntityId ?? 0;
+        }
     }
 
     public void OnFrame(Entity entity, ElementPose pose, AnimatorBase animator)
     {
-        LoggerUtil.Mark(_api, "fpan-of-0");
+        
 
         _frameApplied = true;
 
@@ -142,7 +141,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
             ApplyFrame(_lastFrame, pose, animator);
         }
 
-        LoggerUtil.Mark(_api, "fpan-of-1");
+        
     }
 
     public PlayerItemFrame? FrameOverride { get; set; } = null;
@@ -167,6 +166,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         AnimationRequest request = new(animation, requestByCode);
 
         Play(request, mainHand);
+
+        _immersiveFpModeSetting = ((entity.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false); // calling here just to reduce number of calls to it
     }
     public void Play(bool mainHand, string animation, string category = "main", float animationSpeed = 1, float weight = 1, System.Func<bool>? callback = null, Action<string>? callbackHandler = null, bool easeOut = true)
     {
@@ -253,6 +254,8 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private Animatable? _animatable = null;
     private Vector3 _eyePosition = new();
     private float _eyeHeight = 0;
+    private bool _immersiveFpModeSetting = false;
+    private long _ownerEntityId = 0;
 
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
@@ -260,11 +263,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (!IsOwner(targetEntity)) return;
 
-        LoggerUtil.Mark(_api, "fpan-obf-0");
+        
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dt));
 
-        LoggerUtil.Mark(_api, "fpan-obf-1");
+        
 
         if (_composer.AnyActiveAnimations())
         {
@@ -293,7 +296,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         _frameApplied = false;
 
-        LoggerUtil.Mark(_api, "fpan-obf-2");
+        
     }
 
     private void PlayImpl(AnimationRequestByCode requestByCode, bool mainHand = true)
@@ -313,9 +316,11 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         EnumAnimatedElement element;
 
-        if (pose is ElementPosePatches.ExtendedElementPose extendedPose)
+        ExtendedElementPose? extendedPoseValue = null;
+        if (pose is ExtendedElementPose extendedPose)
         {
             element = extendedPose.ElementNameEnum;
+            extendedPoseValue = extendedPose;
         }
         else
         {
@@ -324,18 +329,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
                 element = EnumAnimatedElement.Unknown;
             }
         }
-        
 
         if (element == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator)
         {
             return;
         }
 
-        LoggerUtil.Mark(_api, "fpan-appf-1");
-
-        frame.Apply(pose, element, _eyePosition, _eyeHeight);
-
-        LoggerUtil.Mark(_api, "fpan-appf-2");
+        if (extendedPoseValue != null)
+        {
+            frame.Apply(extendedPoseValue, element, _eyePosition, _eyeHeight);
+        }
+        else
+        {
+            frame.Apply(pose, element, _eyePosition, _eyeHeight);
+        }
 
         _player.HeadBobbingAmplitude /= _previousHeadBobbingAmplitudeFactor;
         _previousHeadBobbingAmplitudeFactor = frame.Player.BobbingAmplitude;
@@ -352,22 +359,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
 
         _resetFov = true;
-
-        LoggerUtil.Mark(_api, "fpan-appf-3");
     }
     private static bool IsOwner(Entity entity) => (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;
-    private static bool IsFirstPerson(Entity entity)
+    private bool IsFirstPerson(Entity entity)
     {
-        bool owner = (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;
+        bool owner = _ownerEntityId == entity.EntityId;
         if (!owner) return false;
 
         bool firstPerson = entity.Api is ICoreClientAPI { World.Player.CameraMode: EnumCameraMode.FirstPerson };
 
         return firstPerson;
     }
-    private static bool IsImmersiveFirstPerson(Entity entity)
+    private bool IsImmersiveFirstPerson(Entity entity)
     {
-        return ((entity.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false) && IsFirstPerson(entity);
+        return _immersiveFpModeSetting && IsFirstPerson(entity);
     }
     public static void SetFirstPersonHandsPitch(IClientPlayer player, float value)
     {
@@ -487,6 +492,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         AnimationPatches.OnBeforeFrame += OnBeforeFrame;
         AnimationPatches.AnimationBehaviors[player.EntityId] = this;
+        AnimationPatches.ActiveEntities.Add(player.EntityId);
         player.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().OnDispose += Dispose;
 
         _mainPlayer = (entity as EntityPlayer)?.PlayerUID == _api?.Settings.String["playeruid"];
@@ -508,7 +514,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (!_player.IsRendered || _player.RightHandItemSlot == null || _player.LeftHandItemSlot == null) return;
 
-        LoggerUtil.Mark(_api, "tpan-ogt-0");
+        
 
         int mainHandItemId = _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0;
         int offhandItemId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;
@@ -533,7 +539,12 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             OffhandItemChanged();
         }
 
-        LoggerUtil.Mark(_api, "tpan-ogt-1");
+        
+
+        if (_api != null && _ownerEntityId == 0)
+        {
+            _ownerEntityId = _api.World?.Player?.Entity?.EntityId ?? 0;
+        }
     }
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
@@ -646,8 +657,6 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     public void OnFrame(Entity targetEntity, ElementPose pose, AnimatorBase animator)
     {
-        LoggerUtil.Mark(_api, "tpan-of-0");
-
         _frameApplied = true;
 
         if (!targetEntity.IsRendered || DebugWindowManager.PlayAnimationsInThirdPerson || IsFirstPerson(targetEntity)) return;
@@ -660,8 +669,6 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         {
             ApplyFrame(_lastFrame, pose, animator);
         }
-
-        LoggerUtil.Mark(_api, "tpan-of-1");
     }
 
     private readonly Composer _composer;
@@ -689,6 +696,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private float _pitch = 0;
     private Vector3 _eyePosition = new();
     private float _eyeHeight = 0;
+    private long _ownerEntityId = 0;
 
     private static readonly TimeSpan _readyTimeout = TimeSpan.FromSeconds(3);
     private static Dictionary<string, ThirdPersonAnimationsBehavior> _existingBehaviors = new();
@@ -701,11 +709,11 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (!_frameApplied) return;
 
-        LoggerUtil.Mark(_api, "tpan-obf-0");
+        
 
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dt));
 
-        LoggerUtil.Mark(_api, "tpan-obf-1");
+        
 
         if (_composer.AnyActiveAnimations())
         {
@@ -734,15 +742,17 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         _frameApplied = false;
 
-        LoggerUtil.Mark(_api, "tpan-obf-2");
+        
     }
     private void ApplyFrame(PlayerItemFrame frame, ElementPose pose, AnimatorBase animator)
     {
         EnumAnimatedElement element = EnumAnimatedElement.Unknown;
 
-        if (pose is ElementPosePatches.ExtendedElementPose extendedPose)
+        ExtendedElementPose? extendedPoseValue = null;
+        if (pose is ExtendedElementPose extendedPose)
         {
             element = extendedPose.ElementNameEnum;
+            extendedPoseValue = extendedPose;
         }
         else
         {
@@ -777,26 +787,27 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             _animatable.SwitchArms = true;
         }
 
-        LoggerUtil.Mark(_api, "tpan-appf-1");
-
         if (element == EnumAnimatedElement.LowerTorso) return;
 
         frame.Apply(pose, element, _eyePosition, _eyeHeight, _pitch, _composer.AnyActiveAnimations(), false);
 
-        LoggerUtil.Mark(_api, "tpan-appf-2");
+        if (extendedPoseValue != null)
+        {
+            frame.Apply(extendedPoseValue, element, _eyePosition, _eyeHeight);
+        }
+        else
+        {
+            frame.Apply(pose, element, _eyePosition, _eyeHeight);
+        }
     }
-    private static bool IsFirstPerson(Entity entity)
+    private bool IsFirstPerson(Entity entity)
     {
-        bool owner = (entity.Api as ICoreClientAPI)?.World.Player.Entity.EntityId == entity.EntityId;
+        bool owner = _ownerEntityId == entity.EntityId;
         if (!owner) return false;
 
         bool firstPerson = entity.Api is ICoreClientAPI { World.Player.CameraMode: EnumCameraMode.FirstPerson };
 
         return firstPerson;
-    }
-    private static bool IsImmersiveFirstPerson(Entity entity)
-    {
-        return ((entity.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false) && IsFirstPerson(entity);
     }
     private void PlayRequest(AnimationRequest request, bool mainHand = true)
     {
@@ -1011,6 +1022,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             if (AnimationPatches.AnimationBehaviors[_player.EntityId] == this)
             {
                 AnimationPatches.AnimationBehaviors.Remove(_player.EntityId);
+                AnimationPatches.ActiveEntities.Remove(_player.EntityId);
             }
             _existingBehaviors.Remove(_player.PlayerUID);
         }
@@ -1026,6 +1038,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             if (AnimationPatches.AnimationBehaviors[_player.EntityId] == this)
             {
                 AnimationPatches.AnimationBehaviors.Remove(_player.EntityId);
+                AnimationPatches.ActiveEntities.Remove(_player.EntityId);
             }
         }
         _existingBehaviors.Clear();

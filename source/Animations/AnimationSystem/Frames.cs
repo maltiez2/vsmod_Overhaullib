@@ -1,4 +1,5 @@
-﻿using CombatOverhaul.Utils;
+﻿using CombatOverhaul.Integration.Transpilers;
+using CombatOverhaul.Utils;
 using ImGuiNET;
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
@@ -47,6 +48,19 @@ public readonly struct PlayerItemFrame
     public static readonly PlayerItemFrame Empty = new(PlayerFrame.Empty, null);
 
     public void Apply(ElementPose pose, EnumAnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
+    {
+        switch (element)
+        {
+            case EnumAnimatedElement.Unknown:
+                Item?.Apply(pose);
+                break;
+            default:
+                Player.Apply(pose, element, eyePosition, eyeHeight, cameraPitch, applyCameraPitch, overrideTorso);
+                break;
+        }
+    }
+
+    public void Apply(ExtendedElementPose pose, EnumAnimatedElement element, Vector3 eyePosition, float eyeHeight, float cameraPitch = 0, bool applyCameraPitch = false, bool overrideTorso = true)
     {
         switch (element)
         {
@@ -348,12 +362,14 @@ public readonly struct ItemFrame
 {
     public readonly int ElementsHash = 0;
     public readonly Dictionary<string, AnimationElement> Elements = new();
+    public readonly Dictionary<int, AnimationElement> ElementsByHash = new();
 
     public ItemFrame(Dictionary<string, AnimationElement> elements)
     {
         foreach ((string code, AnimationElement value) in elements)
         {
             Elements.Add(code, value);
+            ElementsByHash.Add(code.GetHashCode(), value);
         }
 
         if (elements.Any())
@@ -367,6 +383,13 @@ public readonly struct ItemFrame
     public void Apply(ElementPose pose)
     {
         if (Elements.TryGetValue(pose.ForElement.Name, out AnimationElement element))
+        {
+            element.Apply(pose);
+        }
+    }
+    public void Apply(ExtendedElementPose pose)
+    {
+        if (ElementsByHash.TryGetValue(pose.ElementNameHash, out AnimationElement element))
         {
             element.Apply(pose);
         }

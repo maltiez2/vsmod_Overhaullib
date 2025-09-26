@@ -235,7 +235,7 @@ public sealed class ClientAimingSystem : IDisposable
             ref double ___DelayedMouseDeltaX, ref double ___DelayedMouseDeltaY,
             float dt)
     {
-        LoggerUtil.Mark(_clientApi, "aims-uap-0");
+        
 
         AimingPatches.DrawDefaultReticle = ShowVanillaReticle;
 
@@ -257,11 +257,11 @@ public sealed class ClientAimingSystem : IDisposable
 
         _reticleRenderer.AimingPoint = GetCurrentAim();
 
-        LoggerUtil.Mark(_clientApi, "aims-uap-1");
+        
 
         OnAimPointChange?.Invoke();
 
-        LoggerUtil.Mark(_clientApi, "aims-uap-2");
+        
     }
 
     public void Dispose()

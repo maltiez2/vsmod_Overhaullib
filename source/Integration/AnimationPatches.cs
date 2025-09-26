@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
@@ -21,6 +22,7 @@ internal static class AnimationPatches
     public static Dictionary<long, ThirdPersonAnimationsBehavior> AnimationBehaviors { get; } = new();
     public static FirstPersonAnimationsBehavior? FirstPersonAnimationBehavior { get; set; }
     public static long OwnerEntityId { get; set; } = 0;
+    public static HashSet<long> ActiveEntities { get; set; } = new();
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
@@ -75,9 +77,9 @@ internal static class AnimationPatches
     {
         if (ClientSettings.DisableAllAnimations || animator == null) return;
 
-        if (pose is ExtendedElementPose extendedPose && animator is not ClientItemAnimator)
+        if (pose is ExtendedElementPose extendedPose)
         {
-            if (extendedPose.ElementNameEnum == EnumAnimatedElement.Unknown) return;
+            if (extendedPose.ElementNameEnum == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator) return;
 
             if (extendedPose.Player != null)
             {
@@ -126,7 +128,7 @@ internal static class AnimationPatches
 
     private static void OnCleanUpTick()
     {
-        LoggerUtil.Mark(_api, "hp-oct-0");
+        
 
         _animatorsLock.AcquireWriterLock(5000);
 
@@ -148,7 +150,7 @@ internal static class AnimationPatches
             _animatorsLock.ReleaseWriterLock();
         }
 
-        LoggerUtil.Mark(_api, "hp-oct-1");
+        
     }
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
@@ -187,7 +189,7 @@ internal static class AnimationPatches
     {
         //if (isShadowPass) return true;
 
-        LoggerUtil.Mark(_api, "hp-rhi-0");
+        
 
         ItemSlot? slot;
 
@@ -220,11 +222,11 @@ internal static class AnimationPatches
                                           .GetField("lightrgbs", BindingFlags.NonPublic | BindingFlags.Instance)
                                           ?.GetValue(__instance);
 
-        LoggerUtil.Mark(_api, "hp-rhi-1");
+        
 
         bool result = !behavior.RenderHeldItem(__instance.ModelMat, __instance.capi, slot, __instance.entity, lightrgbs, dt, isShadowPass, right, renderInfo);
 
-        LoggerUtil.Mark(_api, "hp-rhi-2");
+        
 
         return result;
     }

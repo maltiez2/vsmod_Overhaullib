@@ -34,7 +34,7 @@ public sealed class ProjectileServer
 
     public void OnCollision(ProjectileCollisionPacket packet)
     {
-        LoggerUtil.Mark(_api, "prjsrv-oc-0");
+        
 
         Entity receiver = _api.World.GetEntityById(packet.ReceiverEntity);
 
@@ -69,14 +69,14 @@ public sealed class ProjectileServer
 
         _entity.OnCollisionWithEntity(receiver, packet.Collider);
 
-        LoggerUtil.Mark(_api, "prjsrv-oc-1");
+        
     }
 
     public void TryCollide()
     {
         _system.TryCollide(_entity);
 
-        LoggerUtil.Mark(_api, "prjsrv-trcld-1");
+        
     }
 
     private readonly ProjectileStats _stats;
@@ -224,7 +224,7 @@ public class ProjectileEntity : Entity
         base.OnGameTick(dt);
         if (ShouldDespawn) return;
 
-        LoggerUtil.Mark(Api, "prj-ogt-0");
+        
 
         if (Api.Side == EnumAppSide.Server && Stuck && !Collided)
         {
@@ -249,7 +249,7 @@ public class ProjectileEntity : Entity
         //BeforeCollided = false;
         MotionBeforeCollide.Set(SidedPos.Motion.X, SidedPos.Motion.Y, SidedPos.Motion.Z);
 
-        LoggerUtil.Mark(Api, "prj-ogt-1");
+        
     }
     public override bool CanCollect(Entity byEntity)
     {
@@ -482,7 +482,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
     protected override void applyCollision(EntityPos pos, float dtFactor)
     {
-        LoggerUtil.Mark(entity.Api, "prjphy-ac-0");
+        
 
         //dtFactor = dtFactor * 2;
 
@@ -509,7 +509,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
         bool collided = CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition);
 
-        LoggerUtil.Mark(entity.Api, "prjphy-ac-1");
+        
 
         if (collided)
         {
@@ -594,6 +594,6 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
             newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
         }
 
-        LoggerUtil.Mark(entity.Api, "prjphy-ac-2");
+        
     }
 }

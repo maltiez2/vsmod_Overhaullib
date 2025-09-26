@@ -78,7 +78,7 @@ public sealed class MeleeAttack
 
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions)
     {
-        LoggerUtil.Mark(player.Entity.Api, "matk-atk-0");
+        
 
         terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
         entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
@@ -96,11 +96,11 @@ public sealed class MeleeAttack
 
         TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, new ItemStackMeleeWeaponStats());
 
-        LoggerUtil.Mark(player.Entity.Api, "matk-atk-1");
+        
     }
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
     {
-        LoggerUtil.Mark(player.Entity.Api, "matk-atk-0");
+        
 
         terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
         entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
@@ -140,7 +140,7 @@ public sealed class MeleeAttack
         }
 #endif
 
-        LoggerUtil.Mark(player.Entity.Api, "matk-atk-1");
+        
     }
     public void PrepareColliders(IPlayer player, ItemSlot slot, bool mainHand)
     {

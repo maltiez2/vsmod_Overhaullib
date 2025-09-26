@@ -117,7 +117,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
-        LoggerUtil.Mark(entity.Api, "edm-ordh-0");
+        
 
         ColliderTypes colliderType = ColliderTypes.Torso;
         string? collider = null;
@@ -154,7 +154,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
         OnReceiveDamage?.Invoke(ref damage, damageSource, colliderType, collider);
 
-        LoggerUtil.Mark(entity.Api, "edm-ordh-1");
+        
 
         return damage;
     }

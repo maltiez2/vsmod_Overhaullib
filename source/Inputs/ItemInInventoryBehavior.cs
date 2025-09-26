@@ -47,7 +47,7 @@ public class InInventoryPlayerBehavior : EntityBehavior
             return;
         }
 
-        LoggerUtil.Mark(entity.Api, "ininv-upd-0");
+        
 
         try
         {
@@ -60,7 +60,7 @@ public class InInventoryPlayerBehavior : EntityBehavior
         {
         }
 
-        LoggerUtil.Mark(entity.Api, "ininv-upd-1");
+        
     }
 
     private bool ProcessSlot(ItemSlot slot)

@@ -39,7 +39,7 @@ public sealed class AimingAccuracyBehavior : EntityBehavior
     {
         if (!_mainPlayer || !_isAiming) return;
 
-        LoggerUtil.Mark(entity.Api, "aacc-ogt-0");
+        
 
         if (!entity.Alive)
         {
@@ -62,7 +62,7 @@ public sealed class AimingAccuracyBehavior : EntityBehavior
         _clientAimingSystem.DriftMultiplier *= 1 / Math.Clamp(entity.Stats.GetBlended("steadyAim") * entity.Stats.GetBlended("steadyAim"), 0.25f, 4f);
         _clientAimingSystem.TwitchMultiplier *= 1 / Math.Clamp(entity.Stats.GetBlended("steadyAim") * entity.Stats.GetBlended("steadyAim"), 0.25f, 4f);
 
-        LoggerUtil.Mark(entity.Api, "aacc-ogt-1");
+        
     }
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
     {

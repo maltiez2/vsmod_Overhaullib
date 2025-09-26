@@ -129,8 +129,6 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         if (entity.Api is not ICoreClientAPI clientApi || !HasOBBCollider || !entity.Alive) return;
 
-        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-0");
-
         Animator = entity.AnimManager?.Animator as ClientAnimator;
 
         if (Animator == null) return;
@@ -163,14 +161,10 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         ProcessCollidersForCustomModel();
 
-        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-1");
-
         if (entity.IsRendered)
         {
             RecalculateColliders(Animator, clientApi);
         }
-
-        Utils.LoggerUtil.Mark(entity.Api, "col-ogt-2");
     }
 
     public void Render(ICoreClientAPI api, EntityAgent entityPlayer, EntityShapeRenderer renderer, int color = ColorUtil.WhiteArgb)

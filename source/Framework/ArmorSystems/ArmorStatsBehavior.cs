@@ -77,7 +77,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (inventory == null) return;
 
-        LoggerUtil.Mark(entity.Api, "wst-usv-0");
+        
 
         bool anyStatsChangedItem = itemChanged;
         bool anyStatsChangedBehavior = itemChanged;
@@ -115,7 +115,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (!anyStatsChangedItem && !anyStatsChangedBehavior) return;
 
-        LoggerUtil.Mark(entity.Api, "wst-usv-1");
+        
 
         foreach ((string stat, _) in Stats)
         {
@@ -163,7 +163,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         _player.walkSpeed = _player.Stats.GetBlended("walkspeed");
 
-        LoggerUtil.Mark(entity.Api, "wst-usv-2");
+        
     }
     private void AddStatValue(string stat, float value)
     {

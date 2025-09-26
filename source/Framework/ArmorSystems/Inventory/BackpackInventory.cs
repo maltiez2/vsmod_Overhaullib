@@ -38,7 +38,7 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
 
     public override void OnItemSlotModified(ItemSlot slot)
     {
-        LoggerUtil.Mark(_api, "invpbp-oism-0");
+        
 
         // Player modified must have some backpack contents
         // lets store that change in the backpack stack
@@ -56,7 +56,7 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
             }
         }
 
-        LoggerUtil.Mark(_api, "invpbp-oism-1");
+        
     }
 
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)

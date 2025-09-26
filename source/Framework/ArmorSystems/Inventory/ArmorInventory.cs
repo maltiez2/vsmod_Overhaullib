@@ -136,14 +136,14 @@ public sealed class ArmorInventory : InventoryCharacter
     {
         base.OnItemSlotModified(slot);
 
-        LoggerUtil.Mark(_api, "inv-sm-0");
+        
 
         if (_api.Side == EnumAppSide.Server)
         {
             ClearArmorSlots();
         }
 
-        LoggerUtil.Mark(_api, "inv-sm-1");
+        
 
         if (slot is GearSlot)
         {
@@ -239,7 +239,7 @@ public sealed class ArmorInventory : InventoryCharacter
             }
         }
 
-        LoggerUtil.Mark(_api, "inv-sm-1");
+        
     }
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {
@@ -577,7 +577,7 @@ public sealed class ArmorInventory : InventoryCharacter
 
     private void ReloadBagInventory()
     {
-        LoggerUtil.Mark(_api, "inv-rbi-0");
+        
 
         InventoryPlayerBackPacks? backpack = GetBackpackInventory();
         if (backpack == null) return;
@@ -595,7 +595,7 @@ public sealed class ArmorInventory : InventoryCharacter
             LoggerUtil.Error(Api, this, $"Error while trying to reload bag inventory: {exception}");
         }
 
-        LoggerUtil.Mark(_api, "inv-rbi-1");
+        
     }
 
     private void ClearArmorSlots()

@@ -262,7 +262,7 @@ public sealed class IdleAnimationsController
         return (currentAnimation, playerState) switch
         {
             (EnumAnimationType.None, _) => EnumAnimationType.None,
-            (EnumAnimationType.New, EnumPlayerState.Idle) => EnumAnimationType.Ready,
+            (EnumAnimationType.New, _) => EnumAnimationType.Ready,
             (EnumAnimationType.Ready, EnumPlayerState.Idle) => EnumAnimationType.Idle,
             (_, EnumPlayerState.Idle) => EnumAnimationType.Idle,
             (_, EnumPlayerState.Walk) => EnumAnimationType.Walk,

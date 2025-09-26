@@ -6,35 +6,38 @@ using Vintagestory.API.Common;
 
 namespace CombatOverhaul.Integration.Transpilers;
 
-internal static class ElementPosePatches
+public class ExtendedElementPose : ElementPose
 {
-    public class ExtendedElementPose : ElementPose
+    public ExtendedElementPose() : base() { }
+
+    public EnumAnimatedElement ElementNameEnum { get; set; } = EnumAnimatedElement.Unknown;
+
+    public int ElementNameHash { get; set; } = 0;
+
+    public string ElementName
     {
-        public ExtendedElementPose() : base() { }
+        get => ElementNameEnum.ToString();
 
-        public EnumAnimatedElement ElementNameEnum { get; set; } = EnumAnimatedElement.Unknown;
-
-        public string ElementName
+        set
         {
-            get => ElementNameEnum.ToString();
-
-            set
+            EnumAnimatedElement newElementValue;
+            if (!Enum.TryParse(value, out newElementValue))
             {
-                EnumAnimatedElement newElementValue;
-                if (!Enum.TryParse(value, out newElementValue))
-                {
-                    ElementNameEnum = EnumAnimatedElement.Unknown;
-                }
-                else
-                {
-                    ElementNameEnum = newElementValue;
-                }
+                ElementNameEnum = EnumAnimatedElement.Unknown;
             }
+            else
+            {
+                ElementNameEnum = newElementValue;
+            }
+            ElementNameHash = value.GetHashCode();
         }
-
-        public EntityPlayer? Player { get; set; }
     }
 
+    public EntityPlayer? Player { get; set; }
+}
+
+internal static class ElementPosePatches
+{
     [HarmonyPatch(typeof(Vintagestory.API.Common.Animation), "GenerateFrame")]
     [HarmonyPatchCategory("combatoverhaul")]
     public static class Animation_GenerateFrame_Patch
