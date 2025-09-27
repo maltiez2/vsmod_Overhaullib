@@ -14,26 +14,39 @@ public class ExtendedElementPose : ElementPose
 
     public int ElementNameHash { get; set; } = 0;
 
-    public string ElementName
+    public void ResolveElementName(ShapeElement element)
     {
-        get => ElementNameEnum.ToString();
-
-        set
+        if (_elementNameHashCache.TryGetValue(element, out int hash))
         {
-            EnumAnimatedElement newElementValue;
-            if (!Enum.TryParse(value, out newElementValue))
+            ElementNameHash = hash;
+            if (_elementNameEnumCache.TryGetValue(hash, out EnumAnimatedElement enumValue))
             {
-                ElementNameEnum = EnumAnimatedElement.Unknown;
+                ElementNameEnum = enumValue;
             }
             else
             {
-                ElementNameEnum = newElementValue;
+                ElementNameEnum = EnumAnimatedElement.Unknown;
             }
-            ElementNameHash = value.GetHashCode();
+            return;
+        }
+
+        ElementNameHash = element.Name.GetHashCode();
+        _elementNameHashCache.TryAdd(element, ElementNameHash);
+        if (_elementNameEnumCache.TryGetValue(ElementNameHash, out EnumAnimatedElement parsedEnumValue))
+        {
+            ElementNameEnum = parsedEnumValue;
+        }
+        else
+        {
+            ElementNameEnum = EnumAnimatedElement.Unknown;
         }
     }
 
     public EntityPlayer? Player { get; set; }
+
+    private static Dictionary<ShapeElement, int> _elementNameHashCache = [];
+    private static Dictionary<int, EnumAnimatedElement> _elementNameEnumCache = Enum.GetNames<EnumAnimatedElement>()
+        .ToDictionary(name => name.GetHashCode(), name => Enum.Parse<EnumAnimatedElement>(name));
 }
 
 internal static class ElementPosePatches
@@ -46,8 +59,7 @@ internal static class ElementPosePatches
         {
             ConstructorInfo elementPoseCtor = AccessTools.Constructor(typeof(ElementPose));
             ConstructorInfo extendedPoseCtor = AccessTools.Constructor(typeof(ExtendedElementPose));
-            FieldInfo shapeElementName = AccessTools.Field(typeof(ShapeElement), nameof(ShapeElement.Name));
-            MethodInfo setElementName = AccessTools.PropertySetter(typeof(ExtendedElementPose), nameof(ExtendedElementPose.ElementName));
+            MethodInfo setElementName = AccessTools.Method(typeof(ExtendedElementPose), nameof(ExtendedElementPose.ResolveElementName));
 
             List<CodeInstruction> codes = new(instructions);
 
@@ -69,8 +81,7 @@ internal static class ElementPosePatches
                         {
                             new CodeInstruction(OpCodes.Ldloc_3),              // load ExtendedElementPose
                             new CodeInstruction(OpCodes.Ldloc_2),              // load ShapeElement
-                            new CodeInstruction(OpCodes.Ldfld, shapeElementName), // ShapeElement.Name
-                            new CodeInstruction(OpCodes.Callvirt, setElementName) // set_ElementName
+                            new CodeInstruction(OpCodes.Callvirt, setElementName)
                         };
 
                         codes.InsertRange(i + 2, injected);
@@ -93,8 +104,7 @@ internal static class ElementPosePatches
 
             ConstructorInfo elementPoseCtor = AccessTools.Constructor(typeof(ElementPose));
             ConstructorInfo extendedPoseCtor = AccessTools.Constructor(typeof(ExtendedElementPose));
-            FieldInfo shapeElementNameField = AccessTools.Field(typeof(ShapeElement), nameof(ShapeElement.Name));
-            MethodInfo setElementName = AccessTools.PropertySetter(typeof(ExtendedElementPose), nameof(ExtendedElementPose.ElementName));
+            MethodInfo setElementName = AccessTools.Method(typeof(ExtendedElementPose), nameof(ExtendedElementPose.ResolveElementName));
 
             for (int i = 0; i < codes.Count; i++)
             {
@@ -126,13 +136,8 @@ internal static class ElementPosePatches
                     {
                         List<CodeInstruction> injected = new()
                         {
-                            // load the cached pose local (local index 0)
-                            new CodeInstruction(OpCodes.Ldloc_0),
-                            // load the current element local (local index 2)
-                            new CodeInstruction(OpCodes.Ldloc_2),
-                            // load ShapeElement.Name
-                            new CodeInstruction(OpCodes.Ldfld, shapeElementNameField),
-                            // callvirt ExtendedElementPose.set_ElementName(string)
+                            new CodeInstruction(OpCodes.Ldloc_0), // load the cached pose local (local index 0)
+                            new CodeInstruction(OpCodes.Ldloc_2), // load the current element local (local index 2)
                             new CodeInstruction(OpCodes.Callvirt, setElementName)
                         };
 

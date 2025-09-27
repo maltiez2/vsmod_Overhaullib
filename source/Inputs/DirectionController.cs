@@ -141,7 +141,7 @@ public sealed class DirectionController
     }
 
 
-    private const float _sensitivityFactor = 1e-5f;
+    private const float _sensitivityFactor = 1e-3f;
     private readonly ICoreClientAPI _api;
     private readonly Queue<MouseMovementData> _directionQueue = new();
     private readonly DirectionCursorRenderer _directionCursorRenderer;

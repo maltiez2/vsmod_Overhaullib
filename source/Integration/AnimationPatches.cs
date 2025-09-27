@@ -52,6 +52,11 @@ internal static class AnimationPatches
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(AnimationPatches), nameof(BeforeRender)))
             );
 
+        /*new Harmony(harmonyId).Patch(
+                typeof(Shape).GetMethod("ResolveReferences", AccessTools.all, [typeof(ILogger), typeof(string)]),
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(ExtendedShapeElement), nameof(ExtendedShapeElement.ResolveReferences)))
+            );*/
+
         _cleanUpTickListener = api.World.RegisterGameTickListener(_ => OnCleanUpTick(), 5 * 60 * 1000, 5 * 60 * 1000);
     }
 
@@ -61,6 +66,7 @@ internal static class AnimationPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("BeforeRender", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(Shape).GetMethod("ResolveReferences", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
