@@ -40,14 +40,14 @@ public class StaggerBehavior : EntityBehavior
         StaggerAiTask? task = behavior.TaskManager?.GetTask<StaggerAiTask>();
         if (task == null) return;
 
-        task.SetStaggerTime(duration * ApplyResistance(tier));
-        behavior.TaskManager?.ExecuteTask<StaggerAiTask>();
-
         foreach (string animation in entity.AnimManager.ActiveAnimationsByAnimCode.Keys)
         {
             Debug.WriteLine(animation);
             entity.AnimManager.StopAnimation(animation);
         }
+
+        task.SetStaggerTime(duration * ApplyResistance(tier));
+        behavior.TaskManager?.ExecuteTask<StaggerAiTask>();
     }
 
     public void ClearStagger()
@@ -67,7 +67,7 @@ public class StaggerBehavior : EntityBehavior
 
     protected virtual float ApplyResistance(int tier)
     {
-        if (ResistanceTier <= tier) return 0;
+        if (ResistanceTier <= tier) return 1;
 
         return MathF.Pow(0.5f, tier - ResistanceTier);
     }
