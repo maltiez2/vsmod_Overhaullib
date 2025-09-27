@@ -6,6 +6,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
@@ -24,7 +25,6 @@ using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
 using Vintagestory.GameContent;
 using Vintagestory.Server;
-using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul;
 
@@ -268,6 +268,12 @@ public sealed class CombatOverhaulSystem : ModSystem
             }
             return true;
         });
+
+        int reportPeriod = 5 * 60 * 1000;
+#if DEBUG
+        reportPeriod = 5000;
+#endif
+        _cacheMissesReportedListener = api.World.RegisterGameTickListener(_ => ReportElementPoseCacheMisses(), reportPeriod, reportPeriod);
     }
     public override void AssetsLoaded(ICoreAPI api)
     {
@@ -328,6 +334,8 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         OnDispose?.Invoke();
 
+        _clientApi?.World.UnregisterGameTickListener(_cacheMissesReportedListener);
+
         Disposed = true;
     }
 
@@ -384,6 +392,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     private IServerNetworkChannel? _serverToggleChannel;
     private const string _iconsFolder = "sloticons";
     private const string _iconsPath = $"textures/{_iconsFolder}/";
+    private long _cacheMissesReportedListener = 0;
 
     private void RegisterCustomIcon(ICoreClientAPI api, string key, string path)
     {
@@ -421,6 +430,13 @@ public sealed class CombatOverhaulSystem : ModSystem
             system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
             SettingsLoaded?.Invoke(Settings);
         };
+    }
+
+    private void ReportElementPoseCacheMisses()
+    {
+        string message = $"ElementPose cache misses to calls count: {ExtendedElementPose.CacheMissesCount} / {ExtendedElementPose.CallsCount} ({100f * ExtendedElementPose.CacheMissesCount / ExtendedElementPose.CallsCount:F1}%, cache size: {ExtendedElementPose.CacheSize})";
+        LoggerUtil.Verbose(_clientApi, this, message);
+        Debug.WriteLine(message);
     }
 }
 

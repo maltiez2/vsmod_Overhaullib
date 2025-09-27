@@ -6,6 +6,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using OpenTK.Mathematics;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -394,7 +395,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     public virtual void OnDeselected(EntityPlayer player, bool mainHand, ref int state)
     {
         Debug.WriteLine(GetState<MeleeWeaponState>(mainHand));
-        
+
         if (CheckState(mainHand,
             MeleeWeaponState.Attacking,
             MeleeWeaponState.Cooldown,
@@ -406,7 +407,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         {
             SetGlobalCooldown(Api, Settings.GlobalAttackCooldownMs);
         }
-        
+
         MeleeBlockSystem.StopBlock(mainHand);
         StopAttackCooldown(mainHand);
         StopBlockCooldown(mainHand);
@@ -533,7 +534,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             string description = Lang.Get("combatoverhaul:iteminfo-proficiency", Lang.Get($"combatoverhaul:proficiency-{Stats.ProficiencyStat}"));
             dsc.AppendLine(description);
         }
-        
+
         if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageTypes.Length > 0)
         {
             string description = GetAttackStatsDescription(inSlot, Stats.OneHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-onehanded");
@@ -765,7 +766,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     [ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
     protected virtual bool Attack(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (eventData.AltPressed) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!mainHand && CanAttackWithOtherHand(player, mainHand)) return false;
         EnsureStance(player, mainHand);
         if (!CanAttack(mainHand)) return false;
@@ -958,7 +959,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         bool handleEvent = !Settings.VanillaActionsWhileBlocking;
 
-        if (eventData.AltPressed) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!CanBlock(mainHand) && !CanParry(mainHand)) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle, MeleeWeaponState.WindingUp, MeleeWeaponState.Cooldown)) return handleEvent;
         //if (IsBlockOnCooldown(mainHand)) return handleEvent;
@@ -1106,7 +1107,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     [ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
     protected virtual bool Bash(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (eventData.AltPressed) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         EnsureStance(player, mainHand);
         if (!CanBash(mainHand)) return false;
         if (IsAttackOnCooldown(mainHand)) return false;
@@ -1329,7 +1330,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Aim(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (eventData.AltPressed || !CanThrow(mainHand) || Stats.ThrowAttack == null || AimingStats == null) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (!CanThrow(mainHand) || Stats.ThrowAttack == null || AimingStats == null) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle)) return false;
         //if (mainHand && CanBlockWithOtherHand(player, mainHand)) return false;
 
@@ -1724,7 +1726,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             {
                 damage = attackDamage;
             }
-            
+
             float currentTier = Math.Max(attack.Strength, attack.Tier) + stackStats.DamageTierBonus;
             if (currentTier > tier)
             {

@@ -115,7 +115,8 @@ public class SlingClient : RangeWeaponClient
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Load(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (state != (int)SlingState.Unloaded || eventData.AltPressed || !CheckForOtherHandEmpty(mainHand, player)) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (state != (int)SlingState.Unloaded || !CheckForOtherHandEmpty(mainHand, player)) return false;
 
         ItemSlot? bulletSlot = GetBulletSlot(player);
 
@@ -190,7 +191,8 @@ public class SlingClient : RangeWeaponClient
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Swing(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (state != (int)SlingState.Loaded || eventData.AltPressed || !CheckForOtherHandEmpty(mainHand, player)) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (state != (int)SlingState.Loaded || !CheckForOtherHandEmpty(mainHand, player)) return false;
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 

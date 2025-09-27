@@ -14,8 +14,21 @@ public class ExtendedElementPose : ElementPose
 
     public int ElementNameHash { get; set; } = 0;
 
+    public EntityPlayer? Player { get; set; }
+
+
+    public static int CacheMissesCount => _cacheMissesCount;
+    public static int CallsCount => _callsCount;
+    public static int CacheSize => _elementNameHashCache.Count;
+
+    private static int _cacheMissesCount = 0;
+    private static int _callsCount = 0;
+    private static int _clearCacheThreshold = 10000;
+    private static float _clearCacheFraction = 0.75f;
+
     public void ResolveElementName(ShapeElement element)
     {
+        _callsCount++;
         if (_elementNameHashCache.TryGetValue(element, out int hash))
         {
             ElementNameHash = hash;
@@ -30,8 +43,11 @@ public class ExtendedElementPose : ElementPose
             return;
         }
 
+        _cacheMissesCount++;
+
         ElementNameHash = element.Name.GetHashCode();
         _elementNameHashCache.TryAdd(element, ElementNameHash);
+        _cachedElements.Enqueue(element);
         if (_elementNameEnumCache.TryGetValue(ElementNameHash, out EnumAnimatedElement parsedEnumValue))
         {
             ElementNameEnum = parsedEnumValue;
@@ -40,10 +56,30 @@ public class ExtendedElementPose : ElementPose
         {
             ElementNameEnum = EnumAnimatedElement.Unknown;
         }
+
+        if (_elementNameHashCache.Count > _clearCacheThreshold)
+        {
+            for (int index = 0; index < _clearCacheThreshold * _clearCacheFraction; index++)
+            {
+                if (_cachedElements.TryDequeue(out ShapeElement? elementToClear))
+                {
+                    _elementNameHashCache.Remove(elementToClear);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            ClearCache();
+            _cacheMissesCount = 0;
+            _callsCount = 0;
+        }
     }
 
-    public EntityPlayer? Player { get; set; }
+    public static void ClearCache() => _elementNameHashCache.Clear();
 
+    private static Queue<ShapeElement> _cachedElements = [];
     private static Dictionary<ShapeElement, int> _elementNameHashCache = [];
     private static Dictionary<int, EnumAnimatedElement> _elementNameEnumCache = Enum.GetNames<EnumAnimatedElement>()
         .ToDictionary(name => name.GetHashCode(), name => Enum.Parse<EnumAnimatedElement>(name));

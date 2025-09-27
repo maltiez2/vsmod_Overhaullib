@@ -2,18 +2,14 @@
 using CombatOverhaul.Inputs;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
-using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
-using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
-using Vintagestory.Client.NoObf;
-using YamlDotNet.Serialization;
 
 namespace CombatOverhaul.Implementations;
 
@@ -25,17 +21,6 @@ public enum BowState
     Loaded,
     Draw,
     Drawn
-}
-
-public class WeaponStats
-{
-    public string ReadyAnimation { get; set; } = "";
-    public string IdleAnimation { get; set; } = "";
-    public string WalkAnimation { get; set; } = "";
-    public string RunAnimation { get; set; } = "";
-    public string SwimAnimation { get; set; } = "";
-    public string SwimIdleAnimation { get; set; } = "";
-    public string ProficiencyStat { get; set; } = "";
 }
 
 public sealed class BowStats : WeaponStats
@@ -54,48 +39,6 @@ public sealed class BowStats : WeaponStats
     public float[] DispersionMOA { get; set; } = [0, 0];
     public float ScreenShakeStrength { get; set; } = 0.2f;
     public bool TwoHanded { get; set; } = true;
-}
-
-public readonly struct ItemStackRangedStats
-{
-    public readonly float ReloadSpeed;
-    public readonly float DamageMultiplier;
-    public readonly int DamageTierBonus;
-    public readonly float ProjectileSpeed;
-    public readonly float DispersionMultiplier;
-    public readonly float AimingDifficulty;
-
-    public ItemStackRangedStats(float reloadSpeed, float damageMultiplier, int damageTierBonus, float projectileSpeed, float dispersionMultiplier, float aimingDifficulty)
-    {
-        ReloadSpeed = reloadSpeed;
-        DamageMultiplier = damageMultiplier;
-        DamageTierBonus = damageTierBonus;
-        ProjectileSpeed = projectileSpeed;
-        DispersionMultiplier = dispersionMultiplier;
-        AimingDifficulty = aimingDifficulty;
-    }
-
-    public ItemStackRangedStats()
-    {
-        ReloadSpeed = 1;
-        DamageMultiplier = 1;
-        DamageTierBonus = 0;
-        ProjectileSpeed = 1;
-        DispersionMultiplier = 1;
-        AimingDifficulty = 0;
-    }
-
-    public static ItemStackRangedStats FromItemStack(ItemStack stack)
-    {
-        float reloadSpeed = stack.Attributes.GetFloat("reloadSpeed", 1);
-        float damageMultiplier = stack.Attributes.GetFloat("damageMultiplier", 1);
-        int damageTierBonus = stack.Attributes.GetInt("damageTierBonus", 0);
-        float projectileSpeed = stack.Attributes.GetFloat("projectileSpeed", 1);
-        float dispersionMultiplier = stack.Attributes.GetFloat("dispersionMultiplier", 1);
-        float aimingDifficulty = stack.Attributes.GetFloat("aimingDifficulty", 1);
-
-        return new ItemStackRangedStats(reloadSpeed, damageMultiplier, damageTierBonus, projectileSpeed, dispersionMultiplier, aimingDifficulty);
-    }
 }
 
 public class BowClient : RangeWeaponClient
@@ -154,7 +97,8 @@ public class BowClient : RangeWeaponClient
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Load(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (state != (int)BowState.Unloaded || eventData.AltPressed || !CheckForOtherHandEmpty(mainHand, player)) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (state != (int)BowState.Unloaded || !CheckForOtherHandEmpty(mainHand, player)) return false;
 
         ItemSlot? arrowSlot = GetArrowSlot(player);
 
@@ -227,7 +171,8 @@ public class BowClient : RangeWeaponClient
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Aim(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
-        if (state != (int)BowState.Loaded || eventData.AltPressed || !CheckForOtherHandEmpty(mainHand, player)) return false;
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (state != (int)BowState.Loaded || !CheckForOtherHandEmpty(mainHand, player)) return false;
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
@@ -357,67 +302,6 @@ public class BowClient : RangeWeaponClient
     }
 }
 
-public sealed class AimingAnimationController
-{
-    public AimingStats Stats { get; set; }
-
-    public AimingAnimationController(ClientAimingSystem aimingSystem, FirstPersonAnimationsBehavior? animationBehavior, AimingStats stats)
-    {
-        _aimingSystem = aimingSystem;
-        _animationBehavior = animationBehavior;
-        Stats = stats;
-
-        //DebugWidgets.FloatDrag("test", "test2", $"fovMult-{stats.AimDrift}", () => _fovMultiplier, value => _fovMultiplier = value);
-    }
-
-    public void Play(bool mainHand)
-    {
-        AnimationRequest request = new(_cursorFollowAnimation, 1.0f, 0, "aiming", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true);
-        _animationBehavior?.Play(request, mainHand);
-        _aimingSystem.OnAimPointChange += UpdateCursorFollowAnimation;
-    }
-    public void Stop(bool mainHand)
-    {
-        _cursorStopFollowAnimation.PlayerKeyFrames[0] = new PLayerKeyFrame(PlayerFrame.Zero, TimeSpan.FromMilliseconds(500), EasingFunctionType.CosShifted);
-        AnimationRequest request = new(_cursorStopFollowAnimation, 1.0f, 0, "aiming", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true);
-        _animationBehavior?.Play(request, mainHand);
-        _aimingSystem.OnAimPointChange -= UpdateCursorFollowAnimation;
-    }
-
-    private readonly Animations.Animation _cursorFollowAnimation = Animations.Animation.Zero.Clone();
-    private readonly Animations.Animation _cursorStopFollowAnimation = Animations.Animation.Zero.Clone();
-    private const float _animationFollowMultiplier = 0.01f;
-    private readonly ClientAimingSystem _aimingSystem;
-    private readonly FirstPersonAnimationsBehavior? _animationBehavior;
-    private float _fovMultiplier = 0.79f;
-
-    private PLayerKeyFrame GetAimingFrame()
-    {
-        Vector2 currentAim = _aimingSystem.GetCurrentAim();
-
-        /*DebugWidgets.FloatDrag("tweaks", "animation", "followX", () => _aimingStats.AnimationFollowX, value => _aimingStats.AnimationFollowX = value);
-        DebugWidgets.FloatDrag("tweaks", "animation", "followY", () => _aimingStats.AnimationFollowY, value => _aimingStats.AnimationFollowY = value);
-        DebugWidgets.FloatDrag("tweaks", "animation", "offsetX", () => _aimingStats.AnimationOffsetX, value => _aimingStats.AnimationOffsetX = value);
-        DebugWidgets.FloatDrag("tweaks", "animation", "offsetY", () => _aimingStats.AnimationOffsetY, value => _aimingStats.AnimationOffsetY = value);*/
-
-        float fovAdjustment = 1f - MathF.Cos(ClientSettings.FieldOfView * GameMath.DEG2RAD) * _fovMultiplier;
-
-        float yaw = 0 - currentAim.X * _animationFollowMultiplier * Stats.AnimationFollowX * fovAdjustment + Stats.AnimationOffsetX;
-        float pitch = currentAim.Y * _animationFollowMultiplier * Stats.AnimationFollowY * fovAdjustment + Stats.AnimationOffsetY;
-
-        AnimationElement element = new(0, 0, 0, 0, yaw, pitch);
-
-        PlayerFrame frame = new(upperTorso: element);
-
-        return new PLayerKeyFrame(frame, TimeSpan.Zero, EasingFunctionType.Linear);
-    }
-    private void UpdateCursorFollowAnimation()
-    {
-        _cursorFollowAnimation.PlayerKeyFrames[0] = GetAimingFrame();
-        _cursorFollowAnimation.Hold = true;
-    }
-}
-
 public class BowServer : RangeWeaponServer
 {
     public BowServer(ICoreServerAPI api, Item item) : base(api, item)
@@ -488,114 +372,6 @@ public class BowServer : RangeWeaponServer
 
     protected readonly Dictionary<long, (InventoryBase, int)> ArrowSlots = new();
     protected readonly BowStats Stats;
-}
-
-public sealed class AmmoSelector
-{
-    public AmmoSelector(ICoreClientAPI api, string ammoWildcard)
-    {
-        _api = api;
-        _ammoWildcard = ammoWildcard;
-        SelectedAmmo = ammoWildcard;
-    }
-
-    public string SelectedAmmo { get; private set; }
-
-    public int GetToolMode(ItemSlot slot, IPlayer byPlayer, BlockSelection blockSelection)
-    {
-        if (_ammoSlots.Count == 0) UpdateAmmoSlots(byPlayer);
-
-        return GetSelectedModeIndex();
-    }
-    public SkillItem[] GetToolModes(ItemSlot slot, IClientPlayer forPlayer, BlockSelection blockSel)
-    {
-        UpdateAmmoSlots(forPlayer);
-
-
-        return GetOrGenerateModes();
-    }
-    public void SetToolMode(ItemSlot slot, IPlayer byPlayer, BlockSelection blockSelection, int toolMode)
-    {
-        if (toolMode == 0 || _ammoSlots.Count < toolMode)
-        {
-            SelectedAmmo = _ammoWildcard;
-            return;
-        }
-
-        SelectedAmmo = _ammoSlots[toolMode - 1].Itemstack.Collectible.Code.ToString();
-    }
-
-    private readonly ICoreClientAPI _api;
-    private readonly string _ammoWildcard;
-    private readonly List<ItemSlot> _ammoSlots = new();
-    private readonly TimeSpan _generationTimeout = TimeSpan.FromSeconds(1);
-    private TimeSpan _lastGenerationTime = TimeSpan.Zero;
-    private SkillItem[] _modesCache = Array.Empty<SkillItem>();
-
-    private int GetSelectedModeIndex()
-    {
-        if (SelectedAmmo == _ammoWildcard) return 0;
-
-        for (int index = 0; index < _ammoSlots.Count; index++)
-        {
-            if (WildcardUtil.Match(_ammoWildcard, _ammoSlots[index].Itemstack.Item.Code.ToString()))
-            {
-                return index + 1;
-            }
-        }
-
-        return 0;
-    }
-    private void UpdateAmmoSlots(IPlayer player)
-    {
-        _ammoSlots.Clear();
-
-        player.Entity.WalkInventory(slot =>
-        {
-            if (slot?.Itemstack?.Item == null) return true;
-
-            if (slot.Itemstack.Item.HasBehavior<ProjectileBehavior>() && WildcardUtil.Match(_ammoWildcard, slot.Itemstack.Item.Code.ToString()))
-            {
-                AddAmmoStackToList(slot.Itemstack.Clone());
-            }
-
-            return true;
-        });
-    }
-    private void AddAmmoStackToList(ItemStack stack)
-    {
-        foreach (ItemSlot slot in _ammoSlots.Where(slot => slot.Itemstack.Collectible.Code.ToString() == stack.Collectible.Code.ToString()))
-        {
-            slot.Itemstack.StackSize += stack.StackSize;
-            return;
-        }
-
-        _ammoSlots.Add(new DummySlot(stack));
-    }
-    private SkillItem[] GetOrGenerateModes()
-    {
-        TimeSpan currentTime = TimeSpan.FromMilliseconds(_api.World.ElapsedMilliseconds);
-        if (currentTime - _lastGenerationTime < _generationTimeout)
-        {
-            return _modesCache;
-        }
-
-        _lastGenerationTime = currentTime;
-        _modesCache = GenerateToolModes();
-        return _modesCache;
-    }
-    private SkillItem[] GenerateToolModes()
-    {
-        SkillItem[] modes = ToolModesUtils.GetModesFromSlots(_api, _ammoSlots, slot => slot.Itemstack.Collectible.GetHeldItemName(slot.Itemstack));
-
-        SkillItem mode = new()
-        {
-            Code = new("none-0"),
-            Name = Lang.Get("combatoverhaul:toolmode-noselection")
-        };
-
-        return modes.Prepend(mode).ToArray();
-    }
 }
 
 public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAnimations
