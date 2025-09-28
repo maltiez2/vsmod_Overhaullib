@@ -16,19 +16,15 @@ public class ExtendedElementPose : ElementPose
 
     public EntityPlayer? Player { get; set; }
 
-
-    public static int CacheMissesCount => _cacheMissesCount;
-    public static int CallsCount => _callsCount;
-    public static int CacheSize => _elementNameHashCache.Count;
-
-    private static int _cacheMissesCount = 0;
-    private static int _callsCount = 0;
     private static int _clearCacheThreshold = 10000;
     private static float _clearCacheFraction = 0.75f;
+    private static ReaderWriterLockSlim _cacheLock = new();
 
     public void ResolveElementName(ShapeElement element)
     {
-        _callsCount++;
+        if (element?.Name == null) return;
+        
+        _cacheLock.EnterReadLock();
         if (_elementNameHashCache.TryGetValue(element, out int hash))
         {
             ElementNameHash = hash;
@@ -40,14 +36,19 @@ public class ExtendedElementPose : ElementPose
             {
                 ElementNameEnum = EnumAnimatedElement.Unknown;
             }
+            _cacheLock.ExitReadLock();
             return;
         }
-
-        _cacheMissesCount++;
+        int cacheSize = _elementNameHashCache.Count;
+        _cacheLock.ExitReadLock();
 
         ElementNameHash = element.Name.GetHashCode();
+
+        _cacheLock.EnterWriteLock();
         _elementNameHashCache.TryAdd(element, ElementNameHash);
         _cachedElements.Enqueue(element);
+        _cacheLock.ExitWriteLock();
+
         if (_elementNameEnumCache.TryGetValue(ElementNameHash, out EnumAnimatedElement parsedEnumValue))
         {
             ElementNameEnum = parsedEnumValue;
@@ -57,8 +58,15 @@ public class ExtendedElementPose : ElementPose
             ElementNameEnum = EnumAnimatedElement.Unknown;
         }
 
-        if (_elementNameHashCache.Count > _clearCacheThreshold)
+        if (cacheSize > _clearCacheThreshold)
         {
+            _cacheLock.EnterWriteLock();
+            if (_elementNameHashCache.Count < _clearCacheThreshold)
+            {
+                _cacheLock.ExitWriteLock();
+                return;
+            }
+
             for (int index = 0; index < _clearCacheThreshold * _clearCacheFraction; index++)
             {
                 if (_cachedElements.TryDequeue(out ShapeElement? elementToClear))
@@ -70,14 +78,18 @@ public class ExtendedElementPose : ElementPose
                     break;
                 }
             }
-            
-            ClearCache();
-            _cacheMissesCount = 0;
-            _callsCount = 0;
+
+            _cacheLock.ExitWriteLock();
         }
     }
 
-    public static void ClearCache() => _elementNameHashCache.Clear();
+    public static void ClearCache()
+    {
+        _cacheLock.EnterWriteLock();
+        _elementNameHashCache.Clear();
+        _cachedElements.Clear();
+        _cacheLock.ExitWriteLock();
+    }
 
     private static Queue<ShapeElement> _cachedElements = [];
     private static Dictionary<ShapeElement, int> _elementNameHashCache = [];

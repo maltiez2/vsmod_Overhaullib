@@ -18,7 +18,6 @@ public static partial class InteractionsTester
     {
         Block? selectedBlock = player.BlockSelection?.Block;
         if (selectedBlock == null) return false;
-        if (selectedBlock is BlockGroundStorage) return true;
 
         WorldInteraction[] interactions = selectedBlock.GetPlacedBlockInteractionHelp(player.Api.World, player.BlockSelection, player.Player);
 

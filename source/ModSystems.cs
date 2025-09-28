@@ -268,12 +268,6 @@ public sealed class CombatOverhaulSystem : ModSystem
             }
             return true;
         });
-
-        int reportPeriod = 5 * 60 * 1000;
-#if DEBUG
-        reportPeriod = 5000;
-#endif
-        _cacheMissesReportedListener = api.World.RegisterGameTickListener(_ => ReportElementPoseCacheMisses(), reportPeriod, reportPeriod);
     }
     public override void AssetsLoaded(ICoreAPI api)
     {
@@ -430,13 +424,6 @@ public sealed class CombatOverhaulSystem : ModSystem
             system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
             SettingsLoaded?.Invoke(Settings);
         };
-    }
-
-    private void ReportElementPoseCacheMisses()
-    {
-        string message = $"ElementPose cache misses to calls count: {ExtendedElementPose.CacheMissesCount} / {ExtendedElementPose.CallsCount} ({100f * ExtendedElementPose.CacheMissesCount / ExtendedElementPose.CallsCount:F1}%, cache size: {ExtendedElementPose.CacheSize})";
-        LoggerUtil.Verbose(_clientApi, this, message);
-        Debug.WriteLine(message);
     }
 }
 
