@@ -1,5 +1,4 @@
-﻿using CombatOverhaul.Animations;
-using HarmonyLib;
+﻿using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
 using Vintagestory.API.MathTools;

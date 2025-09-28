@@ -1,7 +1,6 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Integration.Transpilers;
-using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -10,7 +9,6 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
-using static CombatOverhaul.Integration.Transpilers.ElementPosePatches;
 
 namespace CombatOverhaul.Integration;
 
@@ -52,11 +50,6 @@ internal static class AnimationPatches
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(AnimationPatches), nameof(BeforeRender)))
             );
 
-        /*new Harmony(harmonyId).Patch(
-                typeof(Shape).GetMethod("ResolveReferences", AccessTools.all, [typeof(ILogger), typeof(string)]),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(ExtendedShapeElement), nameof(ExtendedShapeElement.ResolveReferences)))
-            );*/
-
         _cleanUpTickListener = api.World.RegisterGameTickListener(_ => OnCleanUpTick(), 5 * 60 * 1000, 5 * 60 * 1000);
     }
 
@@ -66,7 +59,6 @@ internal static class AnimationPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("BeforeRender", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(Shape).GetMethod("ResolveReferences", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
         _animatorsLock.AcquireWriterLock(5000);
         _animators.Clear();
@@ -134,7 +126,7 @@ internal static class AnimationPatches
 
     private static void OnCleanUpTick()
     {
-        
+
 
         _animatorsLock.AcquireWriterLock(5000);
 
@@ -156,7 +148,7 @@ internal static class AnimationPatches
             _animatorsLock.ReleaseWriterLock();
         }
 
-        
+
     }
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
@@ -195,7 +187,7 @@ internal static class AnimationPatches
     {
         //if (isShadowPass) return true;
 
-        
+
 
         ItemSlot? slot;
 
@@ -228,11 +220,11 @@ internal static class AnimationPatches
                                           .GetField("lightrgbs", BindingFlags.NonPublic | BindingFlags.Instance)
                                           ?.GetValue(__instance);
 
-        
+
 
         bool result = !behavior.RenderHeldItem(__instance.ModelMat, __instance.capi, slot, __instance.entity, lightrgbs, dt, isShadowPass, right, renderInfo);
 
-        
+
 
         return result;
     }

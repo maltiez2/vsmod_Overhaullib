@@ -226,10 +226,15 @@ public class GearSlot : ClothesSlot
 
     public static bool IsGearType(IItemStack? itemStack, string gearType)
     {
-        if (itemStack?.Collectible?.Attributes == null) return false;
+        return IsGearType(itemStack?.Collectible, gearType);
+    }
 
-        string? stackDressType = itemStack.Collectible.Attributes["clothescategory"].AsString() ?? itemStack.Collectible.Attributes["attachableToEntity"]["categoryCode"].AsString();
-        string[]? stackDressTypes = itemStack.Collectible.Attributes["clothescategories"].AsObject<string[]>() ?? itemStack.Collectible.Attributes["attachableToEntity"]["categoryCodes"].AsObject<string[]>();
+    public static bool IsGearType(CollectibleObject? collectible, string gearType)
+    {
+        if (collectible?.Attributes == null) return false;
+
+        string? stackDressType = collectible.Attributes["clothescategory"].AsString() ?? collectible.Attributes["attachableToEntity"]["categoryCode"].AsString();
+        string[]? stackDressTypes = collectible.Attributes["clothescategories"].AsObject<string[]>() ?? collectible.Attributes["attachableToEntity"]["categoryCodes"].AsObject<string[]>();
 
         bool singleType = stackDressType != null && string.Equals(stackDressType, gearType, StringComparison.InvariantCultureIgnoreCase);
         bool multipleTypes = stackDressTypes != null && stackDressTypes.Contains(value => string.Equals(value, gearType, StringComparison.InvariantCultureIgnoreCase));

@@ -6,7 +6,6 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
-using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
@@ -312,6 +311,11 @@ public sealed class CombatOverhaulSystem : ModSystem
         DamageResistData.MaxAttackTier = armorConfigObj.MaxAttackTier;
         DamageResistData.MaxArmorTier = armorConfigObj.MaxArmorTier;
         DamageResistData.DamageReduction = armorConfigObj.DamageReduction;
+
+        if (api is ICoreClientAPI clientApi)
+        {
+            DetermineSlotsStatus(clientApi);
+        }
     }
     public override void Dispose()
     {
@@ -424,6 +428,50 @@ public sealed class CombatOverhaulSystem : ModSystem
             system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
             SettingsLoaded?.Invoke(Settings);
         };
+    }
+
+    private void DetermineSlotsStatus(ICoreClientAPI api)
+    {
+        foreach (Item? item in api.World.Items)
+        {
+            string? stackDressType = item?.Attributes?["clothescategory"].AsString() ?? item?.Attributes?["attachableToEntity"]["categoryCode"].AsString();
+            string[]? stackDressTypes = item?.Attributes?["clothescategories"].AsObject<string[]>() ?? item?.Attributes?["attachableToEntity"]["categoryCodes"].AsObject<string[]>();
+
+            if (stackDressType != null)
+            {
+                SetSlotsStatus(stackDressType);
+            }
+
+            if (stackDressTypes != null)
+            {
+                foreach (string gearType in stackDressTypes)
+                {
+                    SetSlotsStatus(gearType);
+                }
+            }
+        }
+    }
+
+    private static void SetSlotsStatus(string gearType)
+    {
+        switch (gearType)
+        {
+            case "miscgear": GuiDialogPatches.SlotsStatus.Misc = true; break;
+            case "headgear": GuiDialogPatches.SlotsStatus.Headgear = true; break;
+            case "frontgear": GuiDialogPatches.SlotsStatus.FrontGear = true; break;
+            case "backgear": GuiDialogPatches.SlotsStatus.BackGear = true; break;
+            case "rightshouldergear": GuiDialogPatches.SlotsStatus.RightShoulderGear = true; break;
+            case "leftshouldergear": GuiDialogPatches.SlotsStatus.LeftShoulderGear = true; break;
+            case "waistgear": GuiDialogPatches.SlotsStatus.WaistHear = true; break;
+            case "addBeltLeft": GuiDialogPatches.SlotsStatus.Belt = true; break;
+            case "addBeltRight": GuiDialogPatches.SlotsStatus.Belt = true; break;
+            case "addBeltBack": GuiDialogPatches.SlotsStatus.Belt = true; break;
+            case "addBeltFront": GuiDialogPatches.SlotsStatus.Belt = true; break;
+            case "addBackpack1": GuiDialogPatches.SlotsStatus.Backpack = true; break;
+            case "addBackpack2": GuiDialogPatches.SlotsStatus.Backpack = true; break;
+            case "addBackpack3": GuiDialogPatches.SlotsStatus.Backpack = true; break;
+            case "addBackpack4": GuiDialogPatches.SlotsStatus.Backpack = true; break;
+        }
     }
 }
 

@@ -16,10 +16,6 @@ public class ExtendedElementPose : ElementPose
 
     public EntityPlayer? Player { get; set; }
 
-    private static int _clearCacheThreshold = 10000;
-    private static float _clearCacheFraction = 0.75f;
-    private static ReaderWriterLockSlim _cacheLock = new();
-
     public void ResolveElementName(ShapeElement element)
     {
         if (element?.Name == null) return;
@@ -91,8 +87,11 @@ public class ExtendedElementPose : ElementPose
         _cacheLock.ExitWriteLock();
     }
 
-    private static Queue<ShapeElement> _cachedElements = [];
-    private static Dictionary<ShapeElement, int> _elementNameHashCache = [];
+    private static int _clearCacheThreshold = 10000;
+    private static float _clearCacheFraction = 0.75f;
+    private static ReaderWriterLockSlim _cacheLock = new();
+    private static Queue<ShapeElement> _cachedElements = []; // protected by _cacheLock
+    private static Dictionary<ShapeElement, int> _elementNameHashCache = []; // protected by _cacheLock
     private static Dictionary<int, EnumAnimatedElement> _elementNameEnumCache = Enum.GetNames<EnumAnimatedElement>()
         .ToDictionary(name => name.GetHashCode(), name => Enum.Parse<EnumAnimatedElement>(name));
 }
