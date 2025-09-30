@@ -416,6 +416,13 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
     }
 }
 
+public class SlotHotkeyConfig
+{
+    public string HotkeyCode { get; set; } = "";
+    public string HotkeyName { get; set; } = "";
+    public GlKeys HotkeyKey { get; set; } = GlKeys.R;
+}
+
 public class ToolBag : GearEquipableBag
 {
     public SlotConfig? MainHandSlotConfig { get; protected set; } = null;
@@ -438,9 +445,21 @@ public class ToolBag : GearEquipableBag
         base.Initialize(properties);
 
         TakeOutSlotColor = properties["takeOutColor"].AsString(null);
-        HotkeyCode = properties["hotkeyCode"].AsString("");
-        HotkeyName = properties["hotkeyName"].AsString("");
-        HotKeyKey = Enum.Parse<GlKeys>(properties["hotkeyKey"].AsString("R"));
+
+        if (properties.KeyExists("hotkey"))
+        {
+            SlotHotkeyConfig hotkeyConfig = properties["hotkey"].AsObject<SlotHotkeyConfig>();
+            HotkeyCode = hotkeyConfig.HotkeyCode;
+            HotkeyName = hotkeyConfig.HotkeyName;
+            HotKeyKey = hotkeyConfig.HotkeyKey;
+        }
+        else
+        {
+            HotkeyCode = properties["hotkeyCode"].AsString("");
+            HotkeyName = properties["hotkeyName"].AsString("");
+            HotKeyKey = Enum.Parse<GlKeys>(properties["hotkeyKey"].AsString("R"));
+        }
+
         TakeOutSlotIcon = properties["takeOutSlotIcon"].AsString();
 
         SlotConfigJson? mainHandSlotConfigJson = properties["toolSlot"]?.AsObject<SlotConfigJson>();

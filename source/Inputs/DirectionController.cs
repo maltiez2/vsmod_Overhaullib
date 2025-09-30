@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Vintagestory.API.Client;
+﻿using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Inputs;
@@ -110,7 +109,7 @@ public sealed class DirectionController
         if (AlternativeDirectionControls || DirectionsHotkeysControls)
         {
             AttackDirection direction = CalculateDirectionWithAlternativeControls(out bool changeDirection);
-            
+
             if (changeDirection)
             {
                 CurrentDirectionNormalized = (int)direction;
@@ -158,7 +157,7 @@ public sealed class DirectionController
             yaw *= -1;
             pitch *= -1;
         }
-        
+
         float angleSegment = 360f / directionsCount;
         float directionOffset = angleSegment / 2f;
         float angle = MathF.Atan2(yaw, pitch) * GameMath.RAD2DEG;

@@ -1,16 +1,13 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Implementations;
-using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Diagnostics;
 using System.Reflection;
-using System.Reflection.Emit;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
-using Vintagestory.Server;
 
 namespace CombatOverhaul.Integration;
 
@@ -78,7 +75,7 @@ internal static class HarmonyPatches
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
-        
+
 
         EntityPlayer? entity = (Entity?)_entity?.GetValue(__instance) as EntityPlayer;
 
@@ -95,7 +92,7 @@ internal static class HarmonyPatches
         }
         AnimationPatches._animatorsLock.ReleaseWriterLock();
 
-        
+
 
         return true;
     }
