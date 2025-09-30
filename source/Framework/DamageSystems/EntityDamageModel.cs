@@ -117,8 +117,6 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
-        
-
         ColliderTypes colliderType = ColliderTypes.Torso;
         string? collider = null;
 
@@ -153,8 +151,6 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         }
 
         OnReceiveDamage?.Invoke(ref damage, damageSource, colliderType, collider);
-
-        
 
         return damage;
     }

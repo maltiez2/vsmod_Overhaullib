@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Armor;
+using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Diagnostics;
@@ -9,6 +10,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using Vintagestory.Server;
 
 namespace CombatOverhaul.Integration;
 
@@ -51,6 +53,11 @@ internal static class HarmonyPatches
                 typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BagInventory_SaveSlotIntoBag)))
             );
+
+        new Harmony(harmonyId).Patch(
+                typeof(BehaviorHealingItem).GetMethod("OnHeldInteractStart", AccessTools.all),
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BehaviorHealingItem_OnHeldInteractStart)))
+            );
     }
 
     public static void Unpatch(string harmonyId, ICoreAPI api)
@@ -62,6 +69,7 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all)?.GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(BehaviorHealingItem).GetMethod("OnHeldInteractStart", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         _api = null;
     }
 
@@ -249,5 +257,11 @@ internal static class HarmonyPatches
         result[0] = (byte)(hsv[0] * brightnessFraction + result[0] * (1 - brightnessFraction));
         result[1] = (byte)(hsv[1] * brightnessFraction + result[1] * (1 - brightnessFraction));
         result[2] = Math.Max(hsv[2], result[2]);
+    }
+
+
+    private static bool BehaviorHealingItem_OnHeldInteractStart(EntityAgent byEntity)
+    {
+        return !((byEntity as EntityPlayer)?.LeftHandItemSlot?.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(false) ?? true;
     }
 }

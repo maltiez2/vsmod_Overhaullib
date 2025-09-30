@@ -3,6 +3,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using Vintagestory.API.Common;
@@ -283,13 +284,22 @@ public class ProjectileEntity : Entity
     public override void FromBytes(BinaryReader reader, bool fromServer)
     {
         base.FromBytes(reader, fromServer);
-        ShooterId = reader.ReadInt64();
-        ProjectileId = Guid.Parse(reader.ReadString());
-        if (reader.ReadBoolean()) ProjectileStack = new ItemStack(reader);
-        if (reader.ReadBoolean()) WeaponStack = new ItemStack(reader);
-        OwnerId = reader.ReadInt64();
-        IgnoreInvFrames = reader.ReadBoolean();
-        CanBeCollected = reader.ReadBoolean();
+        try
+        {
+            ShooterId = reader.ReadInt64();
+            ProjectileId = Guid.Parse(reader.ReadString());
+            if (reader.ReadBoolean()) ProjectileStack = new ItemStack(reader);
+            if (reader.ReadBoolean()) WeaponStack = new ItemStack(reader);
+            OwnerId = reader.ReadInt64();
+            IgnoreInvFrames = reader.ReadBoolean();
+            CanBeCollected = reader.ReadBoolean();
+        }
+        catch (Exception exception)
+        {
+#if DEBUG
+            Debug.WriteLine($"Error on restoring projectile {Code} from bytes:\n{exception}");
+#endif
+        }
     }
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {

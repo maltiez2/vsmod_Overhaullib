@@ -11,6 +11,7 @@ internal static class PlayerRenderingPatches
 {
     public static float HandsFovMultiplier { get; set; } = 1;
     public static float FpHandsOffset { get; set; } = DefaultFpHandsOffset;
+    
     public const float DefaultFpHandsOffset = -0.3f;
 
     public static float ResetOffset() => FpHandsOffset = DefaultFpHandsOffset;

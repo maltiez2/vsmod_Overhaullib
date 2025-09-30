@@ -1,6 +1,4 @@
-﻿using CombatOverhaul.RangedSystems;
-using OpenTK.Mathematics;
-using System.Diagnostics;
+﻿using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;

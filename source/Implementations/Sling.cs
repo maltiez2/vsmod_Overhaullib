@@ -117,6 +117,7 @@ public class SlingClient : RangeWeaponClient
     {
         if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (state != (int)SlingState.Unloaded || !CheckForOtherHandEmpty(mainHand, player)) return false;
+        if (CanBlockWithOtherHand(player, mainHand)) return false;
 
         ItemSlot? bulletSlot = GetBulletSlot(player);
 
@@ -395,6 +396,12 @@ public class SlingClient : RangeWeaponClient
         }
 
         return bulletSlot;
+    }
+
+    protected bool CanBlockWithOtherHand(EntityPlayer player, bool mainHand = true)
+    {
+        ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
+        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(!mainHand) ?? false;
     }
 }
 
