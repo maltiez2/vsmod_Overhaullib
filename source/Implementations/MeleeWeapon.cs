@@ -779,6 +779,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         if (attack == null || stats == null) return false;
 
+        Debug.WriteLine(GetState<MeleeWeaponState>(mainHand));
+
         switch (GetState<MeleeWeaponState>(mainHand))
         {
             case MeleeWeaponState.Idle:
@@ -839,11 +841,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         }
 
         return true;
-    }
-    [Obsolete]
-    protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand)
-    {
-        TryAttack(attack, handle, stats, slot, player, mainHand, out _);
     }
     protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain)
     {
@@ -937,6 +934,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         switch (callbackCode)
         {
             case "start":
+                StopAttackCooldown(mainHand);
                 SetState(MeleeWeaponState.Attacking, mainHand);
                 break;
             case "stop":
@@ -1436,7 +1434,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         {
             OffHandAttackCooldownUntilMs = 0;
         }
-        SetState(MeleeWeaponState.Idle, mainHand);
     }
     protected virtual bool IsAttackOnCooldown(bool mainHand) => (mainHand ? Api.World.ElapsedMilliseconds <= MainHandAttackCooldownUntilMs : Api.World.ElapsedMilliseconds <= OffHandAttackCooldownUntilMs) || CheckGlobalCooldown(Api);
     protected virtual bool IsCooldownStopped(bool mainHand) => mainHand ? MainHandAttackCooldownUntilMs == 0 : OffHandAttackCooldownUntilMs == 0;
@@ -1515,6 +1512,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (CheckState(mainHand, MeleeWeaponState.Cooldown) && !IsAttackOnCooldown(mainHand) && !IsCooldownStopped(mainHand))
         {
             StopAttackCooldown(mainHand);
+            SetState(MeleeWeaponState.Idle, mainHand);
         }
     }
     protected MeleeAttack? GetStanceAttack(bool mainHand = true, AttackDirection direction = AttackDirection.Top)

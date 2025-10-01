@@ -789,15 +789,13 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (element == EnumAnimatedElement.LowerTorso) return;
 
-        frame.Apply(pose, element, _eyePosition, _eyeHeight, _pitch, _composer.AnyActiveAnimations(), false);
-
         if (extendedPoseValue != null)
         {
-            frame.Apply(extendedPoseValue, element, _eyePosition, _eyeHeight);
+            frame.Apply(extendedPoseValue, element, _eyePosition, _eyeHeight, _pitch, _composer.AnyActiveAnimations());
         }
         else
         {
-            frame.Apply(pose, element, _eyePosition, _eyeHeight);
+            frame.Apply(pose, element, _eyePosition, _eyeHeight, _pitch, _composer.AnyActiveAnimations());
         }
     }
     private bool IsFirstPerson(Entity entity)
