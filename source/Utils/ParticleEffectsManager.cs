@@ -215,6 +215,10 @@ public static class ParticleEditor
         settings.NullValueHandling = NullValueHandling.Ignore;
         string output = JsonConvert.SerializeObject(particleProperties, Formatting.Indented, settings);
         ImGui.InputTextMultiline($"##{id}", ref output, (uint)output.Length, new(500, 300), ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
+        if (ImGui.Button($"Copy to clipboard##{id}"))
+        {
+            ImGui.SetClipboardText(output);
+        }
         ImGui.Unindent();
     }
     private static void ColorEditor(string id, AdvancedParticleProperties particleProperties)

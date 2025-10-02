@@ -1,9 +1,11 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Utils;
 using HarmonyLib;
+using System.Diagnostics;
 using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
 using Vintagestory.Common;
 
@@ -32,13 +34,18 @@ internal static class GuiDialogPatches
 
         new Harmony(harmonyId).Patch(
                 typeof(GuiDialogCharacter).GetMethod("ComposeCharacterTab", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(ComposeCharacterTab)))
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogCharacter_ComposeCharacterTab)))
             );
 
         new Harmony(harmonyId).Patch(
                 typeof(GuiDialogCharacter).GetMethod("OnRenderGUI", AccessTools.all),
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(OnRenderGUI)))
             );
+
+        /*new Harmony(harmonyId).Patch(
+                typeof(GuiDialogInventory).GetMethod("ComposeSurvivalInvDialog", AccessTools.all),
+                postfix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogInventory_ComposeSurvivalInvDialog)))
+            );*/
     }
 
     public static void Unpatch(string harmonyId)
@@ -50,12 +57,23 @@ internal static class GuiDialogPatches
     }
 
     private static ICoreClientAPI? _api;
+    private static int _lastItemId = 0;
+    private static bool _anySlotsHighlighted = false;
+    // GuiDialogCharacter
     private static FieldInfo? GuiDialogCharacter_insetSlotBounds = typeof(GuiDialogCharacter).GetField("insetSlotBounds", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? GuiDialogCharacter_characterInv = typeof(GuiDialogCharacter).GetField("characterInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogCharacter_SendInvPacket = typeof(GuiDialogCharacter).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static int _lastItemId = 0;
+    // GuiDialogInventory
+    private static FieldInfo? GuiDialogInventory_survivalInvDialog = typeof(GuiDialogInventory).GetField("survivalInvDialog", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static FieldInfo? GuiDialogInventory_prevRows = typeof(GuiDialogInventory).GetField("prevRows", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static FieldInfo? GuiDialogInventory_backPackInv = typeof(GuiDialogInventory).GetField("backPackInv", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static FieldInfo? GuiDialogInventory_craftingInv = typeof(GuiDialogInventory).GetField("craftingInv", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static MethodInfo? GuiDialogInventory_CloseIconPressed = typeof(GuiDialogInventory).GetMethod("CloseIconPressed", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static MethodInfo? GuiDialogInventory_SendInvPacket = typeof(GuiDialogInventory).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static MethodInfo? GuiDialogInventory_OnNewScrollbarvalue = typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", BindingFlags.NonPublic | BindingFlags.Instance);
 
-    private static bool ComposeCharacterTab(GuiDialogCharacter __instance, GuiComposer compo)
+
+    private static bool GuiDialogCharacter_ComposeCharacterTab(GuiDialogCharacter __instance, GuiComposer compo)
     {
         if (!_api.Gui.Icons.CustomIcons.ContainsKey("armorhead")) registerArmorIcons();
 
@@ -146,14 +164,103 @@ internal static class GuiDialogPatches
         return false;
     }
 
+    private static bool GuiDialogInventory_ComposeSurvivalInvDialog(GuiDialogInventory __instance)
+    {
+        IInventory? backPackInv = (IInventory?)GuiDialogInventory_backPackInv?.GetValue(__instance);
+        IInventory? craftingInv = (IInventory?)GuiDialogInventory_craftingInv?.GetValue(__instance);
+
+        double elemToDlgPad = GuiStyle.ElementToDialogPadding;
+        double pad = GuiElementItemSlotGrid.unscaledSlotPadding;
+        int rows = (int)Math.Ceiling(backPackInv.Count / 6f);
+
+        GuiDialogInventory_prevRows?.SetValue(__instance, rows);
+
+        // 1. The bounds of the slot grid itself. It is offseted by slot padding. It determines the size of the dialog, so we build the dialog from the bottom up
+        ElementBounds slotGridBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, pad, pad, 6, 7).FixedGrow(2 * pad, 2 * pad);
+
+        // 1a.) Determine the full size of scrollable area, required to calculate scrollbar handle size
+        ElementBounds fullGridBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0, 6, rows);
+
+        // 2. Around that is the 3 wide inset stroke
+        ElementBounds insetBounds = slotGridBounds.ForkBoundingParent(3, 3, 3, 3);
+
+        // 2a. The scrollable bounds is also the clipping bounds. Needs it's parent to be set.
+        ElementBounds clippingBounds = slotGridBounds.CopyOffsetedSibling();
+        clippingBounds.fixedHeight -= 3; // Why?
+
+        ElementBounds gridBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0, 3, 3).FixedRightOf(insetBounds, 45);
+        gridBounds.fixedY += 50;
+
+        ElementBounds outputBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0, 1, 1).FixedRightOf(insetBounds, 45).FixedUnder(gridBounds, 20);
+        outputBounds.fixedX += pad + GuiElementPassiveItemSlot.unscaledSlotSize;
+
+        // 3. Around all that is the dialog centered to screen middle, with some extra spacing right for the scrollbar
+        ElementBounds dialogBounds =
+            insetBounds
+            .ForkBoundingParent(elemToDlgPad, elemToDlgPad + 30, elemToDlgPad + gridBounds.fixedWidth + 20, elemToDlgPad)
+        ;
+
+        if (_api.Settings.Bool["immersiveMouseMode"])
+        {
+            dialogBounds
+                .WithAlignment(EnumDialogArea.RightMiddle)
+                .WithFixedAlignmentOffset(-12, 0)
+            ;
+        }
+        else
+        {
+            dialogBounds
+                .WithAlignment(EnumDialogArea.CenterMiddle)
+                .WithFixedAlignmentOffset(20, 0)
+            ;
+        }
+
+        // 4. Don't forget the Scroll bar.  Sometimes mods add bags that are a bit big.
+        ElementBounds scrollBarBounds = ElementStdBounds.VerticalScrollbar(insetBounds).WithParent(dialogBounds);
+        scrollBarBounds.fixedOffsetX -= 2;
+        scrollBarBounds.fixedWidth = 15;
+
+        GuiComposer survivalInvDialog = _api.Gui.CreateCompo("inventory-backpack", dialogBounds);
+        survivalInvDialog.AddShadedDialogBG(ElementBounds.Fill);
+        survivalInvDialog.AddDialogTitleBar(Lang.Get("Inventory and Crafting"), () => CloseIconPressed(__instance));
+        survivalInvDialog.AddVerticalScrollbar((data) => OnNewScrollbarvalue(__instance, data), scrollBarBounds, "scrollbar");
+
+        survivalInvDialog.AddInset(insetBounds, 3, 0.85f);
+        survivalInvDialog.BeginClip(clippingBounds);
+        ComposeBackpackSlots(survivalInvDialog, __instance, backPackInv, fullGridBounds);
+        survivalInvDialog.EndClip();
+
+        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 3, new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 }, gridBounds, "craftinggrid");
+        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 1, new int[] { 9 }, outputBounds, "outputslot");
+
+        try
+        {
+            survivalInvDialog.Compose();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+            return true;
+        }
+
+        survivalInvDialog.GetScrollbar("scrollbar").SetHeights(
+            (float)(slotGridBounds.fixedHeight),
+            (float)(fullGridBounds.fixedHeight + pad))
+        ;
+
+        GuiDialogInventory_survivalInvDialog?.SetValue(__instance, survivalInvDialog);
+
+        return false;
+    }
+
+
+
     private static void registerArmorIcons()
     {
         _api.Gui.Icons.CustomIcons["armorhead"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-helmet.svg"));
         _api.Gui.Icons.CustomIcons["armorbody"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-body.svg"));
         _api.Gui.Icons.CustomIcons["armorlegs"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-legs.svg"));
     }
-
-    private static bool _anySlotsHighlighted = false;
     private static void OnRenderGUI()
     {
         int currentItem = _api?.World.Player.InventoryManager.MouseItemSlot?.Itemstack?.Item?.ItemId ?? 0;
@@ -212,4 +319,12 @@ internal static class GuiDialogPatches
             }
         }
     }
+    private static void ComposeBackpackSlots(GuiComposer composer, GuiDialogInventory __instance, IInventory? backPackInv, ElementBounds fullGridBounds)
+    {
+        composer.AddItemSlotGridExcl(backPackInv, (data) => SendInvPacket(__instance, data), 6, new int[] { 0, 1, 2, 3 }, fullGridBounds, "slotgrid");
+    }
+
+    private static void CloseIconPressed(GuiDialogInventory __instance) => GuiDialogInventory_CloseIconPressed?.Invoke(__instance, []);
+    private static void OnNewScrollbarvalue(GuiDialogInventory __instance, float data) => GuiDialogInventory_OnNewScrollbarvalue?.Invoke(__instance, [data]);
+    private static void SendInvPacket(GuiDialogInventory __instance, object data) => GuiDialogInventory_SendInvPacket?.Invoke(__instance, [data]);
 }

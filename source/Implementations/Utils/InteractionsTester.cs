@@ -38,6 +38,13 @@ public static partial class InteractionsTester
             eventData.Action.Action == EnumEntityAction.LeftMouseDown && interaction.MouseButton == EnumMouseButton.Left ||
             eventData.Action.Action == EnumEntityAction.RightMouseDown && interaction.MouseButton == EnumMouseButton.Right;
 
+        ItemSlot currentSlot = mainHand ? player.RightHandItemSlot : player.LeftHandItemSlot;
+        ItemStack? currentStack = currentSlot.Itemstack;
+        if (interaction.Itemstacks.Length > 0 && !interaction.Itemstacks.Any(stack => stack?.Item?.Id == currentStack?.Item?.Id))
+        {
+            return false;
+        }
+
         return sameMouseButton && mainHand && !interaction.RequireFreeHand;
     }
     public static bool PlayerTriesToPutItemIntoGroundStorage(EntityPlayer player, bool mainHand, ActionEventData eventData)

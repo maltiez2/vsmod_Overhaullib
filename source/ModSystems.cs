@@ -68,6 +68,8 @@ public sealed class Settings
     public bool MeleeWeaponStopOnTerrainHit { get; set; } = false;
 
     public int GlobalAttackCooldownMs { get; set; } = 1000;
+
+    public bool SecondChanceParticles { get; set; } = true;
 }
 
 public sealed class ArmorConfig

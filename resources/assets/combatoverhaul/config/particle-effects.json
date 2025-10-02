@@ -580,5 +580,255 @@
     "SelfPropelled": false,
     "TerrainCollision": true,
     "WindAffectednes": 0.0
-  }
+  },
+  "second-chance": {
+  "HsvaColor": [
+    {
+      "offset": 0.0,
+      "avg": 111.5962,
+      "var": 10.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 255.0,
+      "var": 0.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 210.2537,
+      "var": 50.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 255.0,
+      "var": 50.0,
+      "dist": 0
+    }
+  ],
+  "PosOffset": [
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.5,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.8,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.5,
+      "dist": 0
+    }
+  ],
+  "RandomVelocityChange": true,
+  "DieOnRainHeightmap": false,
+  "SecondarySpawnInterval": {
+    "offset": 0.0,
+    "avg": 0.0,
+    "var": 0.0,
+    "dist": 0
+  },
+  "Bounciness": 1.0,
+  "DieInAir": false,
+  "DieInLiquid": false,
+  "SwimOnLiquid": true,
+  "ColorByBlock": false,
+  "OpacityEvolve": {
+    "transform": 5,
+    "factor": -20.0
+  },
+  "GravityEffect": {
+    "offset": 0.0,
+    "avg": 0.1,
+    "var": 0.0,
+    "dist": 6
+  },
+  "LifeLength": {
+    "offset": 0.0,
+    "avg": 5.0,
+    "var": 0.0,
+    "dist": 0
+  },
+  "Quantity": {
+    "offset": 0.0,
+    "avg": 50.0,
+    "var": 5.0,
+    "dist": 0
+  },
+  "Size": {
+    "offset": 0.0,
+    "avg": 0.3,
+    "var": 0.1,
+    "dist": 0
+  },
+  "SizeEvolve": {
+    "transform": 2,
+    "factor": -0.5
+  },
+  "Velocity": [
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 1.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 1.0,
+      "var": 1.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 1.0,
+      "dist": 0
+    }
+  ],
+  "ParticleModel": 1,
+  "VertexFlags": 2303,
+  "SelfPropelled": false,
+  "TerrainCollision": true,
+  "WindAffectednes": 0.6
+},
+  "grace-period": {
+  "HsvaColor": [
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 10.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 255.0,
+      "var": 0.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 255.0,
+      "var": 50.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 81.0,
+      "var": 50.0,
+      "dist": 0
+    }
+  ],
+  "PosOffset": [
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.5,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.8,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 0.5,
+      "dist": 0
+    }
+  ],
+  "RandomVelocityChange": true,
+  "DieOnRainHeightmap": false,
+  "SecondarySpawnInterval": {
+    "offset": 0.0,
+    "avg": 0.0,
+    "var": 0.0,
+    "dist": 0
+  },
+  "Bounciness": 1.0,
+  "DieInAir": false,
+  "DieInLiquid": false,
+  "SwimOnLiquid": true,
+  "ColorByBlock": false,
+  "OpacityEvolve": {
+    "transform": 5,
+    "factor": -20.0
+  },
+  "GravityEffect": {
+    "offset": 0.0,
+    "avg": 0.1,
+    "var": 0.0,
+    "dist": 6
+  },
+  "LifeLength": {
+    "offset": 0.0,
+    "avg": 5.0,
+    "var": 0.0,
+    "dist": 0
+  },
+  "Quantity": {
+    "offset": 0.0,
+    "avg": 50.0,
+    "var": 5.0,
+    "dist": 0
+  },
+  "Size": {
+    "offset": 0.0,
+    "avg": 0.3,
+    "var": 0.1,
+    "dist": 0
+  },
+  "SizeEvolve": {
+    "transform": 2,
+    "factor": -0.5
+  },
+  "Velocity": [
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 4.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 1.0,
+      "var": 0.0,
+      "dist": 0
+    },
+    {
+      "offset": 0.0,
+      "avg": 0.0,
+      "var": 4.0,
+      "dist": 0
+    }
+  ],
+  "VelocityEvolve": [
+    {
+      "transform": 0,
+      "factor": 0.0
+    },
+    {
+      "transform": 0,
+      "factor": 0.0
+    },
+    {
+      "transform": 0,
+      "factor": 0.0
+    }
+  ],
+  "ParticleModel": 1,
+  "VertexFlags": 2303,
+  "SelfPropelled": false,
+  "TerrainCollision": true,
+  "WindAffectednes": 0.6
+}
 }

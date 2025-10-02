@@ -1,12 +1,12 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
-using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent;
+using VSImGui.Debug;
 
 namespace CombatOverhaul.DamageSystems;
 
@@ -87,6 +87,12 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
             HitSounds = stats.HitSounds.ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => entry.Value);
         }
+
+        /*if (entity.Api.Side == EnumAppSide.Client)
+        {
+            DebugWidgets.Button("test", "test", "effect-1", () => SpawnSecondChanceParticles());
+            DebugWidgets.Button("test", "test", "effect-2", () => SpawnGracePeriodPArticles());
+        }*/
     }
     public override void GetInfoText(StringBuilder infotext)
     {
@@ -154,4 +160,17 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
         return damage;
     }
+
+    /*private void SpawnSecondChanceParticles()
+    {
+        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
+        Vintagestory.API.MathTools.Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
+        effectsManager?.Spawn("combatoverhaul:second-chance", new(position.X, position.Y, position.Z), new(), 1);
+    }
+    private void SpawnGracePeriodPArticles()
+    {
+        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
+        Vintagestory.API.MathTools.Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
+        effectsManager?.Spawn("combatoverhaul:grace-period", new(position.X, position.Y, position.Z), new(), 1);
+    }*/
 }

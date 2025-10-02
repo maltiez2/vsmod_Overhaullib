@@ -3,10 +3,9 @@ using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
+using ConfigLib;
 using PlayerModelLib;
 using ProtoBuf;
-using System.Diagnostics;
-using System.Net.Sockets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -63,6 +62,7 @@ public class PlayerDamageModelConfig
     public Dictionary<string, PlayerBodyPart> BodyParts { get; set; } = [];
     public float SecondChanceCooldownSec { get; set; } = 300;
     public bool SecondChanceAvailable { get; set; } = true;
+    public float SecondChanceGracePeriodSec { get; set; } = 8;
 }
 
 public sealed class PlayerDamageModelBehavior : EntityBehavior
@@ -115,8 +115,10 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         EnumDamageType.SlashingAttack,
         EnumDamageType.BluntAttack
     };
-    public TimeSpan SecondDefaultChanceCooldown { get; set; }
-    public TimeSpan SecondChanceCooldown => SecondDefaultChanceCooldown * entity.Stats.GetBlended("secondChanceCooldown");
+    public TimeSpan SecondChanceDefaultCooldown { get; set; }
+    public TimeSpan SecondChanceCooldown => SecondChanceDefaultCooldown * entity.Stats.GetBlended("secondChanceCooldown");
+    public TimeSpan SecondChanceDefaultGracePeriod { get; set; }
+    public TimeSpan SecondChanceGracePeriod => SecondChanceDefaultGracePeriod * entity.Stats.GetBlended("secondChanceGracePeriod");
     public bool SecondChanceAvailable { get; set; }
 
     public DamageBlockStats? CurrentDamageBlock { get; set; } = null;
@@ -147,11 +149,14 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     {
         if (!_serverSide) return;
 
-        
+
         float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
         secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
         entity.WatchedAttributes.SetFloat("secondChanceCooldown", secondChanceCooldown);
-        
+
+        float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
+        secondChanceGracePeriod = Math.Clamp(secondChanceGracePeriod - deltaTime, 0, secondChanceGracePeriod);
+        entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
     }
 
     private readonly Settings _settings;
@@ -340,11 +345,19 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     }
     private void ApplySecondChance(ref float damage)
     {
-        float currentHealth = entity.GetBehavior<EntityBehaviorHealth>().Health;
+        float currentHealth = entity.GetBehavior<EntityBehaviorHealth>()?.Health ?? 0;
 
         if (currentHealth > damage) return;
 
         float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
+        float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
+        if (secondChanceGracePeriod > 0)
+        {
+            damage *= 0;
+            PrintToDamageLog(Lang.Get("combatoverhaul:damagelog-second-chance-grace-period", (int)secondChanceGracePeriod));
+            SpawnGracePeriodPArticles();
+            return;
+        }
         if (secondChanceCooldown > 0)
         {
             PrintToDamageLog(Lang.Get("combatoverhaul:damagelog-second-chance-cooldown", (int)secondChanceCooldown));
@@ -352,9 +365,26 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         }
 
         entity.WatchedAttributes.SetFloat("secondChanceCooldown", (float)SecondChanceCooldown.TotalSeconds);
+        entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", (float)SecondChanceGracePeriod.TotalSeconds);
         damage = currentHealth - _healthAfterSecondChance;
 
+        SpawnSecondChanceParticles();
+
         PrintToDamageLog(Lang.Get("combatoverhaul:damagelog-second-chance"));
+    }
+    private void SpawnSecondChanceParticles()
+    {
+        if (!_settings.SecondChanceParticles) return;
+        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
+        Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
+        effectsManager?.Spawn("combatoverhaul:second-chance", new(position.X, position.Y, position.Z), new(), 1);
+    }
+    private void SpawnGracePeriodPArticles()
+    {
+        if (!_settings.SecondChanceParticles) return;
+        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
+        Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
+        effectsManager?.Spawn("combatoverhaul:grace-period", new(position.X, position.Y, position.Z), new(), 1);
     }
     private bool IsCausedByProjectile(DamageSource damageSource)
     {
@@ -367,8 +397,9 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     {
         DamageModel = new(config.DamageModel.Zones);
         CollidersToBodyParts = config.BodyParts;
-        SecondDefaultChanceCooldown = TimeSpan.FromSeconds(config.SecondChanceCooldownSec);
+        SecondChanceDefaultCooldown = TimeSpan.FromSeconds(config.SecondChanceCooldownSec);
         SecondChanceAvailable = config.SecondChanceAvailable;
+        SecondChanceDefaultGracePeriod = TimeSpan.FromSeconds(config.SecondChanceGracePeriodSec);
     }
     private void SubscribeOnModelChange()
     {
@@ -393,8 +424,9 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         DamageModel = new(customModelConfig.DamageModel.DamageModel.Zones);
         CollidersToBodyParts = customModelConfig.DamageModel.BodyParts;
-        SecondDefaultChanceCooldown = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceCooldownSec);
+        SecondChanceDefaultCooldown = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceCooldownSec);
         SecondChanceAvailable = customModelConfig.DamageModel.SecondChanceAvailable;
+        SecondChanceDefaultGracePeriod = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceGracePeriodSec);
     }
     private void DamageArmor(IEnumerable<ArmorSlot> slots, EnumDamageType damageType, int durabilityDamage, out int totalDurabilityDamage)
     {

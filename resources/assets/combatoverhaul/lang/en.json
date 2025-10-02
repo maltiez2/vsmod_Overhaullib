@@ -110,6 +110,7 @@
   "damagelog-dealt-damage-with-projectile": "Player's {3} hit {0} of {1} dealing {2} damage",
   "damagelog-second-chance": "Player used second chance to survive fatal damage",
   "damagelog-second-chance-cooldown": "Player received fatal damage, but second chance was on cooldown ({0} seconds left)",
+  "damagelog-second-chance-grace-period": "Player received damage, but avoided it via scond chance grace period ({0} seconds left)",
 
   "iteminfo-range-weapon-damage": "Damage multiplier: {0}\nDamage tier: {1}",
   "iteminfo-projectile": "Damage: {0}\nDamage type: {1}\nBreak chance: {2}%",
