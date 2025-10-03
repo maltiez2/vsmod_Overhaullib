@@ -119,6 +119,8 @@ internal static class HarmonyPatches
     private const string _fallDamageThresholdMultiplierStat = "fallDamageThreshold";
     private const float _fallDamageMultiplier = 0.2f;
     private const float _fallDamageSpeedThreshold = 0.1f;
+    private const double _newFallDistance = 5;
+    
     private static bool OnFallToGround(EntityBehaviorHealth __instance, ref double withYMotion)
     {
         if ((__instance.entity as EntityAgent)?.ServerControls.Gliding == true)
@@ -131,15 +133,24 @@ internal static class HarmonyPatches
             return true;
         }
 
-        Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
+        double fallDistance = 0;
+        PositionBeforeFallingBehavior? behavior = __instance.entity.GetBehavior<PositionBeforeFallingBehavior>();
+        if (behavior != null)
+        {
+            fallDistance = behavior.LastFallHeight;
+        }
+        else
+        {
+            Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
+            fallDistance = (positionBeforeFalling.Y - player.Pos.Y) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
+        }
+        Debug.WriteLine(fallDistance);
 
-        double fallDistance = (positionBeforeFalling.Y - player.Pos.Y) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
-
-        if (fallDistance < EntityBehaviorHealth.FallDamageFallenDistanceThreshold) return false;
+        if (fallDistance < _newFallDistance) return false;
 
         if (Math.Abs(withYMotion) < _fallDamageSpeedThreshold) return false;
 
-        double fallDamage = Math.Max(0, fallDistance - EntityBehaviorHealth.FallDamageFallenDistanceThreshold) * player.Properties.FallDamageMultiplier * _fallDamageMultiplier;
+        double fallDamage = Math.Max(0, fallDistance - _newFallDistance) * player.Properties.FallDamageMultiplier * _fallDamageMultiplier;
 
         player.ReceiveDamage(new DamageSource()
         {
