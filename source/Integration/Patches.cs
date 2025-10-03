@@ -119,7 +119,7 @@ internal static class HarmonyPatches
     private const string _fallDamageThresholdMultiplierStat = "fallDamageThreshold";
     private const float _fallDamageMultiplier = 0.2f;
     private const float _fallDamageSpeedThreshold = 0.1f;
-    private const double _newFallDistance = 5;
+    private const double _newFallDistance = 4.5;
     
     private static bool OnFallToGround(EntityBehaviorHealth __instance, ref double withYMotion)
     {

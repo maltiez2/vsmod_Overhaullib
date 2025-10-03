@@ -33,7 +33,7 @@ public class PositionBeforeFallingBehavior : EntityBehavior
     }
 
     public override string PropertyName() => "PositionBeforeFallingBehavior";
-    public double LastFallHeight => _fallHeight;
+    public double LastFallHeight => GetFallHeight();
     public IEnumerable<PlayerPositionData> PositionsData => _positions;
 
     public override void OnGameTick(float deltaTime)
@@ -53,12 +53,14 @@ public class PositionBeforeFallingBehavior : EntityBehavior
             }
         }
 
+#if DEBUG
         _fallHeight = GetFallHeight();
         _fallHeights.Enqueue(_fallHeight);
         if (_fallHeights.Count > _maxPositionsStored)
         {
             _fallHeights.Dequeue();
         }
+#endif
     }
 
     private const int _maxPositionsStored = 512;
@@ -183,7 +185,7 @@ public class PositionBeforeFallingBehavior : EntityBehavior
 #if DEBUG
     private CallbackGUIStatus DrawPlots(float dt)
     {
-        //if (!_drawPlots) return CallbackGUIStatus.Closed;
+        if (!_drawPlots) return CallbackGUIStatus.Closed;
 
         ImGui.Begin("Height plots");
 
