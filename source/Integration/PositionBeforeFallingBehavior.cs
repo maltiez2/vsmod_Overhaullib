@@ -134,17 +134,6 @@ public class PositionBeforeFallingBehavior : EntityBehavior
             float xDiff = _player.CollisionBox.XSize / 2f;
             float zDiff = _player.CollisionBox.ZSize / 2f;
 
-            /*Vec3d pp2 = entityPosPos;
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 255, 125), pp2, pp2, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp2 = entityPosPos + new Vec3d(xDiff, 0, zDiff);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 0, 125), pp2, pp2, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp2 = entityPosPos + new Vec3d(-xDiff, 0, zDiff);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 0, 125), pp2, pp2, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp2 = entityPosPos + new Vec3d(xDiff, 0, -zDiff);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 0, 125), pp2, pp2, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp2 = entityPosPos + new Vec3d(-xDiff, 0, -zDiff);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 0, 125), pp2, pp2, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);*/
-
             bp0.X = (int)(entityPosPos.X - xDiff);
             bp0.Z = (int)(entityPosPos.Z - zDiff);
             bp1.X = (int)(entityPosPos.X + xDiff);
@@ -153,16 +142,6 @@ public class PositionBeforeFallingBehavior : EntityBehavior
             bp2.Z = (int)(entityPosPos.Z + zDiff);
             bp3.X = (int)(entityPosPos.X + xDiff);
             bp3.Z = (int)(entityPosPos.Z + zDiff);
-
-
-            /*Vec3d pp = new(bp0.X + 0.5, bp0.Y + 1, bp0.Z + 0.5);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 125), pp, pp, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp = new(bp1.X + 0.5, bp1.Y + 1, bp1.Z + 0.5);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pp, pp, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp = new(bp2.X + 0.5, bp2.Y + 1, bp2.Z + 0.5);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 0, 255, 125), pp, pp, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);
-            pp = new(bp3.X + 0.5, bp3.Y + 1, bp3.Z + 0.5);
-            entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), pp, pp, new Vec3f(), new Vec3f(), 0.05f, 0, 1f, EnumParticleModel.Cube);*/
 
             Block[] blocks = [
                 accessor.GetBlock(bp0),
@@ -173,7 +152,12 @@ public class PositionBeforeFallingBehavior : EntityBehavior
             
             if (blocks.Any(block => block?.CollisionBoxes != null && block.CollisionBoxes.Length > 0))
             {
-                return blockPos.Y + blocks.Where(block => block?.CollisionBoxes != null && block.CollisionBoxes.Length > 0).Select(block => block.CollisionBoxes.Select(box => box.MaxY).Max()).Max();
+                return blockPos.Y + blocks
+                    .Where(block => block?.CollisionBoxes != null && block.CollisionBoxes.Length > 0)
+                    .Select(block => block.CollisionBoxes
+                        .Select(box => box.MaxY)
+                        .Max())
+                    .Max();
             }
 
             heightDiff++;

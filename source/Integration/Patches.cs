@@ -118,7 +118,7 @@ internal static class HarmonyPatches
 
     private const string _fallDamageThresholdMultiplierStat = "fallDamageThreshold";
     private const float _fallDamageMultiplier = 0.2f;
-    private const float _fallDamageSpeedThreshold = 0.1f;
+    private const float _fallDamageSpeedThreshold = 0.01f;
     private const double _newFallDistance = 4.5;
     
     private static bool OnFallToGround(EntityBehaviorHealth __instance, ref double withYMotion)
@@ -133,18 +133,9 @@ internal static class HarmonyPatches
             return true;
         }
 
-        double fallDistance = 0;
-        PositionBeforeFallingBehavior? behavior = __instance.entity.GetBehavior<PositionBeforeFallingBehavior>();
-        if (behavior != null)
-        {
-            fallDistance = behavior.LastFallHeight;
-        }
-        else
-        {
-            Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
-            fallDistance = (positionBeforeFalling.Y - player.Pos.Y) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
-        }
-        Debug.WriteLine(fallDistance);
+        Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
+        double lowestHeight = player.Pos.Y;//CurrentBelowBlockHeight(player);
+        double fallDistance = (positionBeforeFalling.Y - lowestHeight) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
 
         if (fallDistance < _newFallDistance) return false;
 
@@ -160,6 +151,56 @@ internal static class HarmonyPatches
         }, (float)fallDamage);
 
         return false;
+    }
+    private static double CurrentBelowBlockHeight(EntityAgent player)
+    {
+        double height = player.SidedPos.Y;
+        IBlockAccessor accessor = _api.World.GetBlockAccessor(false, false, false);
+
+        int heightDiff = 1;
+        while (heightDiff < height)
+        {
+            BlockPos blockPos = player.SidedPos.AsBlockPos;
+            blockPos.Y -= heightDiff;
+
+            BlockPos bp0 = blockPos.Copy();
+            BlockPos bp1 = blockPos.Copy();
+            BlockPos bp2 = blockPos.Copy();
+            BlockPos bp3 = blockPos.Copy();
+
+            Vec3d entityPosPos = player.SidedPos.XYZ;
+
+            float xDiff = player.CollisionBox.XSize / 2f;
+            float zDiff = player.CollisionBox.ZSize / 2f;
+
+            bp0.X = (int)(entityPosPos.X - xDiff);
+            bp0.Z = (int)(entityPosPos.Z - zDiff);
+            bp1.X = (int)(entityPosPos.X + xDiff);
+            bp1.Z = (int)(entityPosPos.Z - zDiff);
+            bp2.X = (int)(entityPosPos.X - xDiff);
+            bp2.Z = (int)(entityPosPos.Z + zDiff);
+            bp3.X = (int)(entityPosPos.X + xDiff);
+            bp3.Z = (int)(entityPosPos.Z + zDiff);
+
+            List<Block> blocks = [accessor.GetBlock(bp0)];
+            if (bp0 != bp1) blocks.Add(accessor.GetBlock(bp1));
+            if (bp0 != bp2) blocks.Add(accessor.GetBlock(bp2));
+            if (bp0 != bp3) blocks.Add(accessor.GetBlock(bp3));
+
+            if (blocks.Exists(block => block?.CollisionBoxes != null && block.CollisionBoxes.Length > 0))
+            {
+                return blockPos.Y + blocks
+                    .Where(block => block?.CollisionBoxes != null && block.CollisionBoxes.Length > 0)
+                    .Select(block => block.CollisionBoxes
+                        .Select(box => box.MaxY)
+                        .Max())
+                    .Max();
+            }
+
+            heightDiff++;
+        }
+
+        return 0;
     }
 
     private static void ReloadBagInventory(BagInventory __instance, ref InventoryBase parentinv, ref ItemSlot[] bagSlots)

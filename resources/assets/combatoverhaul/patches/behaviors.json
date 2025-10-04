@@ -6,7 +6,5 @@
   {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/client/behaviors/-", "value": {"code": "CombatOverhaul:WearableStats"}},
   {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/server/behaviors/-", "value": {"code": "CombatOverhaul:WearableStats"}},
   {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/client/behaviors/-", "value": {"code": "CombatOverhaul:InInventory"}},
-  {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/server/behaviors/-", "value": {"code": "CombatOverhaul:InInventory"}},
-  {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/server/behaviors/-", "value": {"code": "CombatOverhaul:PositionBeforeFalling"}},
-  {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/client/behaviors/-", "value": {"code": "CombatOverhaul:PositionBeforeFalling"}}
+  {"side": "Server", "file": "game:entities/humanoid/player", "op": "add", "path": "/server/behaviors/-", "value": {"code": "CombatOverhaul:InInventory"}}
 ]
