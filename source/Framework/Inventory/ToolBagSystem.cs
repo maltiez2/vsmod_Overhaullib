@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Utils;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -47,7 +48,12 @@ public class ToolBagSystemServer
 
     private const string _networkChannelId = "CombatOverhaul:stats";
     private readonly ICoreServerAPI _api;
+    private const long _toolSwapCooldown = 500;
+    private Dictionary<long, long> _mainHandCooldownUntilMs = [];
+    private Dictionary<long, long> _offHandCooldownUntilMs = [];
+
     private IWorldAccessor _world => _api.World;
+
 
     private void HandlePacket(IServerPlayer player, ToolBagPacket packet)
     {
@@ -55,10 +61,25 @@ public class ToolBagSystemServer
 
         if (inventory == null) return;
 
+        long currentTime = _world.ElapsedMilliseconds;
+        long entityId = player.Entity?.EntityId ?? 0;
+        long mainHandCooldown = 0;
+        long offHandCooldown = 0;
+
+        _mainHandCooldownUntilMs.TryGetValue(entityId, out mainHandCooldown);
+        _offHandCooldownUntilMs.TryGetValue(entityId, out offHandCooldown);
+
         try
         {
-            ProcessSlots(player, inventory, packet.ToolBagId, mainHand: true);
-            ProcessSlots(player, inventory, packet.ToolBagId, mainHand: false);
+            if (mainHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, mainHand: true))
+            {
+                _mainHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
+            }
+            
+            if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, mainHand: false))
+            {
+                _offHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
+            }
         }
         catch (Exception exception)
         {
@@ -81,54 +102,91 @@ public class ToolBagSystemServer
         return mainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
     }
 
-    private void ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private ItemSlotToolHolder? GetAlternativeToolHolderSlot(IInventory inventory, ItemSlot activeSlot)
+    {
+        if (activeSlot.Empty) return null;
+
+        return inventory
+            .OfType<ItemSlotToolHolder>()
+            .FirstOrDefault(slot => slot.Empty && slot.CanTakeFrom(activeSlot));
+    }
+
+    private bool ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
     {
         ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
-        if (toolSlot == null) return;
+        if (toolSlot == null) return false;
 
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
-        if (activeSlot.Empty && toolSlot.Empty) return;
+        if (activeSlot.Empty && toolSlot.Empty) return false;
 
         if (toolSlot.Empty)
         {
-            PutBack(player, inventory, bagId, mainHand);
+            return PutBack(player, inventory, bagId, mainHand);
         }
         else
         {
-            TakeOut(player, inventory, bagId, mainHand);
+            return TakeOut(player, inventory, bagId, mainHand);
         }
     }
 
-    private void TakeOut(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private bool TakeOut(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
     {
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
         ItemSlotTakeOutOnly? takeOutSlot = GetTakeOutSlot(inventory, bagId, mainHand);
-        if (takeOutSlot == null) return;
+        ItemSlotToolHolder? anotherToolSlot = GetAlternativeToolHolderSlot(inventory, activeSlot);
 
-        int movedQuantity = 0;
-        if (activeSlot.Itemstack?.StackSize > 0)
+        if (anotherToolSlot != null)
         {
-            takeOutSlot.CanHoldNow = true;
-            movedQuantity = activeSlot.TryPutInto(_world, takeOutSlot, activeSlot.Itemstack.StackSize);
+            int movedQuantity = 0;
+            if (activeSlot.Itemstack?.StackSize > 0)
+            {
+                movedQuantity = activeSlot.TryPutInto(_world, anotherToolSlot, activeSlot.Itemstack.StackSize);
+            }
+
+            if (activeSlot.Empty)
+            {
+                ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+                if (toolSlot == null || toolSlot.Empty) return false;
+
+                movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
+
+                return movedQuantity > 0;
+            }
         }
 
-        if (!activeSlot.Empty) return;
+        if (takeOutSlot != null)
+        {
+            int movedQuantity = 0;
+            if (activeSlot.Itemstack?.StackSize > 0)
+            {
+                takeOutSlot.CanHoldNow = true;
+                movedQuantity = activeSlot.TryPutInto(_world, takeOutSlot, activeSlot.Itemstack.StackSize);
+            }
 
-        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
-        if (toolSlot == null || toolSlot.Empty) return;
+            if (!activeSlot.Empty) return false;
 
-        movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
+            ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+            if (toolSlot == null || toolSlot.Empty) return false;
 
-        if (takeOutSlot != null) takeOutSlot.CanHoldNow = false;
+            movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
+
+            if (takeOutSlot != null) takeOutSlot.CanHoldNow = false;
+
+            return movedQuantity > 0;
+        }
+
+        return false;
     }
 
-    private void PutBack(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private bool PutBack(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
     {
         ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
-        if (toolSlot == null || !toolSlot.Empty || activeSlot.Empty) return;
+        if (toolSlot == null || !toolSlot.Empty || activeSlot.Empty) return false;
 
         int movedQuantity = activeSlot.TryPutInto(_world, toolSlot, activeSlot.Itemstack?.StackSize ?? 1);
+
+        return movedQuantity > 0;
     }
 
     private static IInventory? GetBackpackInventory(IPlayer player)
