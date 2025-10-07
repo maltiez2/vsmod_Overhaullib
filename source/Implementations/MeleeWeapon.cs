@@ -395,8 +395,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     }
     public virtual void OnDeselected(EntityPlayer player, bool mainHand, ref int state)
     {
-        Debug.WriteLine(GetState<MeleeWeaponState>(mainHand));
-
         if (CheckState(mainHand,
             MeleeWeaponState.Attacking,
             MeleeWeaponState.Cooldown,
@@ -779,8 +777,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         MeleeAttack? handle = GetStanceHandleAttack(mainHand);
 
         if (attack == null || stats == null) return false;
-
-        Debug.WriteLine(GetState<MeleeWeaponState>(mainHand));
 
         switch (GetState<MeleeWeaponState>(mainHand))
         {

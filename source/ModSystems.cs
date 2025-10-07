@@ -294,8 +294,6 @@ public sealed class CombatOverhaulSystem : ModSystem
             string iconPath = icon.Location.ToString();
             string iconCode = icon.Location.Domain + ":" + icon.Location.Path[_iconsPath.Length..^4].ToLowerInvariant();
 
-            Debug.WriteLine(iconCode);
-
             if (!iconPath.ToLowerInvariant().EndsWith(".svg"))
             {
                 LoggerUtil.Verbose(clientApi, this, $"Icon should have '.svg' format, skipping. Path: {iconPath}");

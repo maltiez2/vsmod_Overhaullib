@@ -492,20 +492,12 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 
     protected override void applyCollision(EntityPos pos, float dtFactor)
     {
-        
-
-        //dtFactor = dtFactor * 2;
-
-        //Vector3d WolrdCenter = new(512000, 0, 512000);
-
         Vector3d CurrentPosition = new(pos.X, pos.Y, pos.Z);
 
         if (CurrentPosition.LengthSquared == 0) return;
 
         Vector3d PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
         Vector3d NextPosition = CurrentPosition + PositionDelta;
-
-        //Debug.WriteLine($"{CurrentPosition - WolrdCenter} - {PositionDelta} - {NextPosition - WolrdCenter}");
 
 #if DEBUG
         CuboidAABBCollider._api = entity.Api as ICoreServerAPI;

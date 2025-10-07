@@ -157,8 +157,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (animation == null) return;
 
-        Debug.WriteLine(requestByCode.Animation);
-
         AnimationRequest request = new(animation, requestByCode);
 
         Play(request, mainHand);
@@ -300,8 +298,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         Animation? animation = GetAnimationFromRequest(requestByCode);
 
         if (animation == null) return;
-
-        Debug.WriteLine(requestByCode.Animation);
 
         AnimationRequest request = new(animation, requestByCode);
 

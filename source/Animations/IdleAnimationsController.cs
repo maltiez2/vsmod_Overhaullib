@@ -40,8 +40,6 @@ public sealed class IdleAnimationsController
 
     public void Update()
     {
-        //if (_mainHand) Debug.WriteLine($"Update: {_currentAnimation} ({NeedsUpdate()})");
-
         if (!NeedsUpdate()) return;
 
         PlayNextAnimation();
@@ -98,8 +96,6 @@ public sealed class IdleAnimationsController
         EnumAnimationType nextAnimationType = GetNextExistingAnimationType(_player, slot, _mainHand, _currentAnimation);
         AnimationRequestByCode? animationRequest = GetAnimation(_player, slot, _mainHand, nextAnimationType);
 
-        //Debug.WriteLine($"GetNextAnimation - nextAnimationType: {nextAnimationType}, animationRequest: {animationRequest != null}");
-
         if (animationRequest == null) return (null, nextAnimationType);
 
         float animationSpeed = GetAnimationSpeed(_player, nextAnimationType);
@@ -149,8 +145,6 @@ public sealed class IdleAnimationsController
         if (!HasAnyAnimations(slot)) return false;
 
         EnumAnimationType nextAnimationType = GetNextExistingAnimationType(_player, slot, _mainHand, _currentAnimation);
-
-        //if (nextAnimationType != _currentAnimation) Debug.WriteLine($"{_currentAnimation} => {nextAnimationType}");
 
         if (_consecutiveAnimations.Contains((_currentAnimation, nextAnimationType))) return false;
 

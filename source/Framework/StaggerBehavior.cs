@@ -42,7 +42,6 @@ public class StaggerBehavior : EntityBehavior
 
         foreach (string animation in entity.AnimManager.ActiveAnimationsByAnimCode.Keys)
         {
-            Debug.WriteLine(animation);
             entity.AnimManager.StopAnimation(animation);
         }
 
@@ -93,7 +92,6 @@ public class StaggerAiTask : AiTaskBaseR
 
     public override void FinishExecute(bool cancelled)
     {
-        Debug.WriteLine($"Finish: {entity.EntityId}");
         base.FinishExecute(cancelled);
     }
 

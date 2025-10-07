@@ -316,9 +316,6 @@ public readonly struct CuboidAABBCollider
 #if DEBUG
             //_api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), new(intersection.X, intersection.Y, intersection.Z), new(intersection.X, intersection.Y, intersection.Z), new Vec3f(), new Vec3f(), 3, 0, 1.0f, EnumParticleModel.Cube);            
 #endif
-            //Debug.WriteLine($"Dist 0");
-            //Debug.WriteLine("HIT");
-
             return true;
         }
         else
@@ -330,14 +327,6 @@ public readonly struct CuboidAABBCollider
 #if DEBUG
         //_api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), new(intersection.X, intersection.Y, intersection.Z), new(intersection.X, intersection.Y, intersection.Z), new Vec3f(), new Vec3f(), 3, 0, 1.0f, EnumParticleModel.Cube);
 #endif
-
-        //Debug.WriteLine($"Dist {Math.Sqrt(distanceSquared)} < {radius}");
-
-        if (distanceSquared <= radius * radius)
-        {
-            //Debug.WriteLine("HIT");
-        }
-
         return distanceSquared <= radius * radius;
     }
     public static bool CollideWithTerrain(
@@ -397,8 +386,6 @@ public readonly struct CuboidAABBCollider
                         if (collider.Collide(thisTickOrigin, previousTickOrigin, radius, out Vector3d currentIntersection))
                         {
                             double currentDistance = (currentIntersection - previousTickOrigin).Length;
-
-                            //Debug.WriteLine(currentDistance);
 
                             if (currentDistance < shortestDistance)
                             {

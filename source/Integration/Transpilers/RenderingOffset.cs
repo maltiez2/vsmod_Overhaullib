@@ -21,6 +21,7 @@ internal static class PlayerRenderingPatches
     public static float GetMultiplier() => HandsFovMultiplier;
 
     [HarmonyPatch(typeof(EntityPlayerShapeRenderer), "DoRender3DOpaque")]
+    [HarmonyPatchCategory("combatoverhaul")]
     public class EntityShapeRendererPatch
     {
         [HarmonyTranspiler]
@@ -52,6 +53,7 @@ internal static class PlayerRenderingPatches
     }
 
     [HarmonyPatch(typeof(EntityPlayerShapeRenderer), "getReadyShader")]
+    [HarmonyPatchCategory("combatoverhaul")]
     public class EntityShapeRendererShaderPatch
     {
         [HarmonyTranspiler]
