@@ -114,11 +114,9 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
     public void OnFrame(Entity entity, ElementPose pose, AnimatorBase animator)
     {
-        
-
         _frameApplied = true;
 
-        if (IsImmersiveFirstPerson(entity)) return;
+        //if (IsImmersiveFirstPerson(entity)) return;
         if (!DebugWindowManager.PlayAnimationsInThirdPerson && !IsFirstPerson(entity)) return;
         if (!_composer.AnyActiveAnimations() && FrameOverride == null)
         {
@@ -140,8 +138,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         {
             ApplyFrame(_lastFrame, pose, animator);
         }
-
-        
     }
 
     public PlayerItemFrame? FrameOverride { get; set; } = null;
@@ -333,6 +329,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         if (element == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator)
         {
             return;
+        }
+
+        if (element == EnumAnimatedElement.LowerTorso && IsImmersiveFirstPerson(_player))
+        {
+            return;
+        }
+
+        if (IsImmersiveFirstPerson(_player))
+        {
+            PlayerRenderingPatches.SetOffset(0);
+        }
+        else
+        {
+            //PlayerRenderingPatches.ResetOffset();
         }
 
         if (extendedPoseValue != null)

@@ -78,6 +78,7 @@ public class StanceStats
 
     public float AttackCooldownMs { get; set; } = 0;
     public float BlockCooldownMs { get; set; } = 0;
+    public bool ParryWithoutDelay { get; set; } = true;
 
     public string AttackDirectionsType { get; set; } = "None";
     public Dictionary<string, string[]> AttackAnimation { get; set; } = [];
@@ -705,8 +706,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-melee-weapon-parryStats", $"{blockTier:F0}", bodyParts, Lang.Get("combatoverhaul:iteminfo-melee-weapon-offhanded-block")));
         }
     }
-    public bool RestrictRightHandAction() => !CheckState(false, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim);
-    public bool RestrictLeftHandAction() => !CheckState(true, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim);
+    public bool RestrictRightHandAction() => !CheckState(false, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown);
+    public bool RestrictLeftHandAction() => !CheckState(true, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown);
 
     protected readonly Item Item;
     protected readonly ICoreClientAPI Api;
@@ -996,6 +997,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             if (!ParryButtonReleased) return handleEvent;
 
             SetState(MeleeWeaponState.Parrying, mainHand);
+            if (stats.ParryWithoutDelay)
+            {
+                MeleeBlockSystem.StartBlock(parryStats, mainHand);
+            }
             AnimationBehavior?.Play(
                 mainHand,
                 stats.BlockAnimation,

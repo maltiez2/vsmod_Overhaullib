@@ -84,17 +84,10 @@ public class StaggerAiTask : AiTaskBaseR
         baseConfig = config;
     }
 
-    public override void StartExecute()
-    {
-        Debug.WriteLine($"Start: {entity.EntityId}");
-        base.StartExecute();
-    }
-
     public override bool ShouldExecute() => false;
 
     public override bool ContinueExecute(float dt)
     {
-        Debug.WriteLine($"Continue: {entity.EntityId} - {StaggerUntil - CurrentTime} - {base.ContinueExecute(dt)}");
         return Staggered();// && base.ContinueExecute(dt);
     }
 

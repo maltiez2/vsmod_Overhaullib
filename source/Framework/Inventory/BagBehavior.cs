@@ -222,6 +222,12 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         return bagContents;
     }
 
+    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
+    {
+        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+
+
+    }
 
     public void OnAttached(ItemSlot itemslot, int slotIndex, Entity toEntity, EntityAgent byEntity)
     {

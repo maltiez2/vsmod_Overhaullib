@@ -6,6 +6,7 @@ using CombatOverhaul.Utils;
 using ConfigLib;
 using PlayerModelLib;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -167,6 +168,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
+        Debug.WriteLine($"OnReceiveDamageHandler - receive damage");
+
         if (!DamageTypesToProcess.Contains(damageSource.Type)) return damage;
 
         (PlayerBodyPart detailedDamageZone, float multiplier) = DetermineHitZone(damageSource);
@@ -663,10 +666,12 @@ public sealed class MeleeBlockSystemClient : MeleeSystem
     {
         DamageBlockPacket packet = block.ToPacket();
         packet.MainHand = mainHand;
+        Debug.WriteLine($"Client - StartBlock");
         _clientChannel.SendPacket(packet);
     }
     public void StopBlock(bool mainHand)
     {
+        Debug.WriteLine($"Client - StopBlock");
         _clientChannel.SendPacket(new DamageStopBlockPacket() { MainHand = mainHand });
     }
 
@@ -697,6 +702,7 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
         PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
         if (behavior != null)
         {
+            Debug.WriteLine($"Server - StartBlock");
             behavior.CurrentDamageBlock = packet.ToBlockStats(damageBlocked => BlockCallback(player, packet.MainHand, damageBlocked));
         }
     }
@@ -706,6 +712,7 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
         PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
         if (behavior != null)
         {
+            Debug.WriteLine($"Server - StopBlock");
             behavior.CurrentDamageBlock = null;
         }
     }

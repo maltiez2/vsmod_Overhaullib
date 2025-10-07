@@ -68,8 +68,6 @@ public class SlingClient : RangeWeaponClient
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followX", () => AimingStats.AnimationFollowX, (value) => AimingStats.AnimationFollowX = value)
         //DebugWidgets.FloatDrag("test", "test3", $"{item.Code}-followY", () => AimingStats.AnimationFollowY, (value) => AimingStats.AnimationFollowY = value)
 #endif
-
-
     }
 
     public override void OnSelected(ItemSlot slot, EntityPlayer player, bool mainHand, ref int state)
@@ -245,7 +243,15 @@ public class SlingClient : RangeWeaponClient
             AimingSystem.AimingState = WeaponAimingState.PartCharge;
             CurrentSwingSpeed = Stats.MinSwingSpeed;
 
-            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
+            AnimationRequestByCode request = new(
+                Stats.SwingAnimation,
+                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                1,
+                "main",
+                TimeSpan.FromSeconds(0.2),
+                TimeSpan.FromSeconds(0.2),
+                true,
+                () => WindUpCallback(slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
 
@@ -260,7 +266,16 @@ public class SlingClient : RangeWeaponClient
             Released = false;
             SetState(SlingState.Releasing, true);
 
-            AnimationRequestByCode request = new(Stats.ReleaseAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => ShootCallback(slot, player, mainHand), code => ShootCallback(code, slot, player, mainHand));
+            AnimationRequestByCode request = new(
+                Stats.ReleaseAnimation,
+                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                1,
+                "main",
+                TimeSpan.FromSeconds(0.2),
+                TimeSpan.FromSeconds(0.2),
+                true,
+                () => ShootCallback(slot, player, mainHand),
+                code => ShootCallback(code, slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
         }
@@ -269,7 +284,15 @@ public class SlingClient : RangeWeaponClient
         {
             CurrentSwingSpeed = GameMath.Clamp(CurrentSwingSpeed + Stats.SwingSpeedPerSwing, Stats.MinSwingSpeed, Stats.MaxSwingSpeed);
 
-            AnimationRequestByCode request = new(Stats.SwingAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, () => WindUpCallback(slot, player, mainHand));
+            AnimationRequestByCode request = new(
+                Stats.SwingAnimation,
+                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                1,
+                "main",
+                TimeSpan.FromSeconds(0.2),
+                TimeSpan.FromSeconds(0.2),
+                true,
+                () => WindUpCallback(slot, player, mainHand));
             AnimationBehavior?.Play(request, true);
             TpAnimationBehavior?.Play(request, true);
             
@@ -461,7 +484,7 @@ public class SlingServer : RangeWeaponServer
         ProjectileSpawnStats spawnStats = new()
         {
             ProducerEntityId = player.Entity.EntityId,
-            DamageMultiplier = Stats.BulletDamageMultiplier * stackStats.DamageMultiplier * swingSpeed * manipulationSpeed,
+            DamageMultiplier = Stats.BulletDamageMultiplier * stackStats.DamageMultiplier * swingSpeed * Math.Clamp(manipulationSpeed, 1, 2),
             DamageTier = Stats.BulletDamageTier + stackStats.DamageTierBonus,
             Position = new Vector3d(packet.Position[0], packet.Position[1], packet.Position[2]),
             Velocity = GetDirectionWithDispersion(packet.Velocity, [Stats.DispersionMOA[0] * stackStats.DispersionMultiplier, Stats.DispersionMOA[1] * stackStats.DispersionMultiplier]) * Stats.BulletVelocity * stackStats.ProjectileSpeed * speedFactor + playerVelocity
