@@ -1,5 +1,4 @@
 ﻿using CombatOverhaul.DamageSystems;
-using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using Vintagestory.API.Common;
@@ -169,6 +168,16 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
                 dsc.AppendLine($"  {damageType}: {level}");
             }
         }
+        else if (ResistsByType.Any() && ResistsByType.Values.First().Resists.Any())
+        {
+            Dictionary<EnumDamageType, float> resists = ResistsByType.Values.First().Resists;
+            dsc.AppendLine(Lang.Get("combatoverhaul:armor-fraction-protection"));
+            foreach ((EnumDamageType type, float level) in resists.Where(entry => entry.Value > 0))
+            {
+                string damageType = Lang.Get($"combatoverhaul:damage-type-{type}");
+                dsc.AppendLine($"  {damageType}: {level}");
+            }
+        }
 
         if (Stats.Values.Any(value => value != 0))
         {
@@ -178,7 +187,7 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
                 if (value != 0f) dsc.AppendLine($"  {Lang.Get($"combatoverhaul:stat-{stat}")}: {value * 100:F1}%");
             }
         }
-        
+
         dsc.AppendLine();
     }
 
