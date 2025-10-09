@@ -126,7 +126,7 @@ public sealed class MeleeAttack
         {
             bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
 
-            //if (collidedWithTerrain && StopOnTerrainHit) return;
+            if (collidedWithTerrain) return;
         }
 
         TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);

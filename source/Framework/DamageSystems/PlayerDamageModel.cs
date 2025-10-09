@@ -3,10 +3,8 @@ using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
-using ConfigLib;
 using PlayerModelLib;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -71,13 +69,14 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     public PlayerDamageModelBehavior(Entity entity) : base(entity)
     {
         _settings = entity.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
+        _player = entity as EntityPlayer ?? throw new ArgumentNullException(nameof(entity), "'PlayerDamageModelBehavior' should be attached to player");
     }
 
     public event OnPlayerReceiveDamageDelegate? OnReceiveDamage;
 
     public override string PropertyName() => "PlayerDamageModel";
 
-    public PlayerDamageModel DamageModel { get; private set; } = new(Array.Empty<DamageZoneStatsJson>());
+    public PlayerDamageModel DamageModel { get; private set; } = new([]);
     public Dictionary<string, PlayerBodyPart> CollidersToBodyParts { get; private set; } = new()
     {
         { "LowerTorso", PlayerBodyPart.Torso },
@@ -108,14 +107,24 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         { PlayerBodyPart.RightLeg, DamageZone.Legs },
         { PlayerBodyPart.LeftFoot, DamageZone.Feet },
         { PlayerBodyPart.RightFoot, DamageZone.Feet }
-
     };
-    public List<EnumDamageType> DamageTypesToProcess { get; private set; } = new()
+    public Dictionary<DamageZone, string> MultiplierStats { get; private set; } = new()
     {
+        {DamageZone.Head, "playerHeadDamageFactor"},
+        {DamageZone.Face, "playerFaceDamageFactor"},
+        {DamageZone.Neck, "playerNeckDamageFactor"},
+        {DamageZone.Torso, "playerTorsoDamageFactor"},
+        {DamageZone.Arms, "playerArmsDamageFactor"},
+        {DamageZone.Hands, "playerHandsDamageFactor"},
+        {DamageZone.Legs, "playerLegsDamageFactor"},
+        {DamageZone.Feet, "playerFeetDamageFactor"}
+    };
+    public List<EnumDamageType> DamageTypesToProcess { get; private set; } =
+    [
         EnumDamageType.PiercingAttack,
         EnumDamageType.SlashingAttack,
         EnumDamageType.BluntAttack
-    };
+    ];
     public TimeSpan SecondChanceDefaultCooldown { get; set; }
     public TimeSpan SecondChanceCooldown => SecondChanceDefaultCooldown * entity.Stats.GetBlended("secondChanceCooldown");
     public TimeSpan SecondChanceDefaultGracePeriod { get; set; }
@@ -160,11 +169,13 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
     }
 
+    private readonly EntityPlayer _player;
     private readonly Settings _settings;
     private CollidersEntityBehavior? _colliders;
     private readonly float _healthAfterSecondChance = 1;
     private PlayerDamageModelConfig _defaultConfig = new();
     private bool _serverSide = false;
+
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
@@ -173,6 +184,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         (PlayerBodyPart detailedDamageZone, float multiplier) = DetermineHitZone(damageSource);
 
         DamageZone damageZone = BodyPartsToZones[detailedDamageZone];
+
+        multiplier *= GetStatsMultiplier(damageZone);
 
         ApplyBlock(damageSource, detailedDamageZone, ref damage, out string blockDamageLogMessage);
         PrintToDamageLog(blockDamageLogMessage);
@@ -199,14 +212,21 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         if (_settings.PrintPlayerHits && message != "") ((entity as EntityPlayer)?.Player as IServerPlayer)?.SendMessage(GlobalConstants.DamageLogChatGroup, message, EnumChatType.Notification);
     }
 
+    private float GetStatsMultiplier(DamageZone part)
+    {
+        if (MultiplierStats.TryGetValue(part, out string? stat))
+        {
+            return _player.Stats.GetBlended(stat);
+        }
+
+        return 1;
+    }
     private (PlayerBodyPart zone, float multiplier) DetermineHitZone(DamageSource damageSource)
     {
         PlayerBodyPart damageZone;
         float multiplier;
         if (_colliders != null && damageSource is ILocationalDamage locationalDamageSource && locationalDamageSource.Collider != "")
         {
-            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 255), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new(locationalDamageSource.Position.X, locationalDamageSource.Position.Y, locationalDamageSource.Position.Z), new Vec3f(), new Vec3f(), 2, 0, 1.0f, EnumParticleModel.Cube);
-
             damageZone = CollidersToBodyParts[locationalDamageSource.Collider];
             multiplier = DamageModel.GetMultiplier(damageZone);
         }
