@@ -1,14 +1,17 @@
-﻿using Vintagestory.API.Common;
+﻿using ConfigLib;
+using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Armor;
 
-public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent
+public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent, IHasSlotBackpackCategory
 {
     public ItemStack SourceBag { get; set; }
     public SlotConfig Config { get; set; } = new([], []);
+    public string BackpackCategoryCode => Config.BackpackCategoryCode;
+    public float OrderPriority => Config.OrderPriority;
 
     public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
     {
@@ -61,11 +64,13 @@ public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
     }
 }
 
-public class ItemSlotTakeOutOnly : ItemSlotBagContent
+public class ItemSlotTakeOutOnly : ItemSlotBagContent, IHasSlotBackpackCategory
 {
     public string ToolBagId { get; set; }
     public bool CanHoldNow { get; set; } = false;
     public bool MainHand { get; set; } = true;
+    public string BackpackCategoryCode { get; set; } = "takeout";
+    public float OrderPriority { get; set; } = 0.1f;
 
     public ItemSlotTakeOutOnly(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
     {

@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Integration;
 using CombatOverhaul.Utils;
 using System.Diagnostics;
 using System.Reflection;
@@ -136,16 +137,12 @@ public sealed class ArmorInventory : InventoryCharacter
     {
         base.OnItemSlotModified(slot);
 
-        
-
         if (_api.Side == EnumAppSide.Server)
         {
             ClearArmorSlots();
         }
 
-        
-
-        if (slot is GearSlot)
+        if (slot is GearSlot gearSlotModified)
         {
             try
             {
@@ -165,6 +162,16 @@ public sealed class ArmorInventory : InventoryCharacter
                 LoggerUtil.Error(Api, this, $"Error while processing gear slots after slot was modified: {exception}");
                 return;
             }
+
+            if (gearSlotModified.PreviousItemId != (gearSlotModified.Itemstack?.Id ?? 0))
+            {
+                if (_api.Side == EnumAppSide.Client)
+                {
+                    _api.Event.EnqueueMainThreadTask(() => GuiDialogPatches.GuiDialogInventoryInstance?.ComposeGui(false), "");
+                }
+                
+            }
+            gearSlotModified.PreviousEmpty = gearSlotModified.Empty;
         }
 
         if (slot is ClothesSlot clothesSlot)

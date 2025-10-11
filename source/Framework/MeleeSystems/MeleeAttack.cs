@@ -78,25 +78,7 @@ public sealed class MeleeAttack
 
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions)
     {
-        
-
-        terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
-        entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
-
-        PrepareColliders(player, slot, mainHand);
-
-        double parameter = 1f;
-
-        if (CollideWithTerrain)
-        {
-            bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
-
-            //if (collidedWithTerrain && StopOnTerrainHit) return;
-        }
-
-        TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, new ItemStackMeleeWeaponStats());
-
-        
+        Attack(player, slot, mainHand, out terrainCollisions, out entitiesCollisions, new());
     }
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
     {
@@ -139,8 +121,6 @@ public sealed class MeleeAttack
             //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
         }
 #endif
-
-        
     }
     public void PrepareColliders(IPlayer player, ItemSlot slot, bool mainHand)
     {

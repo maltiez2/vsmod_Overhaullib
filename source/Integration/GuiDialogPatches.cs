@@ -1,6 +1,7 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Utils;
 using HarmonyLib;
+using System;
 using System.Diagnostics;
 using System.Reflection;
 using Vintagestory.API.Client;
@@ -28,6 +29,8 @@ internal static class GuiDialogPatches
 
     public static CharacterSlotsStatus SlotsStatus { get; set; } = new();
 
+    public static GuiDialogInventory? GuiDialogInventoryInstance { get; set; }
+
     public static void Patch(string harmonyId, ICoreClientAPI api)
     {
         _api = api;
@@ -42,16 +45,23 @@ internal static class GuiDialogPatches
                 postfix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(OnRenderGUI)))
             );
 
-        /*new Harmony(harmonyId).Patch(
+        new Harmony(harmonyId).Patch(
                 typeof(GuiDialogInventory).GetMethod("ComposeSurvivalInvDialog", AccessTools.all),
-                postfix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogInventory_ComposeSurvivalInvDialog)))
-            );*/
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogInventory_ComposeSurvivalInvDialog)))
+            );
+
+        new Harmony(harmonyId).Patch(
+                typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", AccessTools.all),
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogInventory_OnNewScrollbarvalue_Patch)))
+            );
     }
 
     public static void Unpatch(string harmonyId)
     {
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogCharacter).GetMethod("ComposeCharacterTab", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogCharacter).GetMethod("OnRenderGUI", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(GuiDialogInventory).GetMethod("ComposeSurvivalInvDialog", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
         _api = null;
     }
@@ -166,6 +176,8 @@ internal static class GuiDialogPatches
 
     private static bool GuiDialogInventory_ComposeSurvivalInvDialog(GuiDialogInventory __instance)
     {
+        GuiDialogInventoryInstance = __instance;
+
         IInventory? backPackInv = (IInventory?)GuiDialogInventory_backPackInv?.GetValue(__instance);
         IInventory? craftingInv = (IInventory?)GuiDialogInventory_craftingInv?.GetValue(__instance);
 
@@ -230,8 +242,8 @@ internal static class GuiDialogPatches
         ComposeBackpackSlots(survivalInvDialog, __instance, backPackInv, fullGridBounds);
         survivalInvDialog.EndClip();
 
-        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 3, new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 }, gridBounds, "craftinggrid");
-        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 1, new int[] { 9 }, outputBounds, "outputslot");
+        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 3, [0, 1, 2, 3, 4, 5, 6, 7, 8], gridBounds, "craftinggrid");
+        survivalInvDialog.AddItemSlotGrid(craftingInv, (data) => SendInvPacket(__instance, data), 1, [9], outputBounds, "outputslot");
 
         try
         {
@@ -245,13 +257,57 @@ internal static class GuiDialogPatches
 
         survivalInvDialog.GetScrollbar("scrollbar").SetHeights(
             (float)(slotGridBounds.fixedHeight),
-            (float)(fullGridBounds.fixedHeight + pad))
+            (float)(_rows.Select(rows => (rows + 0.4) * (GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGrid.unscaledSlotPadding)).Sum()) - 12)
         ;
 
         GuiDialogInventory_survivalInvDialog?.SetValue(__instance, survivalInvDialog);
 
         return false;
     }
+
+    private static bool GuiDialogInventory_OnNewScrollbarvalue_Patch(GuiDialogInventory __instance, float value)
+    {
+        if (!__instance.IsOpened()) return false;
+
+        GuiComposer? sid = (GuiComposer?)GuiDialogInventory_survivalInvDialog.GetValue(__instance);
+
+        if (_api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Creative)
+        {
+            return true;
+        }
+        else if (_api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Survival && sid != null)
+        {
+            ElementBounds bounds = sid.GetSlotGridExcl("slotgrid").Bounds;
+            bounds.fixedY = 10 - GuiElementItemSlotGrid.unscaledSlotPadding - value;
+            bounds.CalcWorldBounds();
+
+            int index = 0;
+            while (true)
+            {
+                try
+                {
+                    if (sid.GetElement($"slotgrid-{index}") == null) break;
+
+                    ElementBounds bounds2 = sid.GetSlotGridExcl($"slotgrid-{index}").Bounds;
+                    ElementBounds bounds3 = sid.GetRichtext($"category-{index}").Bounds;
+                    bounds3.fixedY = bounds.fixedY + (GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGrid.unscaledSlotPadding) * _rows[index];
+                    bounds2.fixedY = bounds.fixedY + (GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGrid.unscaledSlotPadding) * (_rows[index] + 0.4);
+                    bounds2.CalcWorldBounds();
+                    bounds3.CalcWorldBounds();
+                    bounds = bounds2;
+                    index++;
+                }
+                catch
+                {
+                    break;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static List<int> _rows = [];
 
 
 
@@ -321,7 +377,82 @@ internal static class GuiDialogPatches
     }
     private static void ComposeBackpackSlots(GuiComposer composer, GuiDialogInventory __instance, IInventory? backPackInv, ElementBounds fullGridBounds)
     {
-        composer.AddItemSlotGridExcl(backPackInv, (data) => SendInvPacket(__instance, data), 6, new int[] { 0, 1, 2, 3 }, fullGridBounds, "slotgrid");
+        if (backPackInv == null) return;
+
+        _rows.Clear();
+
+        List<int> generalSlots = [];
+        List<(float order, string category, List<int> indexes)> specialSlots = [];
+
+        for (int slotIndex = 4; slotIndex < backPackInv.Count; slotIndex++)
+        {
+            ItemSlot slot = backPackInv[slotIndex];
+            if (slot is IHasSlotBackpackCategory slotWithCategory && slotWithCategory.BackpackCategoryCode != "")
+            {
+                bool categoryExists = false;
+                foreach ((float order, string category, List<int> indexes) in specialSlots)
+                {
+                    if (category == slotWithCategory.BackpackCategoryCode)
+                    {
+                        indexes.Add(slotIndex);
+                        categoryExists = true;
+                        break;
+                    }
+                }
+                if (!categoryExists)
+                {
+                    specialSlots.Add((slotWithCategory.OrderPriority, slotWithCategory.BackpackCategoryCode, [slotIndex]));
+                }
+            }
+            else
+            {
+                generalSlots.Add(slotIndex);
+            }
+        }
+
+        specialSlots.Sort((a, b) => Math.Sign(b.order - a.order));
+
+        ElementBounds generalGridBounds = fullGridBounds;
+
+        composer.AddItemSlotGridExcl(backPackInv, (data) => SendInvPacket(__instance, data), 6, GetInvertedIndexes(generalSlots, backPackInv.Count), generalGridBounds, "slotgrid");
+
+        _rows.Add((int)Math.Ceiling(generalSlots.Count / 6f));
+
+        ElementBounds specialGridBounds = fullGridBounds.FlatCopy();
+        for (int categoryIndex = 0; categoryIndex < specialSlots.Count; categoryIndex++)
+        {
+            _rows.Add((int)Math.Ceiling(specialSlots[categoryIndex].indexes.Count / 6f));
+
+            double Y = specialGridBounds.fixedY + (GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGrid.unscaledSlotPadding) * _rows[categoryIndex];
+
+            specialGridBounds = fullGridBounds.FlatCopy();
+            specialGridBounds.fixedY = Y;
+
+            composer.AddRichtext(Lang.Get($"slotcategory-{specialSlots[categoryIndex].category}"), CairoFont.WhiteSmallText().WithFontSize(14), specialGridBounds, $"category-{categoryIndex}");
+
+            specialGridBounds = fullGridBounds.FlatCopy();
+            specialGridBounds.fixedY = Y + (GuiElementPassiveItemSlot.unscaledSlotSize + GuiElementItemSlotGrid.unscaledSlotPadding) * 0.4;
+
+            composer.AddItemSlotGridExcl(
+                backPackInv,
+                (data) => SendInvPacket(__instance, data),
+                6,
+                GetInvertedIndexes(specialSlots[categoryIndex].indexes, backPackInv.Count),
+                specialGridBounds,
+                $"slotgrid-{categoryIndex}");
+        }
+    }
+    private static int[] GetInvertedIndexes(List<int> indexes, int total)
+    {
+        List<int> result = [];
+        for (int index = 0; index < total; index++)
+        {
+            if (!indexes.Contains(index))
+            {
+                result.Add(index);
+            }
+        }
+        return result.ToArray();
     }
 
     private static void CloseIconPressed(GuiDialogInventory __instance) => GuiDialogInventory_CloseIconPressed?.Invoke(__instance, []);

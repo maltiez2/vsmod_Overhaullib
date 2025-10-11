@@ -19,6 +19,7 @@ public class ClothesSlot : ItemSlotCharacter
     public int PreviousItemId { get; set; } = 0;
     public int PreviousDurability { get; set; } = 0;
     public string? PreviousColor { get; set; }
+    public bool PreviousEmpty { get; set; } = false;
 
     public ClothesSlot(EnumCharacterDressType type, InventoryBase inventory) : base(type, inventory)
     {

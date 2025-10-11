@@ -6,6 +6,7 @@ namespace CombatOverhaul.Armor;
 public interface IHasSlotBackpackCategory
 {
     string BackpackCategoryCode { get; }
+    float OrderPriority { get; }
 }
 
 public class SlotConfigJson
@@ -18,6 +19,7 @@ public class SlotConfigJson
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
     public string SlotBackpackCategory { get; set; } = "";
+    public float CategoryOrderPriority { get; set; } = 1f;
     public int SlotsNumber { get; set; } = 0;
 
     public string SlotVariant { get; set; } = "bag_slot";
@@ -49,6 +51,7 @@ public class SlotConfigJson
             SlotColor = SlotColor,
             SlotsIcon = SlotsIcon,
             BackpackCategoryCode = SlotBackpackCategory,
+            OrderPriority = CategoryOrderPriority,
             SlotsNumber = SlotsNumber,
             SlotVariant = SlotVariant,
             SlotStateVariant = SlotStateVariant,
@@ -71,6 +74,7 @@ public class SlotConfig : IHasSlotBackpackCategory
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
     public string BackpackCategoryCode { get; set; } = "";
+    public float OrderPriority { get; set; } = 1f;
     public int SlotsNumber { get; set; } = 0;
 
     public string SlotVariant { get; set; } = "bag_slot";
