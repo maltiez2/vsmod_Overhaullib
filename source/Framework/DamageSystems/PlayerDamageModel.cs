@@ -159,6 +159,12 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     {
         if (!_serverSide) return;
 
+        long currentTime = entity.World.ElapsedMilliseconds;
+        if (_nextTemperatureDamageCheck < currentTime)
+        {
+            ApplyDamageFromHotClothes();
+            _nextTemperatureDamageCheck = currentTime + _temperatureDamageCheckCooldownMs;
+        }
 
         float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
         secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
@@ -175,6 +181,12 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     private readonly float _healthAfterSecondChance = 1;
     private PlayerDamageModelConfig _defaultConfig = new();
     private bool _serverSide = false;
+    private const float _minTemperatureToDamage = 100;
+    private const float _minTemperatureDamage = 0.1f;
+    private const float _maxTemperatureToDamage = 1000;
+    private const float _maxTemperatureDamage = 16f;
+    private long _nextTemperatureDamageCheck = 0;
+    private const long _temperatureDamageCheckCooldownMs = 2000;
 
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
@@ -478,6 +490,42 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
             slot.Itemstack.Item.DamageItem(entity.Api.World, entity, slot, durabilityDamagePerSlot);
             slot.MarkDirty();
+        }
+    }
+    private void ApplyDamageFromHotClothes()
+    {
+        if ((entity as EntityPlayer)?.Player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName) is not ArmorInventory inventory) return;
+
+        float damage = 0;
+
+        foreach (ItemSlot slot in inventory.Where(slot => slot.Itemstack?.Item != null))
+        {
+            float temperature = slot.Itemstack.Item.GetTemperature(entity.Api.World, slot.Itemstack);
+
+            if (temperature > _minTemperatureToDamage)
+            {
+                float temperatureFactor = (temperature - _minTemperatureToDamage) / (_maxTemperatureToDamage - _minTemperatureToDamage);
+                float newDamage = _minTemperatureDamage + (_maxTemperatureDamage - _minTemperatureDamage) * temperatureFactor;
+                if (newDamage > damage)
+                {
+                    damage = newDamage;
+                }
+            }
+        }
+
+        if (damage > 0)
+        {
+            DamageSource heatDamageSource = new()
+            {
+                CauseEntity = entity,
+                SourceEntity = entity,
+                IgnoreInvFrames = true,
+                DamageTier = 0,
+                Type = EnumDamageType.Fire,
+                KnockbackStrength = 0
+            };
+
+            entity.ReceiveDamage(heatDamageSource, damage);
         }
     }
 }
