@@ -510,6 +510,11 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
                 {
                     damage = newDamage;
                 }
+
+                if (newDamage > 6)
+                {
+                    entity.Api.World.SpawnItemEntity(slot.TakeOutWhole(), entity.Pos.AsBlockPos);
+                }
             }
         }
 
@@ -521,8 +526,9 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
                 SourceEntity = entity,
                 IgnoreInvFrames = true,
                 DamageTier = 0,
-                Type = EnumDamageType.Fire,
-                KnockbackStrength = 0
+                Type = EnumDamageType.Heat,
+                KnockbackStrength = 0,
+                Source = EnumDamageSource.Internal
             };
 
             entity.ReceiveDamage(heatDamageSource, damage);
