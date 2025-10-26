@@ -686,11 +686,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly List<string> _offhandCategories = new();
     private readonly List<string> _mainHandCategories = new();
     private readonly bool _mainPlayer = false;
-    private readonly Dictionary<string, EnumAnimatedElement> _posesNames = Enum.GetValues<EnumAnimatedElement>().ToDictionary(value => value.ToString(), value => value);
-    private readonly List<ElementPose?> _posesCache = Enum.GetValues<EnumAnimatedElement>().Select(_ => (ElementPose?)null).ToList();
-    private readonly List<bool> _posesSet = Enum.GetValues<EnumAnimatedElement>().Select(_ => false).ToList();
     private readonly Settings _settings;
-    private bool _updatePosesCache = false;
     private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
@@ -727,23 +723,6 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             _pitch = targetEntity.Pos.HeadPitch;
             _eyePosition = new((float)entity.LocalEyePos.X, (float)entity.LocalEyePos.Y, (float)entity.LocalEyePos.Z);
             _eyeHeight = (float)entity.Properties.EyeHeight;
-
-            if (_updatePosesCache)
-            {
-                _updatePosesCache = false;
-            }
-            else
-            {
-                for (int index = 0; index < _posesSet.Count; index++)
-                {
-                    if (!_posesSet[index])
-                    {
-                        _updatePosesCache = true;
-                    }
-
-                    _posesSet[index] = false;
-                }
-            }
         }
 
         _frameApplied = false;
@@ -762,20 +741,7 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
         else
         {
-            for (int index = 1; index < _posesCache.Count; index++)
-            {
-                if (_posesCache[index] == pose)
-                {
-                    element = (EnumAnimatedElement)index;
-                    _posesSet[index] = true;
-                    break;
-                }
-            }
-
-            if (element == EnumAnimatedElement.Unknown && _updatePosesCache && _posesNames.TryGetValue(pose.ForElement.Name, out element))
-            {
-                _posesCache[(int)element] = pose;
-            }
+            return;
         }
 
         if (element == EnumAnimatedElement.Unknown && animator is not ClientItemAnimator)
