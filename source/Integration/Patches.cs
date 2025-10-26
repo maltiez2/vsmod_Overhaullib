@@ -85,14 +85,7 @@ internal static class HarmonyPatches
 
         if (animator == null) return true;
 
-        AnimationPatches._animatorsLock.AcquireWriterLock(1000);
-        if (!AnimationPatches._animators.ContainsKey(animator))
-        {
-            AnimationPatches._animators.Add(animator, entity);
-        }
-        AnimationPatches._animatorsLock.ReleaseWriterLock();
-
-
+        AnimationPatches.Animators?.Add(animator, entity);
 
         return true;
     }
@@ -118,9 +111,9 @@ internal static class HarmonyPatches
 
     private const string _fallDamageThresholdMultiplierStat = "fallDamageThreshold";
     private const float _fallDamageMultiplier = 0.2f;
-    private const float _fallDamageSpeedThreshold = 0.01f;
+    private const float _fallDamageSpeedThreshold = 0.1f;
     private const double _newFallDistance = 4.5;
-    
+
     private static bool OnFallToGround(EntityBehaviorHealth __instance, ref double withYMotion)
     {
         if ((__instance.entity as EntityAgent)?.ServerControls.Gliding == true)
@@ -134,8 +127,8 @@ internal static class HarmonyPatches
         }
 
         Vec3d positionBeforeFalling = __instance.entity.PositionBeforeFalling;
-        double lowestHeight = player.Pos.Y;//CurrentBelowBlockHeight(player);
-        double fallDistance = (positionBeforeFalling.Y - lowestHeight) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
+
+        double fallDistance = (positionBeforeFalling.Y - player.Pos.Y) / Math.Max(player.Stats.GetBlended(_fallDamageThresholdMultiplierStat), 0.001);
 
         if (fallDistance < _newFallDistance) return false;
 

@@ -267,7 +267,7 @@ internal static class GuiDialogPatches
 
     private static bool GuiDialogInventory_OnNewScrollbarvalue_Patch(GuiDialogInventory __instance, float value)
     {
-        if (!__instance.IsOpened()) return false;
+        if (!__instance.IsOpened()) return true;
 
         GuiComposer? sid = (GuiComposer?)GuiDialogInventory_survivalInvDialog.GetValue(__instance);
 

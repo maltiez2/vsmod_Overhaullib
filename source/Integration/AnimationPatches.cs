@@ -1,6 +1,7 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Integration.Transpilers;
+using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -17,19 +18,16 @@ internal static class AnimationPatches
     public static event Action<Entity, float>? OnBeforeFrame;
     public static Settings ClientSettings { get; set; } = new();
     public static Settings ServerSettings { get; set; } = new();
-    public static Dictionary<long, ThirdPersonAnimationsBehavior> AnimationBehaviors { get; } = new();
+    public static Dictionary<long, ThirdPersonAnimationsBehavior> AnimationBehaviors { get; } = [];
     public static FirstPersonAnimationsBehavior? FirstPersonAnimationBehavior { get; set; }
     public static long OwnerEntityId { get; set; } = 0;
-    public static HashSet<long> ActiveEntities { get; set; } = new();
+    public static HashSet<long> ActiveEntities { get; set; } = [];
+    public static AnimatorCache? Animators { get; private set; }
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
-        _api = api;
-        _animatorsLock.AcquireWriterLock(5000);
-        _animators.Clear();
-        _animatorsLock.ReleaseWriterLock();
+        Animators = new(api);
 
-        _reportedEntities.Clear();
         new Harmony(harmonyId).Patch(
                 typeof(EntityShapeRenderer).GetMethod("RenderHeldItem", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(AnimationPatches), nameof(RenderHeldItem)))
@@ -49,8 +47,6 @@ internal static class AnimationPatches
                 typeof(EntityShapeRenderer).GetMethod("BeforeRender", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(AnimationPatches), nameof(BeforeRender)))
             );
-
-        _cleanUpTickListener = api.World.RegisterGameTickListener(_ => OnCleanUpTick(), 5 * 60 * 1000, 5 * 60 * 1000);
     }
 
     public static void Unpatch(string harmonyId, ICoreAPI api)
@@ -60,20 +56,13 @@ internal static class AnimationPatches
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("DoRender3DOpaque", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityShapeRenderer).GetMethod("BeforeRender", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
-        _animatorsLock.AcquireWriterLock(5000);
-        _animators.Clear();
-        _animatorsLock.ReleaseWriterLock();
-
-        _reportedEntities.Clear();
-
-        api.World.UnregisterGameTickListener(_cleanUpTickListener);
-        _api = null;
+        Animators?.Dispose();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void OnFrameInvoke(ClientAnimator? animator, ElementPose pose)
     {
-        if (ClientSettings.DisableAllAnimations || animator == null) return;
+        if (ClientSettings.DisableAllAnimations || animator == null || Animators == null) return;
 
         if (pose is ExtendedElementPose extendedPose)
         {
@@ -95,7 +84,7 @@ internal static class AnimationPatches
             }
         }
 
-        if (_animators.TryGetValue(animator, out EntityPlayer? entity))
+        if (Animators.Get(animator, out EntityPlayer? entity))
         {
             if (!ClientSettings.DisableThirdPersonAnimations && AnimationBehaviors.TryGetValue(entity.EntityId, out ThirdPersonAnimationsBehavior? behavior))
             {
@@ -114,41 +103,12 @@ internal static class AnimationPatches
         }
     }
 
-    private static long _cleanUpTickListener = 0;
-
     private static void BeforeRender(EntityShapeRenderer __instance, float dt)
     {
         if (!ClientSettings.DisableAllAnimations)
         {
             OnBeforeFrame?.Invoke(__instance.entity, dt);
         }
-    }
-
-    private static void OnCleanUpTick()
-    {
-
-
-        _animatorsLock.AcquireWriterLock(5000);
-
-        try
-        {
-            List<ClientAnimator> animatorsToRemove = new();
-            foreach (ClientAnimator animator in _animators.Where(entry => !entry.Value.Alive).Select(entry => entry.Key))
-            {
-                animatorsToRemove.Add(animator);
-            }
-
-            foreach (ClientAnimator animator in animatorsToRemove)
-            {
-                _animators.Remove(animator);
-            }
-        }
-        finally
-        {
-            _animatorsLock.ReleaseWriterLock();
-        }
-
-
     }
 
     private static void DoRender3DOpaque(EntityShapeRenderer __instance, float dt, bool isShadowPass)
@@ -177,11 +137,6 @@ internal static class AnimationPatches
             // just ignore
         }
     }
-
-    internal static readonly Dictionary<ClientAnimator, EntityPlayer> _animators = new();
-    internal static readonly ReaderWriterLock _animatorsLock = new();
-    internal static readonly HashSet<long> _reportedEntities = new();
-    private static ICoreAPI? _api;
 
     private static bool RenderHeldItem(EntityShapeRenderer __instance, float dt, bool isShadowPass, bool right)
     {

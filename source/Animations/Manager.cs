@@ -78,7 +78,7 @@ public sealed class AnimationsManager
 
                 string animationCode = code.Contains(':') ? code : $"{domain}:{code}";
 
-                result.Add(animationCode, animation);
+                result.TryAdd(animationCode, animation);
             }
             catch (Exception exception)
             {
