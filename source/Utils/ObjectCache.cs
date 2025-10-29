@@ -1,4 +1,4 @@
-﻿using PlayerModelLib;
+﻿using CombatOverhaul.Utils;
 using System.Diagnostics.CodeAnalysis;
 using Vintagestory.API.Common;
 
