@@ -257,11 +257,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         if (!IsOwner(targetEntity)) return;
 
-        
-
         _lastFrame = _composer.Compose(TimeSpan.FromSeconds(dt));
-
-        
 
         if (_composer.AnyActiveAnimations())
         {
@@ -289,8 +285,6 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
 
         _frameApplied = false;
-
-        
     }
 
     private void PlayImpl(AnimationRequestByCode requestByCode, bool mainHand = true)

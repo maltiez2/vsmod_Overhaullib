@@ -1,7 +1,6 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Integration.Transpilers;
-using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -22,11 +21,11 @@ internal static class AnimationPatches
     public static FirstPersonAnimationsBehavior? FirstPersonAnimationBehavior { get; set; }
     public static long OwnerEntityId { get; set; } = 0;
     public static HashSet<long> ActiveEntities { get; set; } = [];
-    public static AnimatorCache? Animators { get; private set; }
+    public static ObjectCache<ClientAnimator, EntityPlayer>? Animators { get; private set; }
 
     public static void Patch(string harmonyId, ICoreAPI api)
     {
-        Animators = new(api);
+        Animators = new(api, "animators to players cache", 1000, 5 * 60 * 1000, threadSafe: true);
 
         new Harmony(harmonyId).Patch(
                 typeof(EntityShapeRenderer).GetMethod("RenderHeldItem", AccessTools.all),

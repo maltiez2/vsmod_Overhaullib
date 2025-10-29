@@ -6,6 +6,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
@@ -124,6 +125,8 @@ public sealed class CombatOverhaulSystem : ModSystem
     {
         (api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
         (api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
+
+        ExtendedElementPose.NameHashCache = new(api, "element pose name hash cache", 400000, 11 * 60 * 1000, threadSafe: true);
     }
 
     public override void Start(ICoreAPI api)
@@ -336,6 +339,8 @@ public sealed class CombatOverhaulSystem : ModSystem
         _clientApi?.World.UnregisterGameTickListener(_cacheMissesReportedListener);
 
         Disposed = true;
+
+        ExtendedElementPose.NameHashCache?.Dispose();
     }
 
     public bool ToggleWearableItem(IPlayer player, string hotkeyCode)
