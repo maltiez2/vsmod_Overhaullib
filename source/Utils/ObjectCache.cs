@@ -31,20 +31,20 @@ public sealed class ObjectCache<TKey, TValue> : IDisposable
 
     public void Add(TKey key, TValue value)
     {
-        bool requiresCleanUp = false;
+        //bool requiresCleanUp = false;
         bool threadSafe = _threadSafe;
 
         if (threadSafe) _lock.AcquireWriterLock(5000);
         _addCountBetweenCleanUps++;
         _mapping[key] = value;
         _lastAccess[key] = CurrentTime();
-        requiresCleanUp = _mapping.Count > _cleanUpThreshold;
+        //requiresCleanUp = _mapping.Count > _cleanUpThreshold;
         if (threadSafe) _lock.ReleaseWriterLock();
 
-        if (requiresCleanUp)
+        /*if (requiresCleanUp)
         {
             Clean();
-        }
+        }*/
     }
 
     public bool Get(TKey key, [NotNullWhen(true)] out TValue? value)

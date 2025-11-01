@@ -126,7 +126,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         (api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
         (api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
 
-        ExtendedElementPose.NameHashCache = new(api, "element pose name hash cache", 20000, 11 * 60 * 1000, threadSafe: true);
+        ExtendedElementPose.NameHashCache = new(api, "element pose name hash cache", 500000, 11 * 60 * 1000, threadSafe: true);
     }
 
     public override void Start(ICoreAPI api)

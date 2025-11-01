@@ -135,7 +135,7 @@ public class MeleeDamageType : IHasLineCollider
         {
             DamageType = damageTypeData.DamageType.ToString(),
             Tier = damageTypeData.Tier,
-            ArmorPiercingTier = damageTypeData.ArmorPiercingTier,
+            ArmorPiercingTier = damageTypeData.ArmorPiercingTier + stats.ArmorPiercingBonus,
             Damage = damage,
             Knockback = Knockback * stats.KnockbackMultiplier,
             Position = [position.X, position.Y, position.Z],
