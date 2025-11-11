@@ -68,6 +68,8 @@ public sealed class GuiDialogArmorInventory : GuiDialog
 
     private void ComposeDialog()
     {
+        return;
+        
         if (_characterDialog == null)
         {
             return;
@@ -184,9 +186,11 @@ public sealed class GuiDialogArmorInventory : GuiDialog
         if (available)
         {
             _composer.AddItemSlotGrid(inv, SendInvPacket, 1, new int[] { slotIndex }, BelowCopySet(ref bounds, fixedDeltaY: gap));
+            //inv[slotIndex].HexBackgroundColor = null;
         }
         else
         {
+            inv[slotIndex].HexBackgroundColor = "#AAAAAA";
             _dummyInventory[slotIndex].HexBackgroundColor = "#AAAAAA";
             _dummyInventory[slotIndex].Itemstack = inv[inv.GetSlotBlockingSlotIndex(layers, zone)].Itemstack;
             _composer.AddItemSlotGrid(_dummyInventory, (_) => { }, 1, new int[] { slotIndex }, BelowCopySet(ref bounds, fixedDeltaY: gap));

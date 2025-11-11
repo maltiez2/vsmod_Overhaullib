@@ -175,6 +175,29 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
     }
 
+    public static float GetDamageReductionFactor(IPlayer player, DamageZone zone, EnumDamageType damageType, int damageTier)
+    {
+        if (player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName) is not ArmorInventory inventory) return 0;
+
+        if (zone == DamageZone.None) return 0;
+
+        IEnumerable<ArmorSlot> slots = inventory.GetNotEmptyZoneSlots(zone);
+
+        if (!slots.Any()) return 1;
+
+        DamageResistData resists = DamageResistData.Combine(slots
+            .Where(slot => slot?.Itemstack?.Item != null)
+            .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
+            .Select(slot => slot.GetResists(zone)));
+
+        float damage = 1;
+        int durabilityDamage = 0;
+
+        _ = resists.ApplyPlayerResist(new(damageType, damageTier, 0), ref damage, out durabilityDamage);
+
+        return damage;
+    }
+
     private readonly EntityPlayer _player;
     private readonly Settings _settings;
     private CollidersEntityBehavior? _colliders;
@@ -312,7 +335,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             if (blockTier < damageTier)
             {
                 ApplyBlockResists(blockTier, damageTier, ref damage);
-                damageSource.DamageTier = (int)(damageTier - blockTier);
+                //damageSource.DamageTier = (int)(damageTier - blockTier);
                 damageLogMessage = Lang.Get("combatoverhaul:damagelog-partial-block", Lang.Get($"combatoverhaul:detailed-damage-zone-{zone}"), $"{initialDamage - damage:F1}");
             }
             else
@@ -351,7 +374,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         DamageResistData resists = DamageResistData.Combine(slots
             .Where(slot => slot?.Itemstack?.Item != null)
             .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
-            .Select(slot => slot.Resists));
+            .Select(slot => slot.GetResists(zone)));
 
         float previousDamage = damage;
         int durabilityDamage = 0;
@@ -365,7 +388,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         durabilityDamage = GameMath.Clamp(durabilityDamage, 1, durabilityDamage);
 
-        DamageArmor(slots, damageType, durabilityDamage, out int totalDurabilityDamage);
+        DamageArmor(slots, zone, damageType, durabilityDamage, out int totalDurabilityDamage);
 
         if (previousDamage - damage > 0)
         {
@@ -461,9 +484,9 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         SecondChanceAvailable = customModelConfig.DamageModel.SecondChanceAvailable;
         SecondChanceDefaultGracePeriod = TimeSpan.FromSeconds(customModelConfig.DamageModel.SecondChanceGracePeriodSec);
     }
-    private void DamageArmor(IEnumerable<ArmorSlot> slots, EnumDamageType damageType, int durabilityDamage, out int totalDurabilityDamage)
+    private void DamageArmor(IEnumerable<ArmorSlot> slots, DamageZone zone, EnumDamageType damageType, int durabilityDamage, out int totalDurabilityDamage)
     {
-        float totalProtection = slots.Select(slot => slot.Resists.Resists[damageType]).Sum();
+        float totalProtection = slots.Select(slot => slot.GetResists(zone).Resists[damageType]).Sum();
 
         if (totalProtection <= float.Epsilon * 2)
         {
@@ -484,7 +507,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         {
             if (slot.Itemstack.Item.GetMaxDurability(slot.Itemstack) <= 0) continue;
 
-            float protection = slot.Resists.Resists[damageType];
+            float protection = slot.GetResists(zone).Resists[damageType];
             int durabilityDamagePerSlot = (int)Math.Ceiling(durabilityDamage * protection / totalProtection);
             totalDurabilityDamage += durabilityDamagePerSlot;
 

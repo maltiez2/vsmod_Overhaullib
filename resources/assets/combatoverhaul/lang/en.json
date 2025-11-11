@@ -5,6 +5,11 @@
   "toolmode-noselection": "None",
   "interaction-ammoselection": "Select ammo type",
 
+  "game:charactertab-armor": "Armor",
+
+  "armor-inventory-dialog-attack-tier": "Attack tier",
+  "armor-inventory-dialog-armor-stats": "{0:P0}|{1:P0}|{2:P0}",
+  "armor-inventory-dialog-attack-legend": "Piercing|Slashing|Blunt",
   "armor-inventory-dialog-title": "Armor",
   "armor-inventory-dialog-head": "Head:",
   "armor-inventory-dialog-face": "Face:",

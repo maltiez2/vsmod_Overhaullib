@@ -31,10 +31,13 @@ internal static class HarmonyPatches
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(HarmonyPatches.SmoothCameraTurning)))
             );
 
-        new Harmony(harmonyId).Patch(
+        if (!api.ModLoader.IsModEnabled("svanaxfdc"))
+        {
+            new Harmony(harmonyId).Patch(
                 typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(HarmonyPatches.OnFallToGround)))
             );
+        }
 
         new Harmony(harmonyId).Patch(
                 typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all),
@@ -60,13 +63,17 @@ internal static class HarmonyPatches
     public static void Unpatch(string harmonyId, ICoreAPI api)
     {
         new Harmony(harmonyId).Unpatch(typeof(Vintagestory.API.Common.AnimationManager).GetMethod("OnClientFrame", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetMethod("OnSelfBeforeRender", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayerShapeRenderer).GetMethod("smoothCameraTurning", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all)?.GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BehaviorHealingItem).GetMethod("OnHeldInteractStart", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+
+        if (!api.ModLoader.IsModEnabled("svanaxfdc"))
+        {
+            new Harmony(harmonyId).Unpatch(typeof(EntityBehaviorHealth).GetMethod("OnFallToGround", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        }
+
         _api = null;
     }
 

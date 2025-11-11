@@ -31,20 +31,12 @@ public sealed class ObjectCache<TKey, TValue> : IDisposable
 
     public void Add(TKey key, TValue value)
     {
-        //bool requiresCleanUp = false;
         bool threadSafe = _threadSafe;
-
         if (threadSafe) _lock.AcquireWriterLock(5000);
         _addCountBetweenCleanUps++;
         _mapping[key] = value;
         _lastAccess[key] = CurrentTime();
-        //requiresCleanUp = _mapping.Count > _cleanUpThreshold;
         if (threadSafe) _lock.ReleaseWriterLock();
-
-        /*if (requiresCleanUp)
-        {
-            Clean();
-        }*/
     }
 
     public bool Get(TKey key, [NotNullWhen(true)] out TValue? value)
@@ -73,7 +65,7 @@ public sealed class ObjectCache<TKey, TValue> : IDisposable
 
         try
         {
-            LoggerUtil.Notify(_api, this, $"({_loggedCacheName}) Starting clean up. Current world time: {TimeSpan.FromMilliseconds(currentTime)}\nSize: {_mapping.Count}\n'Get' count: {_getCountBetweenCleanUps}\n'Add' count: {_addCountBetweenCleanUps}");
+            LoggerUtil.Verbose(_api, this, $"({_loggedCacheName}) Starting clean up. Current world time: {TimeSpan.FromMilliseconds(currentTime)}\nSize: {_mapping.Count}\n'Get' count: {_getCountBetweenCleanUps}\n'Add' count: {_addCountBetweenCleanUps}");
             _getCountBetweenCleanUps = 0;
             _addCountBetweenCleanUps = 0;
 
@@ -94,7 +86,7 @@ public sealed class ObjectCache<TKey, TValue> : IDisposable
                 _lastAccess.Remove(key);
             }
 
-            LoggerUtil.Notify(_api, this, $"({_loggedCacheName}) Cleaned up '{keysToRemove.Count}' keys for '{entities.Count}' values.");
+            LoggerUtil.Verbose(_api, this, $"({_loggedCacheName}) Cleaned up '{keysToRemove.Count}' keys for '{entities.Count}' values.");
         }
         catch (Exception exception)
         {

@@ -116,6 +116,10 @@ public class RangeWeaponServer : IServerRangedWeaponLogic
     {
         return false;
     }
+    public virtual bool Shoot(ICoreAPI api, IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
+    {
+        return Shoot(player, slot, packet, shooter);
+    }
 
     protected ProjectileSystemServer ProjectileSystem;
     protected readonly Item Item;

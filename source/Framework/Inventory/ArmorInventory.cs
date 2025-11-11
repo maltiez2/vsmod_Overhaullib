@@ -229,6 +229,35 @@ public sealed class ArmorInventory : InventoryCharacter
                 armorSlot.PreviousDurability = currentDurability;
             }
 
+            foreach (ArmorSlot armorSlot2 in this.OfType<ArmorSlot>())
+            {
+                bool available = IsSlotAvailable(armorSlot2.ArmorType) || !armorSlot2.Empty;
+                if (!available)
+                {
+                    if (armorSlot2.HexBackgroundColor == "#5fbed4")
+                    {
+                        
+                    }
+                    else
+                    {
+                        armorSlot2.HexBackgroundColor = "#777777";
+                    }
+                }
+                else
+                {
+                    if (armorSlot2.HexBackgroundColor == "#5fbed4")
+                    {
+
+                    }
+                    else
+                    {
+                        armorSlot2.HexBackgroundColor = null;
+                    }
+                }
+            }
+
+            GuiDialogPatches.RecalculateArmorStatsForGui();
+
             OnSlotModified?.Invoke(itemChanged, durabilityChanged, true);
             OnArmorSlotModified?.Invoke(itemChanged, durabilityChanged, true);
         }
@@ -245,8 +274,6 @@ public sealed class ArmorInventory : InventoryCharacter
                 LoggerUtil.Error(Api, this, $"Error while calling 'IGearSlotModifiedListener.OnSlotModified' on slot modified for '{slot?.Itemstack?.Collectible?.Code}':\n{exception}");
             }
         }
-
-        
     }
     public override object ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {

@@ -250,6 +250,7 @@ public class ArmorSlot : ItemSlot
     public ArmorType StoredArmoredType => GetStoredArmorType();
     public DamageZone DamageZone => ArmorType.Slots;
     public ArmorLayers Layer => ArmorType.Layers;
+    [Obsolete("Use GerResists(DamageZone zone) instead")]
     public DamageResistData Resists => GetResists();
     public override int MaxSlotStackSize => 1;
     public bool Available => _inventory.IsSlotAvailable(ArmorType);
@@ -265,6 +266,8 @@ public class ArmorSlot : ItemSlot
         ArmorType = armorType;
         _inventory = inventory as ArmorInventory ?? throw new Exception();
     }
+
+    public DamageResistData GetResists(DamageZone zone) => GetResists(new ArmorType(ArmorType.Layers, zone));
 
     public override bool CanHold(ItemSlot sourceSlot)
     {
@@ -361,6 +364,21 @@ public class ArmorSlot : ItemSlot
         else
         {
             return ArmorType.Empty;
+        }
+    }
+    private DamageResistData GetResists(ArmorType armorType)
+    {
+        if (Itemstack?.Item != null && IsModularArmor(Itemstack.Collectible, out IModularArmor? modularArmor) && modularArmor != null)
+        {
+            return modularArmor.GetResists(this, armorType);
+        }
+        else if (Itemstack?.Item != null && IsArmor(Itemstack.Collectible, out IArmor? armor) && armor != null)
+        {
+            return armor.Resists;
+        }
+        else
+        {
+            return DamageResistData.Empty;
         }
     }
     private DamageResistData GetResists()

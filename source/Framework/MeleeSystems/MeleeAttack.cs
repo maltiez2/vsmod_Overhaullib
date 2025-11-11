@@ -57,9 +57,12 @@ public sealed class MeleeAttack
             _attackedEntities[entityId] = new();
         }
 
+        _hitPlayer = false;
+
         LineSegmentCollider.ResetPreviousColliders(DamageTypes.Select(element => element as IHasLineCollider));
     }
 
+    [Obsolete]
     public void Start(IPlayer player, ItemStackMeleeWeaponStats stats)
     {
         long entityId = player.Entity.EntityId;
@@ -73,6 +76,8 @@ public sealed class MeleeAttack
             _attackedEntities[entityId] = new();
         }
 
+        _hitPlayer = false;
+
         LineSegmentCollider.ResetPreviousColliders(DamageTypes.Select(element => element as IHasLineCollider));
     }
 
@@ -82,8 +87,6 @@ public sealed class MeleeAttack
     }
     public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
     {
-        
-
         terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
         entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
 
@@ -178,6 +181,7 @@ public sealed class MeleeAttack
     private readonly Dictionary<long, HashSet<long>> _attackedEntities = new();
     private readonly MeleeSystemClient _meleeSystem;
     private readonly CombatOverhaulSystem _combatOverhaulSystem;
+    private bool _hitPlayer = false;
 
     private IEnumerable<(Block block, Vector3d point)> CheckTerrainCollision(out double parameter)
     {
@@ -230,6 +234,11 @@ public sealed class MeleeAttack
                     .Where(entity => entity.EntityId != entityId && entity.EntityId != mountedOn)
                     .Where(entity => !_attackedEntities[entityId].Contains(entity.EntityId)))
             {
+                if (entity is EntityPlayer && _hitPlayer)
+                {
+                    continue;
+                }
+
                 attacked = damageType.TryAttack(player, entity, out string collider, out Vector3d point, out MeleeDamagePacket packet, mainHand, maximumParameter, stats);
 
                 if (!attacked) continue;
@@ -240,6 +249,11 @@ public sealed class MeleeAttack
                 _attackedEntities[entityId].Add(entity.EntityId);
 
                 if (StopOnEntityHit) break;
+
+                if (entity is EntityPlayer)
+                {
+                    _hitPlayer = true;
+                }
             }
 
             if (attacked && StopOnEntityHit) break;

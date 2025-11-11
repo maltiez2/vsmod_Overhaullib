@@ -120,6 +120,7 @@ public sealed class CombatOverhaulSystem : ModSystem
 
     public Settings Settings { get; set; } = new();
     public bool Disposed { get; private set; } = false;
+    public static event Action<ICoreAPI>? OnSettingsChange;
 
     public override void StartPre(ICoreAPI api)
     {
@@ -235,6 +236,11 @@ public sealed class CombatOverhaulSystem : ModSystem
 
         _clientToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>();
+
+        if (!api.IsSinglePlayer)
+        {
+            api.Event.EnqueueMainThreadTask(() => OnSettingsChange?.Invoke(api), "game");
+        }
 
         api.Input.RegisterHotKey("toggleWearableLight", "Toggle wearable light source", GlKeys.L);
         api.Input.SetHotKeyHandler("toggleWearableLight", _ => ToggleWearableItem(api.World.Player, "toggleWearableLight"));

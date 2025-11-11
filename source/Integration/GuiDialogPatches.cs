@@ -1,6 +1,10 @@
-﻿using CombatOverhaul.Armor;
+﻿using Cairo;
+using CombatOverhaul.Animations;
+using CombatOverhaul.Armor;
+using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Utils;
 using HarmonyLib;
+using PlayerModelLib;
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -9,6 +13,8 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
 using Vintagestory.Common;
+using Vintagestory.GameContent;
+using YamlDotNet.Core.Tokens;
 
 namespace CombatOverhaul.Integration;
 
@@ -54,6 +60,11 @@ internal static class GuiDialogPatches
                 typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogInventory_OnNewScrollbarvalue_Patch)))
             );
+
+        new Harmony(harmonyId).Patch(
+                typeof(CharacterSystem).GetMethod("StartClientSide", AccessTools.all),
+                postfix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(CharacterSystem_StartClientSide)))
+            );
     }
 
     public static void Unpatch(string harmonyId)
@@ -62,13 +73,42 @@ internal static class GuiDialogPatches
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogCharacter).GetMethod("OnRenderGUI", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogInventory).GetMethod("ComposeSurvivalInvDialog", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
+        new Harmony(harmonyId).Unpatch(typeof(CharacterSystem).GetMethod("StartClientSide", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
 
         _api = null;
+    }
+
+    public static void RecalculateArmorStatsForGui()
+    {
+        try
+        {
+            _recalcualteArmorStats?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+        }
     }
 
     private static ICoreClientAPI? _api;
     private static int _lastItemId = 0;
     private static bool _anySlotsHighlighted = false;
+    private static List<int> _rows = [];
+    private static ElementBounds? _childBounds;
+    private static int _currentAttackTier = 1;
+    private static readonly Dictionary<DamageZone, string> _zonesStatsTextIds = new()
+    {
+        { DamageZone.Head, "textHeadStats" },
+        { DamageZone.Face, "textFaceStats" },
+        { DamageZone.Neck, "textNeckStats" },
+        { DamageZone.Torso, "textTorsoStats" },
+        { DamageZone.Arms, "textArmsStats" },
+        { DamageZone.Hands, "textHandsStats" },
+        { DamageZone.Legs, "textLegsStats" },
+        { DamageZone.Feet, "textFeetStats" }
+    };
+    private static Action? _recalcualteArmorStats;
+
     // GuiDialogCharacter
     private static FieldInfo? GuiDialogCharacter_insetSlotBounds = typeof(GuiDialogCharacter).GetField("insetSlotBounds", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? GuiDialogCharacter_characterInv = typeof(GuiDialogCharacter).GetField("characterInv", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -81,7 +121,7 @@ internal static class GuiDialogPatches
     private static MethodInfo? GuiDialogInventory_CloseIconPressed = typeof(GuiDialogInventory).GetMethod("CloseIconPressed", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogInventory_SendInvPacket = typeof(GuiDialogInventory).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogInventory_OnNewScrollbarvalue = typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", BindingFlags.NonPublic | BindingFlags.Instance);
-
+    private static FieldInfo? CharacterSystem_charDlg = typeof(CharacterSystem).GetField("charDlg", BindingFlags.NonPublic | BindingFlags.Instance);
 
     private static bool GuiDialogCharacter_ComposeCharacterTab(GuiDialogCharacter __instance, GuiComposer compo)
     {
@@ -89,11 +129,15 @@ internal static class GuiDialogPatches
 
         double pad = GuiElementItemSlotGridBase.unscaledSlotPadding;
 
+        int additionalHeight = ArmorInventory._disableVanillaArmorSlots ? 0 : 0;
+
+        ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 22, 414, 356 + additionalHeight);
+
         ElementBounds leftSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 6).FixedGrow(0, pad);
 
-        ElementBounds leftArmorSlotBoundsHead = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftArmorSlotBoundsBody = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 51, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftArmorSlotBoundsLegs = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 102, 1, 1).FixedGrow(0, pad);
+        ElementBounds leftArmorSlotBoundsHead = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23, 1, 1).FixedGrow(0, pad);
+        ElementBounds leftArmorSlotBoundsBody = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23 + 51, 1, 1).FixedGrow(0, pad);
+        ElementBounds leftArmorSlotBoundsLegs = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23 + 102, 1, 1).FixedGrow(0, pad);
 
         ElementBounds leftMiscSlotBounds1 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 153, 1, 1).FixedGrow(0, pad);
         ElementBounds leftMiscSlotBounds2 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 204, 1, 1).FixedGrow(0, pad);
@@ -104,7 +148,7 @@ internal static class GuiDialogPatches
         IInventory? characterInv = (IInventory?)GuiDialogCharacter_characterInv?.GetValue(__instance);
 
         Action<object> SendInvPacket = (object parameter) => GuiDialogCharacter_SendInvPacket?.Invoke(__instance, [parameter]);
-
+        
         ElementBounds insetSlotBounds = ElementBounds.Fixed(0, 20 + 2 + pad, 250 - 60, leftSlotBounds.fixedHeight - 2 * pad - 4);
 
         GuiDialogCharacter_insetSlotBounds?.SetValue(__instance, insetSlotBounds);
@@ -116,14 +160,15 @@ internal static class GuiDialogPatches
         ElementBounds rightGearSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 1).FixedGrow(0, pad);
         rightGearSlotBounds.FixedRightOf(rightSlotBounds);
 
-        ElementBounds additionalSlots1Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 306, 1, 1).FixedGrow(0, pad);
-        ElementBounds additionalSlots2Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 306, 1, 1).FixedGrow(0, pad).FixedRightOf(additionalSlots1Bounds, 161);
+        ElementBounds additionalSlots1Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 2, 20 + pad + 306, 1, 1).FixedGrow(0, pad);
+        ElementBounds additionalSlots2Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 2, 20 + pad + 306, 1, 1).FixedGrow(0, pad).FixedRightOf(additionalSlots1Bounds, 161);
 
         leftSlotBounds.fixedHeight -= 6;
         rightSlotBounds.fixedHeight -= 6;
         rightGearSlotBounds.fixedHeight -= 6;
 
         compo
+            .AddInset(outerInsetBounds, 0)
             .AddIf(!ArmorInventory._disableVanillaArmorSlots)
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [12], leftArmorSlotBoundsHead, "armorSlotsHead")
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [13], leftArmorSlotBoundsBody, "armorSlotsBody")
@@ -135,7 +180,7 @@ internal static class GuiDialogPatches
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 9], leftMiscSlotBounds3, "miscSlot3")
             .EndIf()
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, [0, 1, 2, 11, 3, 4], leftSlotBounds, "leftSlots")
-            .AddInset(insetSlotBounds, 0)
+            .AddInset(insetSlotBounds, 2)
             .AddItemSlotGrid(characterInv, SendInvPacket, 1, [6, 7, 8, 10, 5, 9], rightSlotBounds, "rightSlots")
             .AddIf(SlotsStatus.Headgear)
                 .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 0], rightGearSlotBounds, "gearSlots1")
@@ -307,9 +352,181 @@ internal static class GuiDialogPatches
         return false;
     }
 
-    private static List<int> _rows = [];
+    private static void CharacterSystem_StartClientSide(CharacterSystem __instance, ICoreClientAPI api)
+    {
+        GuiDialogCharacterBase? dialog = (GuiDialogCharacterBase?)CharacterSystem_charDlg?.GetValue(__instance);
+        if (dialog == null) return;
 
+        dialog.Tabs.Add(new GuiTab() { Name = Lang.Get("charactertab-armor"), DataInt = dialog.Tabs.Count });
+        dialog.RenderTabHandlers.Add(composeArmorTab);
+    }
 
+    private static void composeArmorTab(GuiComposer compo)
+    {
+        if (!ArmorInventory._disableVanillaArmorSlots)
+        {
+            return;
+        }
+        
+        double gap = GuiElement.scaled(GuiElementItemSlotGridBase.unscaledSlotPadding);
+        double textGap = gap;
+        double bgPadding = GuiElement.scaled(9);
+        double textWidth = 60;
+
+        IInventory _inv = _api.World.Player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
+        if (_inv is not ArmorInventory inv)
+        {
+            return;
+        }
+        CairoFont textFont = CairoFont.WhiteSmallText();
+        CairoFont textFontMiddle = CairoFont.WhiteSmallText();
+        textFont.Orientation = EnumTextOrientation.Right;
+        textFontMiddle.Orientation = EnumTextOrientation.Center;
+
+        int height = 356 - 50;
+
+        ElementBounds topInsetBounds = ElementBounds.Fixed(-0, 22, 414, 40);
+        ElementBounds tierTextBounds = ElementBounds.Fixed(-0, 22, 80, 40);
+        ElementBounds tierSliderBounds = ElementBounds.Fixed(-0, 22, 130, 40).RightOf(tierTextBounds, 4);
+        ElementBounds legendTextBounds = ElementBounds.Fixed(-0, 22, 180, 40).RightOf(tierSliderBounds, 4);
+
+        ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 50 + 22, 414, height);
+        ElementBounds baseBounds = ElementBounds.Fixed(0, 25 + 14, 388, height);
+        ElementBounds childBounds = ElementBounds.Fixed(0, 2, 388, height + 100);
+        ElementBounds textBounds = ElementStdBounds.Slot(0, 0).WithFixedWidth(textWidth).WithFixedAlignmentOffset(0, 12);
+        ElementBounds slot0Bounds = ElementStdBounds.Slot(textBounds.RightCopy(8).fixedX, textBounds.RightCopy().fixedY);
+        ElementBounds slot1Bounds = ElementStdBounds.Slot(slot0Bounds.RightCopy(gap).fixedX, slot0Bounds.RightCopy().fixedY);
+        ElementBounds slot2Bounds = ElementStdBounds.Slot(slot1Bounds.RightCopy(gap).fixedX, slot1Bounds.RightCopy().fixedY);
+        ElementBounds statsTextBounds = ElementStdBounds.Slot(slot2Bounds.RightCopy(gap).fixedX, slot2Bounds.RightCopy().fixedY).WithFixedWidth(170).WithFixedAlignmentOffset(0, 12);
+
+        ElementBounds scrollbarBounds = baseBounds.CopyOffsetedSibling(baseBounds.fixedWidth + 7, -6, 0, 0).WithFixedWidth(20);
+
+        ElementBounds clipBounds = baseBounds.FlatCopy().FixedGrow(6, 11).WithFixedOffset(0, -6).WithFixedHeight(height);
+
+        compo.AddInset(topInsetBounds, 2);
+        compo.AddDynamicText("", textFont, tierTextBounds.WithFixedOffset(0, 10), "textTier");
+        compo.AddSlider(value => { _currentAttackTier = value; SetStatsValues(compo, _api.World.Player, value); return true; }, tierSliderBounds, "tierSlider");
+        compo.AddDynamicText("", textFontMiddle, legendTextBounds.WithFixedOffset(0, 10), "textLegend");
+
+        compo.AddInset(outerInsetBounds, 2);
+
+        compo.BeginChildElements(baseBounds);
+        compo.BeginClip(clipBounds);
+        compo.BeginChildElements(childBounds);
+
+        compo.AddDynamicText("", textFont, textBounds, "textHead");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textFace");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textNeck");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textTorso");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textArms");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textHands");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textLegs");
+        compo.AddDynamicText("", textFont, BelowCopySet(ref textBounds, fixedDeltaY: textGap), "textFeet");
+
+        AddSlotHere(compo, inv, ArmorLayers.Outer, DamageZone.Head, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Face, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Neck, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Torso, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Arms, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Hands, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Legs, ref slot0Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Outer, DamageZone.Feet, ref slot0Bounds, gap);
+
+        AddSlotHere(compo, inv, ArmorLayers.Middle, DamageZone.Head, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Face, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Neck, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Torso, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Arms, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Hands, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Legs, ref slot1Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Middle, DamageZone.Feet, ref slot1Bounds, gap);
+
+        AddSlotHere(compo, inv, ArmorLayers.Skin, DamageZone.Head, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Face, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Neck, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Torso, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Arms, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Hands, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Legs, ref slot2Bounds, gap);
+        AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Feet, ref slot2Bounds, gap);
+
+        compo.AddDynamicText("", textFontMiddle, statsTextBounds, "textHeadStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textFaceStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textNeckStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textTorsoStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textArmsStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textHandsStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textLegsStats");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textFeetStats");
+
+        compo.EndChildElements();
+        compo.EndClip();
+        compo.AddVerticalScrollbar(OnNewScrollbarValue, scrollbarBounds, "scrollbar");
+        compo.EndChildElements();
+
+        compo.GetSlider("tierSlider").SetValues(_currentAttackTier, 0, 12, 1, unit: "");
+
+        compo.GetDynamicText("textTier")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-tier"));
+        compo.GetDynamicText("textLegend")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend"));
+
+        compo.GetDynamicText("textHead")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-head"));
+        compo.GetDynamicText("textFace")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-face"));
+        compo.GetDynamicText("textNeck")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-neck"));
+        compo.GetDynamicText("textTorso")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-torso"));
+        compo.GetDynamicText("textArms")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-arms"));
+        compo.GetDynamicText("textHands")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-hands"));
+        compo.GetDynamicText("textLegs")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-legs"));
+        compo.GetDynamicText("textFeet")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-feet"));
+
+        compo.GetDynamicText("textHeadStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textFaceStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textNeckStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textTorsoStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textArmsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textHandsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textLegsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textFeetStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+
+        compo.GetScrollbar("scrollbar").SetHeights(
+            height,
+            height + 110
+        );
+        compo.GetScrollbar("scrollbar").SetScrollbarPosition(0);
+
+        SetStatsValues(compo, _api.World.Player, _currentAttackTier);
+        _recalcualteArmorStats = () => SetStatsValues(compo, _api.World.Player, _currentAttackTier);
+
+        _childBounds = childBounds;
+    }
+    private static void AddSlotHere(GuiComposer compo, ArmorInventory inv, ArmorLayers layers, DamageZone zone, ref ElementBounds bounds, double gap)
+    {
+        int slotIndex = ArmorInventory.IndexFromArmorType(layers, zone);
+        bool available = inv.IsSlotAvailable(slotIndex) || !inv[slotIndex].Empty;
+        compo.AddItemSlotGrid(inv, SendInvPacket, 1, [slotIndex], bounds);
+    }
+    private static void AddSlot(GuiComposer compo, ArmorInventory inv, ArmorLayers layers, DamageZone zone, ref ElementBounds bounds, double gap)
+    {
+        int slotIndex = ArmorInventory.IndexFromArmorType(layers, zone);
+        bool available = inv.IsSlotAvailable(slotIndex) || !inv[slotIndex].Empty;
+        compo.AddItemSlotGrid(inv, SendInvPacket, 1, [slotIndex], BelowCopySet(ref bounds, fixedDeltaY: gap));
+    }
+
+    private static void SendInvPacket(object packet)
+    {
+        _api.Network.SendPacketClient(packet);
+    }
+    private static ElementBounds BelowCopySet(ref ElementBounds bounds, double fixedDeltaX = 0.0, double fixedDeltaY = 0.0, double fixedDeltaWidth = 0.0, double fixedDeltaHeight = 0.0)
+    {
+        return bounds = bounds.BelowCopy(fixedDeltaX, fixedDeltaY, fixedDeltaWidth, fixedDeltaHeight);
+    }
+    private static void OnNewScrollbarValue(float value)
+    {
+        if (_childBounds != null)
+        {
+            _childBounds.fixedY = 2 - value;
+            _childBounds.CalcWorldBounds();
+        }
+    }
 
     private static void registerArmorIcons()
     {
@@ -362,7 +579,7 @@ internal static class GuiDialogPatches
                 slot.HexBackgroundColor = "#5fbed4";
                 _anySlotsHighlighted = true;
             }
-            else
+            else if (slot.HexBackgroundColor == "#5fbed4")
             {
                 if (slot is ClothesSlot clothesSlot)
                 {
@@ -453,6 +670,17 @@ internal static class GuiDialogPatches
             }
         }
         return result.ToArray();
+    }
+    private static void SetStatsValues(GuiComposer composer, IPlayer player, int damageTier)
+    {
+        foreach ((DamageZone zone, string textId) in _zonesStatsTextIds)
+        {
+            float piercing = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.PiercingAttack, damageTier);
+            float blunt = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.BluntAttack, damageTier);
+            float slash = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.SlashingAttack, damageTier);
+
+            composer.GetDynamicText(textId)?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", piercing, slash, blunt));
+        }
     }
 
     private static void CloseIconPressed(GuiDialogInventory __instance) => GuiDialogInventory_CloseIconPressed?.Invoke(__instance, []);
