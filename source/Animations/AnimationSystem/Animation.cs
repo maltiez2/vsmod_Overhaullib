@@ -255,8 +255,15 @@ public sealed class Animation
 
         if (nextItemKeyFrame == 0)
         {
-            ItemFrame previousFrame = previousAnimationFrame.Item ?? ItemFrame.Empty;
-            return ItemKeyFrames[0].Interpolate(previousFrame, itemFrameProgress);
+            if (ItemKeyFrames[0].DurationFraction <= 0)
+            {
+                return ItemKeyFrames[0].Frame;
+            }
+            else
+            {
+                ItemFrame previousFrame = previousAnimationFrame.Item ?? ItemFrame.Empty;
+                return ItemKeyFrames[0].Interpolate(previousFrame, itemFrameProgress);
+            }
         }
         else
         {
@@ -273,6 +280,12 @@ public sealed class Animation
 
         if (nextPlayerKeyFrame == 0)
         {
+            if (PlayerKeyFrames[0].Time <= TimeSpan.Zero)
+            {
+                adjustedCurrentDuration = TimeSpan.Zero;
+                return PlayerKeyFrames[0].Frame;
+            }
+
             float frameProgress = (float)(currentDuration / PlayerKeyFrames[nextPlayerKeyFrame].Time);
             adjustedCurrentDuration = currentDuration * EasingFunctions.Get(PlayerKeyFrames[nextPlayerKeyFrame].EasingFunction).Invoke(frameProgress);
 

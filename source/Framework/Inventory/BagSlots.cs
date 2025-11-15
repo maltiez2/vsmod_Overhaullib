@@ -113,6 +113,14 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent, IHasSlotBackpackCategory
     protected virtual void TryEmpty(InventoryBase inventory, int index)
     {
         Callback = 0;
+        
+        if (itemstack?.StackSize == 0)
+        {
+            itemstack = null;
+            MarkDirty();
+            return;
+        }
+        
         if (CanHoldNow) return;
         if ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api?.Side != EnumAppSide.Server) return;
         if (CanHoldNow || Empty || SlotIndex == index && Inventory.InventoryID == inventory.InventoryID) return;

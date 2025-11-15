@@ -78,6 +78,8 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
 
         foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
+            if (player.Entity == null) continue;
+
             IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
             if (inventory == null) continue;
 
@@ -92,13 +94,15 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
 
         foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
+            if (player.Entity == null) continue;
+            
             IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
             if (inventory == null) continue;
 
             foreach (ItemSlot slot in inventory)
             {
-                IFueledItem? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IFueledItem>();
-                if (item == null) continue;
+                IFueledItem? item = slot?.Itemstack?.Collectible?.GetCollectibleInterface<IFueledItem>();
+                if (slot == null || item == null) continue;
 
                 if (IsSleeping(player.Entity) && !item.ConsumeFuelWhenSleeping(player, slot)) continue;
 

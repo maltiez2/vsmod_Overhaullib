@@ -185,6 +185,14 @@ public class GearSlot : ClothesSlot
             ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Some other items attached to it.");
             return false;
         }
+
+        IHeldBag? bag = itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>();
+
+        if (bag != null && !bag.IsEmpty(itemstack))
+        {
+            ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Empty its contents before removing it.");
+            return false;
+        }
         
         return base.CanTake();
     }

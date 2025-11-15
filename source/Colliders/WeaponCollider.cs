@@ -1,4 +1,5 @@
 ﻿using OpenTK.Mathematics;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -162,6 +163,7 @@ public readonly struct LineSegmentCollider : IWeaponCollider
                     closestIntersection ??= intersection;
                     if (closestIntersection != null && intersection != null && closestIntersection.Value.parameter > intersection.Value.parameter)
                     {
+                        Debug.WriteLine(intersection.Value.parameter);
                         closestIntersection = intersection;
                     }
                 }

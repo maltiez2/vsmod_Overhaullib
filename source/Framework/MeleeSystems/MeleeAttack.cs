@@ -2,6 +2,7 @@
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -107,12 +108,9 @@ public sealed class MeleeAttack
 
         double parameter = 1f;
 
-        if (CollideWithTerrain)
-        {
-            bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
+        bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
 
-            if (collidedWithTerrain) return;
-        }
+        //if (CollideWithTerrain && collidedWithTerrain) return; // instead use parameter comparison
 
         TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
 

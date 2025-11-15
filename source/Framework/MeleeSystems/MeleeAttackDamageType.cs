@@ -90,7 +90,10 @@ public class MeleeDamageType : IHasLineCollider
 
         packet = new();
 
-        if (maximumParameter < parameter) return false;
+        if (maximumParameter < parameter)
+        {
+            return false;
+        }
         if (!collided) return false;
 
         bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, stats);
