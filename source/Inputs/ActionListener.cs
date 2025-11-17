@@ -361,7 +361,7 @@ public sealed class ActionListener : IDisposable
 
         bool handled = false;
 
-        ActionEventData eventData = new(id, _modifiers.Where(IsActive), AltPressed(_clientApi));
+        ActionEventData eventData = new(id, Enum.GetValues<EnumEntityAction>().Where(IsActive), AltPressed(_clientApi));
         foreach (System.Func<ActionEventData, bool> callback in value)
         {
             if (callback.Invoke(eventData))
