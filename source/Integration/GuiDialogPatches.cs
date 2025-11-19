@@ -1,11 +1,7 @@
-﻿using Cairo;
-using CombatOverhaul.Animations;
-using CombatOverhaul.Armor;
+﻿using CombatOverhaul.Armor;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Utils;
 using HarmonyLib;
-using PlayerModelLib;
-using System;
 using System.Diagnostics;
 using System.Reflection;
 using Vintagestory.API.Client;
@@ -14,7 +10,6 @@ using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
 using Vintagestory.Common;
 using Vintagestory.GameContent;
-using YamlDotNet.Core.Tokens;
 
 namespace CombatOverhaul.Integration;
 
@@ -148,7 +143,7 @@ internal static class GuiDialogPatches
         IInventory? characterInv = (IInventory?)GuiDialogCharacter_characterInv?.GetValue(__instance);
 
         Action<object> SendInvPacket = (object parameter) => GuiDialogCharacter_SendInvPacket?.Invoke(__instance, [parameter]);
-        
+
         ElementBounds insetSlotBounds = ElementBounds.Fixed(0, 20 + 2 + pad, 250 - 60, leftSlotBounds.fixedHeight - 2 * pad - 4);
 
         GuiDialogCharacter_insetSlotBounds?.SetValue(__instance, insetSlotBounds);
@@ -367,7 +362,7 @@ internal static class GuiDialogPatches
         {
             return;
         }
-        
+
         double gap = GuiElement.scaled(GuiElementItemSlotGridBase.unscaledSlotPadding);
         double textGap = gap;
         double bgPadding = GuiElement.scaled(9);

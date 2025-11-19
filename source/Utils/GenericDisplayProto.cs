@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+﻿using System.Diagnostics;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -118,7 +119,14 @@ public abstract class GenericDisplayProto : BlockEntityContainer, ITexPositionSo
             return;
         }
 
-        getOrCreateMesh(Inventory[index].Itemstack, index, forceUpdate);
+        try
+        {
+            getOrCreateMesh(Inventory[index].Itemstack, index, forceUpdate);
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine(exception);
+        }
     }
     protected void OnEventBusEvent(string eventname, ref EnumHandling handling, IAttribute data)
     {

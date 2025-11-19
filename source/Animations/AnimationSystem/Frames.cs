@@ -124,7 +124,7 @@ public readonly struct SoundFrame
         ImGui.SliderFloat($"Volume##{title}", ref volume, 0, 1);
 
         bool sync = Synchronize;
-        ImGui.Checkbox($"Randomize pitch##{title}", ref sync);
+        ImGui.Checkbox($"Synchronize##{title}", ref sync);
 
         return new(codes, time / (float)totalDuration.TotalMilliseconds, pitch, range, volume, sync);
     }
@@ -1115,7 +1115,6 @@ public readonly struct AnimationElement
     }
     public static AnimationElement Compose(IEnumerable<(AnimationElement element, float weight)> elements)
     {
-        float totalWeight = 0;
         float offsetX = 0;
         float offsetY = 0;
         float offsetZ = 0;
@@ -1123,35 +1122,31 @@ public readonly struct AnimationElement
         float rotationY = 0;
         float rotationZ = 0;
 
+        float offsetXMaxWeight = 0;
+        float offsetYMaxWeight = 0;
+        float offsetZMaxWeight = 0;
+        float rotationXMaxWeight = 0;
+        float rotationYMaxWeight = 0;
+        float rotationZMaxWeight = 0;
+
         foreach ((AnimationElement element, float weight) in elements.Where(entry => entry.weight > 0))
         {
-            totalWeight += weight;
-            offsetX += element.OffsetX * weight ?? 0;
-            offsetY += element.OffsetY * weight ?? 0;
-            offsetZ += element.OffsetZ * weight ?? 0;
-            rotationX += element.RotationX * weight ?? 0;
-            rotationY += element.RotationY * weight ?? 0;
-            rotationZ += element.RotationZ * weight ?? 0;
+            if (weight >= offsetXMaxWeight && element.OffsetX.HasValue) { offsetXMaxWeight = weight; offsetX = element.OffsetX.Value; }
+            if (weight >= offsetYMaxWeight && element.OffsetY.HasValue) { offsetYMaxWeight = weight; offsetY = element.OffsetY.Value; }
+            if (weight >= offsetZMaxWeight && element.OffsetZ.HasValue) { offsetZMaxWeight = weight; offsetZ = element.OffsetZ.Value; }
+            if (weight >= rotationXMaxWeight && element.RotationX.HasValue) { rotationXMaxWeight = weight; rotationX = element.RotationX.Value; }
+            if (weight >= rotationYMaxWeight && element.RotationY.HasValue) { rotationYMaxWeight = weight; rotationY = element.RotationY.Value; }
+            if (weight >= rotationZMaxWeight && element.RotationZ.HasValue) { rotationZMaxWeight = weight; rotationZ = element.RotationZ.Value; }
         }
 
-        if (totalWeight != 0)
+        foreach ((AnimationElement element, float weight) in elements.Where(entry => entry.weight <= 0))
         {
-            offsetX /= totalWeight;
-            offsetY /= totalWeight;
-            offsetZ /= totalWeight;
-            rotationX /= totalWeight;
-            rotationY /= totalWeight;
-            rotationZ /= totalWeight;
-        }
-
-        foreach ((AnimationElement element, _) in elements.Where(entry => entry.weight <= 0))
-        {
-            offsetX += element.OffsetX ?? 0;
-            offsetY += element.OffsetY ?? 0;
-            offsetZ += element.OffsetZ ?? 0;
-            rotationX += element.RotationX ?? 0;
-            rotationY += element.RotationY ?? 0;
-            rotationZ += element.RotationZ ?? 0;
+            if (element.OffsetX.HasValue) offsetX += element.OffsetX.Value;
+            if (element.OffsetY.HasValue) offsetY += element.OffsetY.Value;
+            if (element.OffsetZ.HasValue) offsetZ += element.OffsetZ.Value;
+            if (element.RotationX.HasValue) rotationX += element.RotationX.Value;
+            if (element.RotationY.HasValue) rotationY += element.RotationY.Value;
+            if (element.RotationZ.HasValue) rotationZ += element.RotationZ.Value;
         }
 
         return new(

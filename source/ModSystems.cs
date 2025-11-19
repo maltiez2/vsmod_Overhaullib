@@ -187,6 +187,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         new Harmony("CombatOverhaulAuto").PatchAll();
 
         InInventoryPlayerBehavior._reportedEntities.Clear();
+        InventorySafeguardsPatches.Patch("CombatOverhaulInventory");
 
         if (api.ModLoader.IsModEnabled("configlib"))
         {
@@ -339,6 +340,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         AimingPatches.Unpatch("CombatOverhaulAiming");
         MouseWheelPatch.Unpatch("CombatOverhaul");
         GuiDialogPatches.Unpatch("ovhlib");
+        InventorySafeguardsPatches.Unpatch("CombatOverhaulInventory");
 
         OnDispose?.Invoke();
 

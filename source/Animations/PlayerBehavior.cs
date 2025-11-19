@@ -3,6 +3,7 @@ using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -69,6 +70,17 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     }
 
     public override string PropertyName() => "CombatOverhaul:FirstPersonAnimations";
+
+    public override void AfterInitialized(bool onFirstSpawn)
+    {
+        if (!_mainPlayer) return;
+
+        _thirdPersonAnimations = entity.GetBehavior<ThirdPersonAnimationsBehavior>();
+        if (_thirdPersonAnimations == null)
+        {
+            LoggerUtil.Error(entity.Api, this, $"Failed to get entity behavior for third person animations.");
+        }
+    }
 
     public override void OnGameTick(float deltaTime)
     {
@@ -221,6 +233,50 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     public void StopSpeedModifier() => _composer.StopSpeedModifier();
     public bool IsSpeedModifierActive() => _composer.IsSpeedModifierActive();
 
+    public void PlayFpAndTp(AnimationRequestByCode requestByCode, bool mainHand = true)
+    {
+        Animation? animation = GetAnimationFromRequest(requestByCode);
+
+        if (animation == null) return;
+
+        AnimationRequest request = new(animation, requestByCode);
+
+        Play(request, mainHand);
+
+        _immersiveFpModeSetting = ((entity.Api as ICoreClientAPI)?.Settings.Bool["immersiveFpMode"] ?? false); // calling here just to reduce number of calls to it
+
+        AnimationRequestByCode tpRequest = new(requestByCode, requestByCode.AnimationSpeed);
+
+        _thirdPersonAnimations?.Play(tpRequest, mainHand);
+    }
+    public void PlayFpAndTp(bool mainHand, string animation, string category = "main", float animationSpeed = 1, float weight = 1, System.Func<bool>? callback = null, Action<string>? callbackHandler = null, bool easeOut = true)
+    {
+        AnimationRequestByCode request = new(animation, animationSpeed, weight, category, TimeSpan.FromSeconds(0.1), TimeSpan.FromSeconds(0.1), easeOut, callback, callbackHandler);
+        Play(request, mainHand);
+
+        AnimationRequestByCode tpRequest = new(request, request.AnimationSpeed);
+
+        _thirdPersonAnimations?.Play(tpRequest, mainHand);
+    }
+    public void PlayReadyAnimationFpAndTp(bool mainHand = true)
+    {
+        (mainHand ? _MainHandIdleAnimationsController : _OffHandIdleAnimationsController).Start();
+        _thirdPersonAnimations?.PlayReadyAnimation(mainHand);
+    }
+    public void StopFpAndTp(string category)
+    {
+        _composer.Stop(category);
+        for (int index = 0; index < _playRequests.Count; index++)
+        {
+            if (_playRequests[index].request.Category == category)
+            {
+                _playRequests[index] = (new(), _playRequests[index].mainHand, true, -1);
+            }
+        }
+
+        _thirdPersonAnimations?.Stop(category);
+    }
+
     private readonly Composer _composer;
     private readonly EntityPlayer _player;
     private readonly AnimationsManager _animationsManager;
@@ -234,6 +290,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private readonly Settings _settings;
     private readonly IdleAnimationsController _MainHandIdleAnimationsController;
     private readonly IdleAnimationsController _OffHandIdleAnimationsController;
+    private ThirdPersonAnimationsBehavior? _thirdPersonAnimations;
     private bool _frameApplied = false;
     private int _offHandItemId = 0;
     private int _mainHandItemId = 0;
