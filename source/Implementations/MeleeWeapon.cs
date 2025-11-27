@@ -6,8 +6,6 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -317,6 +315,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     }
 
     public int ItemId => Item.Id;
+
+    public static long GlobalCooldownUntilMs { get; set; } = 0;
 
     public virtual DirectionsConfiguration DirectionsType { get; protected set; } = DirectionsConfiguration.None;
 
@@ -721,8 +721,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected SoundsSynchronizerClient SoundsSystem;
     protected AimingAnimationController? AimingAnimationController;
     protected GripController? GripController;
-    internal const int _maxStates = 100;
-    protected const int MaxState = _maxStates;
+    protected const int MaxState = 100;
     protected readonly MeleeWeaponStats Stats;
     protected const string PlayerStatsMainHandCategory = "CombatOverhaul:held-item-mainhand";
     protected const string PlayerStatsOffHandCategory = "CombatOverhaul:held-item-offhand";
@@ -739,7 +738,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected AttackDirection CurrentMainHandDirection = AttackDirection.Top;
     protected AttackDirection CurrentOffHandDirection = AttackDirection.Top;
 
-    protected static long GlobalCooldownUntilMs = 0;
     protected const long GlobalCooldownMs = 1000;
 
     protected readonly AimingStats? AimingStats;
@@ -1516,7 +1514,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             SetState(MeleeWeaponState.Idle, mainHand);
         }
     }
-    protected MeleeAttack? GetStanceAttack(bool mainHand = true, AttackDirection direction = AttackDirection.Top)
+    protected virtual MeleeAttack? GetStanceAttack(bool mainHand = true, AttackDirection direction = AttackDirection.Top)
     {
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         return stance switch
@@ -1527,7 +1525,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             _ => OneHandedAttack,
         };
     }
-    protected MeleeAttack? GetStanceBlockBash(bool mainHand = true, AttackDirection direction = AttackDirection.Top)
+    protected virtual MeleeAttack? GetStanceBlockBash(bool mainHand = true, AttackDirection direction = AttackDirection.Top)
     {
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         return stance switch
@@ -1538,7 +1536,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             _ => OneHandedBlockBash,
         };
     }
-    protected MeleeAttack? GetStanceHandleAttack(bool mainHand = true)
+    protected virtual MeleeAttack? GetStanceHandleAttack(bool mainHand = true)
     {
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         return stance switch
@@ -1549,7 +1547,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             _ => OneHandedHandleAttack,
         };
     }
-    protected StanceStats? GetStanceStats(bool mainHand = true)
+    protected virtual StanceStats? GetStanceStats(bool mainHand = true)
     {
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         return stance switch
@@ -1560,62 +1558,62 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             _ => Stats.OneHandedStance,
         };
     }
-    protected bool CheckState<TState>(bool mainHand, params TState[] statesToCheck)
+    protected virtual bool CheckState<TState>(bool mainHand, params TState[] statesToCheck)
         where TState : struct, Enum
     {
-        return statesToCheck.Contains((TState)Enum.ToObject(typeof(TState), PlayerActionsBehavior?.GetState(mainHand) % _maxStates ?? 0));
+        return statesToCheck.Contains((TState)Enum.ToObject(typeof(TState), PlayerActionsBehavior?.GetState(mainHand) % MaxState ?? 0));
     }
-    protected void SetStance<TStance>(TStance stance, bool mainHand = true)
+    protected virtual void SetStance<TStance>(TStance stance, bool mainHand = true)
         where TStance : struct, Enum
     {
         int stateCombined = PlayerActionsBehavior?.GetState(mainHand) ?? 0;
-        int stateInt = stateCombined % _maxStates;
+        int stateInt = stateCombined % MaxState;
         int stanceInt = (int)Enum.ToObject(typeof(TStance), stance);
-        stateCombined = stateInt + _maxStates * stanceInt;
+        stateCombined = stateInt + MaxState * stanceInt;
 
         PlayerActionsBehavior?.SetState(stateCombined, mainHand);
     }
-    protected void SetState<TState>(TState state, bool mainHand = true)
+    protected virtual void SetState<TState>(TState state, bool mainHand = true)
         where TState : struct, Enum
     {
         int stateCombined = PlayerActionsBehavior?.GetState(mainHand) ?? 0;
-        int stanceInt = stateCombined / _maxStates;
+        int stanceInt = stateCombined / MaxState;
         int stateInt = (int)Enum.ToObject(typeof(TState), state);
-        stateCombined = stateInt + _maxStates * stanceInt;
+        stateCombined = stateInt + MaxState * stanceInt;
 
         PlayerActionsBehavior?.SetState(stateCombined, mainHand);
     }
-    protected void SetStateAndStance<TState, TStance>(TState state, TStance stance, bool mainHand = true)
+    protected virtual void SetStateAndStance<TState, TStance>(TState state, TStance stance, bool mainHand = true)
         where TState : struct, Enum
         where TStance : struct, Enum
     {
         int stateInt = (int)Enum.ToObject(typeof(TState), state);
         int stanceInt = (int)Enum.ToObject(typeof(TStance), stance);
-        int stateCombined = stateInt + _maxStates * stanceInt;
+        int stateCombined = stateInt + MaxState * stanceInt;
 
         PlayerActionsBehavior?.SetState(stateCombined, mainHand);
     }
-    protected TState GetState<TState>(bool mainHand = true)
+    protected virtual TState GetState<TState>(bool mainHand = true)
         where TState : struct, Enum
     {
-        return (TState)Enum.ToObject(typeof(TState), PlayerActionsBehavior?.GetState(mainHand) % _maxStates ?? 0);
+        return (TState)Enum.ToObject(typeof(TState), PlayerActionsBehavior?.GetState(mainHand) % MaxState ?? 0);
     }
-    protected TStance GetStance<TStance>(bool mainHand = true)
+    protected virtual TStance GetStance<TStance>(bool mainHand = true)
         where TStance : struct, Enum
     {
-        return (TStance)Enum.ToObject(typeof(TStance), PlayerActionsBehavior?.GetState(mainHand) / _maxStates ?? 0);
+        return (TStance)Enum.ToObject(typeof(TStance), PlayerActionsBehavior?.GetState(mainHand) / MaxState ?? 0);
     }
-    protected bool CanAttackWithOtherHand(EntityPlayer player, bool mainHand = true)
+    protected virtual bool CanAttackWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
         return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanAttack(!mainHand) ?? false;
     }
-    protected bool CanBlockWithOtherHand(EntityPlayer player, bool mainHand = true)
+    protected virtual bool CanBlockWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
         return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(!mainHand) ?? false;
     }
-    protected bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
+    protected virtual bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
     {
         if (mainHand && !player.LeftHandItemSlot.Empty)
         {
@@ -1631,7 +1629,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return true;
     }
-    protected bool CheckForOtherHandEmptyNoError(bool mainHand, EntityPlayer player)
+    protected virtual bool CheckForOtherHandEmptyNoError(bool mainHand, EntityPlayer player)
     {
         if (mainHand && !player.LeftHandItemSlot.Empty)
         {
@@ -1645,7 +1643,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return true;
     }
-    protected void SetSpeedPenalty(bool mainHand, EntityPlayer player)
+    protected virtual void SetSpeedPenalty(bool mainHand, EntityPlayer player)
     {
         if (HasSpeedPenalty(mainHand, out float penalty))
         {
@@ -1656,7 +1654,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             PlayerActionsBehavior?.SetStat("walkspeed", mainHand ? PlayerStatsMainHandCategory : PlayerStatsOffHandCategory);
         }
     }
-    protected bool HasSpeedPenalty(bool mainHand, out float penalty)
+    protected virtual bool HasSpeedPenalty(bool mainHand, out float penalty)
     {
         penalty = 0;
 
@@ -1675,20 +1673,13 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return MathF.Abs(penalty) > 1E-9f; // just some epsilon
     }
-    protected float GetAnimationSpeed(Entity player, string proficiencyStat, float min = 0.5f, float max = 2f)
+    protected virtual float GetAnimationSpeed(Entity player, string proficiencyStat, float min = 0.5f, float max = 2f)
     {
         float manipulationSpeed = PlayerActionsBehavior?.ManipulationSpeed ?? 1;
         float proficiencyBonus = proficiencyStat == "" ? 0 : player.Stats.GetBlended(proficiencyStat) - 1;
         return Math.Clamp(manipulationSpeed + proficiencyBonus, min, max);
     }
-
-    protected static bool CheckState<TState>(int state, params TState[] statesToCheck)
-        where TState : struct, Enum
-    {
-        return statesToCheck.Contains((TState)Enum.ToObject(typeof(TState), state % _maxStates));
-    }
-    protected static string AnimationCategory(bool mainHand = true) => mainHand ? "main" : "mainOffhand";
-    protected static bool ActionRestricted(EntityPlayer player, bool mainHand = true)
+    protected virtual bool ActionRestricted(EntityPlayer player, bool mainHand = true)
     {
         if (mainHand)
         {
@@ -1699,17 +1690,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             return (player.RightHandItemSlot.Itemstack?.Item as IRestrictAction)?.RestrictLeftHandAction() ?? false;
         }
     }
-    protected static void RegisterCollider(string item, string type, MeleeAttack attack)
-    {
-#if DEBUG
-        int typeIndex = 0;
-        foreach (MeleeDamageType damageType in attack.DamageTypes)
-        {
-            DebugWindowManager.RegisterCollider(item, type + typeIndex++, damageType);
-        }
-#endif
-    }
-    protected static string GetAttackStatsDescription(ItemSlot inSlot, IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
+    protected virtual string GetAttackStatsDescription(ItemSlot inSlot, IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
     {
         float damage = 0;
         float tier = 0;
@@ -1746,6 +1727,22 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType) + (armorPiercingTier > 0 ? "\n" + Lang.Get("combatoverhaul:iteminfo-melee-weapon-armorpiercing", armorPiercingTier) : "");
     }
 
+    protected static bool CheckState<TState>(int state, params TState[] statesToCheck)
+        where TState : struct, Enum
+    {
+        return statesToCheck.Contains((TState)Enum.ToObject(typeof(TState), state % MaxState));
+    }
+    protected static string AnimationCategory(bool mainHand = true) => mainHand ? "main" : "mainOffhand";
+    protected static void RegisterCollider(string item, string type, MeleeAttack attack)
+    {
+#if DEBUG
+        int typeIndex = 0;
+        foreach (MeleeDamageType damageType in attack.DamageTypes)
+        {
+            DebugWindowManager.RegisterCollider(item, type + typeIndex++, damageType);
+        }
+#endif
+    }
     protected static void SetGlobalCooldown(ICoreAPI api, long cooldownMs = GlobalCooldownMs)
     {
         GlobalCooldownUntilMs = api.World.ElapsedMilliseconds + cooldownMs;
@@ -1807,7 +1804,7 @@ public class MeleeWeaponServer : RangeWeaponServer
 
     protected readonly MeleeWeaponStats Stats;
 
-    protected static void SwapToNewProjectile(IServerPlayer player, ItemSlot slot, AssetLocation projectileCode)
+    protected virtual void SwapToNewProjectile(IServerPlayer player, ItemSlot slot, AssetLocation projectileCode)
     {
         if (slot.Itemstack == null || slot.Itemstack.StackSize == 0)
         {
@@ -1860,7 +1857,7 @@ public class MeleeWeaponServer : RangeWeaponServer
         }
     }
 
-    protected static void WalkInventory(EntityPlayer player, System.Func<ItemSlot, bool> selector)
+    protected virtual void WalkInventory(EntityPlayer player, System.Func<ItemSlot, bool> selector)
     {
         foreach (ItemSlot hotbarSlot in player.Player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName))
         {
@@ -1905,24 +1902,12 @@ public class MeleeWeapon : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDyn
 
         if (api is ICoreClientAPI clientAPI)
         {
-            ClientLogic = new(clientAPI, this);
-            MeleeWeaponStats Stats = Attributes.AsObject<MeleeWeaponStats>();
-            RenderingOffset = Stats.RenderingOffset;
-
-            if (Stats.OneHandedStance?.GripMinLength != Stats.OneHandedStance?.GripMaxLength || Stats.TwoHandedStance?.GripMinLength != Stats.TwoHandedStance?.GripMaxLength)
-            {
-                ChangeGripInteraction = new()
-                {
-                    MouseButton = EnumMouseButton.Wheel,
-                    ActionLangCode = "combatoverhaul:interaction-grip-change"
-                };
-            }
-
+            LoadClientSide(clientAPI);
         }
 
         if (api is ICoreServerAPI serverAPI)
         {
-            ServerLogic = new(serverAPI, this);
+            LoadServerSide(serverAPI);
         }
 
         AltForInteractions = new()
@@ -1986,16 +1971,37 @@ public class MeleeWeapon : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDyn
         return interactionHelp?.Append(AltForInteractions);
     }
 
-    public void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked)
+    public virtual void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked)
     {
         DamageItem(player.Entity.World, player.Entity, slot, 1);
         //DamageItem(player.Entity.World, player.Entity, slot, (int)MathF.Ceiling(damageBlocked)); // Damages swords too much
     }
 
-    public bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta) => ClientLogic?.OnMouseWheel(slot, byPlayer, delta) ?? false;
+    public virtual bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta) => ClientLogic?.OnMouseWheel(slot, byPlayer, delta) ?? false;
 
     protected WorldInteraction? AltForInteractions;
     protected WorldInteraction? ChangeGripInteraction;
+
+    protected virtual void LoadClientSide(ICoreClientAPI clientAPI)
+    {
+        ClientLogic = new(clientAPI, this);
+        MeleeWeaponStats Stats = Attributes.AsObject<MeleeWeaponStats>();
+        RenderingOffset = Stats.RenderingOffset;
+
+        if (Stats.OneHandedStance?.GripMinLength != Stats.OneHandedStance?.GripMaxLength || Stats.TwoHandedStance?.GripMinLength != Stats.TwoHandedStance?.GripMaxLength)
+        {
+            ChangeGripInteraction = new()
+            {
+                MouseButton = EnumMouseButton.Wheel,
+                ActionLangCode = "combatoverhaul:interaction-grip-change"
+            };
+        }
+    }
+
+    protected virtual void LoadServerSide(ICoreServerAPI serverAPI)
+    {
+        ServerLogic = new(serverAPI, this);
+    }
 }
 
 public sealed class GripController
