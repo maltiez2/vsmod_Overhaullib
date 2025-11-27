@@ -656,12 +656,12 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
     protected bool CanRightClickAttackWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanAttack(!mainHand) ?? false;
+        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanAttack(player, !mainHand) ?? false;
     }
     protected bool CanLeftClickAttackWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(!mainHand) ?? false;
+        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(player, !mainHand) ?? false;
     }
     protected virtual bool AttackImpactFunction(TimeSpan duration, ref TimeSpan delta)
     {
@@ -738,8 +738,8 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnim
         }
     }
 
-    public bool CanAttack(bool mainHand) => true;
-    public bool CanBlock(bool mainHand) => true;
+    public bool CanAttack(EntityPlayer player, bool mainHand) => true;
+    public bool CanBlock(EntityPlayer player, bool mainHand) => true;
     public void OnGameTick(ItemSlot slot, EntityPlayer player, ref int state, bool mainHand)
     {
         ClientLogic?.OnGameTick(slot, player, ref state, mainHand);

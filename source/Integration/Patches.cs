@@ -311,6 +311,6 @@ internal static class HarmonyPatches
 
     private static bool BehaviorHealingItem_OnHeldInteractStart(EntityAgent byEntity)
     {
-        return !((byEntity as EntityPlayer)?.LeftHandItemSlot?.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(false) ?? true;
+        return !((byEntity as EntityPlayer)?.LeftHandItemSlot?.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(byEntity as EntityPlayer, false) ?? true;
     }
 }
