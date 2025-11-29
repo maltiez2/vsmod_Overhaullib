@@ -5,6 +5,7 @@ using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -190,7 +191,10 @@ public class ProjectileEntity : Entity
     }
 
     public override bool ApplyGravity => !Stuck;
-    public override bool IsInteractable => false;
+    public override bool IsInteractable => IsInteractableValue;
+    public virtual bool IsInteractableValue { get; set; } = false;
+    
+    public static event Action<ProjectileEntity, EntityAgent, ItemSlot, Vec3d, EnumInteractMode>? OnInteracted;
 
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {
@@ -338,6 +342,12 @@ public class ProjectileEntity : Entity
             }
         }
         TryDestroyOnCollision();
+    }
+
+    public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode)
+    {
+        OnInteracted?.Invoke(this, byEntity, itemslot, hitPosition, mode);
+        base.OnInteract(byEntity, itemslot, hitPosition, mode);
     }
 
     protected readonly TimeSpan CollisionDelay = TimeSpan.FromMilliseconds(500);

@@ -14,7 +14,8 @@ public enum AimingCursorType
     None,
     Vanilla,
     Fixed,
-    Moving
+    Moving,
+    MovingNone
 }
 
 public class AimingStatsJson
@@ -178,7 +179,7 @@ public sealed class ClientAimingSystem : IDisposable
             ResetAimOffset();
         }
 
-        if (_aimingStats.CursorType == AimingCursorType.Moving)
+        if (_aimingStats.CursorType == AimingCursorType.Moving || _aimingStats.CursorType == AimingCursorType.MovingNone)
         {
             SetFixedAimPoint(_clientApi.Render.FrameWidth, _clientApi.Render.FrameHeight);
         }
@@ -186,7 +187,7 @@ public sealed class ClientAimingSystem : IDisposable
         Aiming = true;
         _aimingDt = 0f;
         ShowVanillaReticle = _aimingStats.CursorType == AimingCursorType.Vanilla;
-        ShowBullseyeReticle = _aimingStats.CursorType != AimingCursorType.None && _aimingStats.CursorType != AimingCursorType.Vanilla;
+        ShowBullseyeReticle = _aimingStats.CursorType != AimingCursorType.None && _aimingStats.CursorType != AimingCursorType.Vanilla && _aimingStats.CursorType != AimingCursorType.MovingNone;
         _difficultyMultiplier = ShowBullseyeReticle ? 1 : _noCursorDifficultyMultiplier;
 
         _clientApi.World.Player.Entity.GetBehavior<AimingAccuracyBehavior>().StartAim(stats);
@@ -248,7 +249,7 @@ public sealed class ClientAimingSystem : IDisposable
         // Update
         UpdateAimOffsetSimple(__instance, dt);
 
-        if (_aimingStats.CursorType == AimingCursorType.Moving)
+        if (_aimingStats.CursorType == AimingCursorType.Moving || _aimingStats.CursorType == AimingCursorType.MovingNone)
         {
             UpdateMouseDelta(__instance, ref ___MouseDeltaX, ref ___MouseDeltaY, ref ___DelayedMouseDeltaX, ref ___DelayedMouseDeltaY);
         }
