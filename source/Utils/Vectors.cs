@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.MathTools;
+﻿using Vintagestory.API.Common.Entities;
+using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Utils;
 
@@ -18,9 +19,16 @@ static class VectorsUtils
     public static System.Numerics.Vector4 ToSystem(this OpenTK.Mathematics.Vector4d value) => new((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
 
 
-
+    public static OpenTK.Mathematics.Vector3d ToOpenTK(this Vec3d value) => new(value.X, value.Y, value.Z);
     public static OpenTK.Mathematics.Vector3d ToOpenTK(this FastVec3d value) => new(value.X, value.Y, value.Z);
+    public static OpenTK.Mathematics.Vector3d ToOpenTK(this EntityPos value) => new(value.X, value.Y, value.Z);
+    public static OpenTK.Mathematics.Vector3d ToOpenTKWithDimension(this EntityPos value) => new(value.X, value.InternalY, value.Z);
+    public static OpenTK.Mathematics.Vector3 ToOpenTK(this Vec3f value) => new(value.X, value.Y, value.Z);
+    public static OpenTK.Mathematics.Vector3 ToOpenTK(this FastVec3f value) => new(value.X, value.Y, value.Z);
     public static FastVec3d ToVanilla(this OpenTK.Mathematics.Vector3d value) => new(value.X, value.Y, value.Z);
+    public static FastVec3f ToVanilla(this OpenTK.Mathematics.Vector3 value) => new(value.X, value.Y, value.Z);
+    public static Vec3d ToVanillaRef(this OpenTK.Mathematics.Vector3d value) => new(value.X, value.Y, value.Z);
+    public static Vec3f ToVanillaRef(this OpenTK.Mathematics.Vector3 value) => new(value.X, value.Y, value.Z);
 }
 
 public class Matrixd

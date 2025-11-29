@@ -2,13 +2,11 @@
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
-using Vintagestory.GameContent;
 
 namespace CombatOverhaul.MeleeSystems;
 
@@ -16,6 +14,12 @@ namespace CombatOverhaul.MeleeSystems;
 public struct MeleeAttackPacket
 {
     public MeleeDamagePacket[] MeleeAttackDamagePackets { get; set; }
+}
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public struct MeleePushPacket
+{
+    public MeleeCollisionPacket[] MeleeAttackDamagePackets { get; set; }
 }
 
 public abstract class MeleeSystem
@@ -40,12 +44,21 @@ public sealed class MeleeSystemClient : MeleeSystem
     public MeleeSystemClient(ICoreClientAPI api)
     {
         _clientChannel = api.Network.RegisterChannel(NetworkChannelId)
-            .RegisterMessageType<MeleeAttackPacket>();
+            .RegisterMessageType<MeleeAttackPacket>()
+            .RegisterMessageType<MeleePushPacket>();
     }
 
     public void SendPackets(IEnumerable<MeleeDamagePacket> packets)
     {
         _clientChannel.SendPacket(new MeleeAttackPacket
+        {
+            MeleeAttackDamagePackets = packets.ToArray()
+        });
+    }
+
+    public void SendPackets(IEnumerable<MeleeCollisionPacket> packets)
+    {
+        _clientChannel.SendPacket(new MeleePushPacket
         {
             MeleeAttackDamagePackets = packets.ToArray()
         });
@@ -65,7 +78,9 @@ public sealed class MeleeSystemServer : MeleeSystem
         _api = api;
         api.Network.RegisterChannel(NetworkChannelId)
             .RegisterMessageType<MeleeAttackPacket>()
-            .SetMessageHandler<MeleeAttackPacket>(HandlePacket);
+            .RegisterMessageType<MeleePushPacket>()
+            .SetMessageHandler<MeleeAttackPacket>(HandlePacket)
+            .SetMessageHandler<MeleePushPacket>(HandlePacket);
     }
 
     private readonly ICoreServerAPI _api;
@@ -75,6 +90,14 @@ public sealed class MeleeSystemServer : MeleeSystem
         foreach (MeleeDamagePacket damagePacket in packet.MeleeAttackDamagePackets)
         {
             Attack(damagePacket);
+        }
+    }
+
+    private void HandlePacket(IServerPlayer player, MeleePushPacket packet)
+    {
+        foreach (MeleeCollisionPacket collisionPacket in packet.MeleeAttackDamagePackets)
+        {
+            Push(collisionPacket);
         }
     }
 
@@ -128,6 +151,57 @@ public sealed class MeleeSystemServer : MeleeSystem
         DealDurabilityDamage(slot, packet, attacker);
 
         PrintLog(attacker, damageReceived, target, packet, targetName);
+    }
+
+    private void Push(MeleeCollisionPacket packet)
+    {
+        return; // Requires rewrite of vanilla entities physics system
+        
+        Entity? target = _api.World.GetEntityById(packet.TargetEntityId);
+
+        if (target == null || !target.Alive) return;
+
+        Entity attacker = _api.World.GetEntityById(packet.AttackerEntityId);
+
+        IServerPlayer? serverPlayer = (attacker as EntityPlayer)?.Player as IServerPlayer;
+        if (serverPlayer != null)
+        {
+            if (target is EntityPlayer && (!_api.Server.Config.AllowPvP || !serverPlayer.HasPrivilege("attackplayers")))
+            {
+                return;
+            }
+
+            if (target is EntityAgent && !serverPlayer.HasPrivilege("attackcreatures"))
+            {
+                return;
+            }
+        }
+
+        if (packet.PushTier <= 0) return;
+
+        int attackerTier = packet.PushTier;
+        int targetTier = 1;
+
+        Vector3d targetVelocity = new(target.Pos.Motion.X, target.Pos.Motion.Y, target.Pos.Motion.Z);
+        Vector3d targetPosition = new(target.Pos.X, target.Pos.Y, target.Pos.Z);
+        Vector3d attackerVelocity = new(attacker.Pos.Motion.X, attacker.Pos.Motion.Y, attacker.Pos.Motion.Z);
+        Vector3d attackerPosition = new(attacker.Pos.X, attacker.Pos.Y, attacker.Pos.Z);
+
+        Vector3d direction = targetPosition - attackerPosition;
+        Vector3d relativeSpeed = Vector3d.Dot(direction, targetVelocity - attackerVelocity) * direction.Normalized();
+        bool movingTowardsEachOther = Vector3d.Dot(direction, relativeSpeed) < 0;
+
+        if (!movingTowardsEachOther) return;
+
+        Vector3d recoil = relativeSpeed * targetTier / attackerTier;
+        Vector3d targetVelocityDelta = relativeSpeed - recoil;
+
+        target.Pos.Motion.X -= targetVelocityDelta.X;
+        target.Pos.Motion.Y -= targetVelocityDelta.Y;
+        target.Pos.Motion.Z -= targetVelocityDelta.Z;
+        target.ServerPos.Motion.X -= targetVelocityDelta.X;
+        target.ServerPos.Motion.Y -= targetVelocityDelta.Y;
+        target.ServerPos.Motion.Z -= targetVelocityDelta.Z;
     }
 
     private bool DealDamage(Entity target, DamageSource damageSource, ItemSlot? slot, float damage)

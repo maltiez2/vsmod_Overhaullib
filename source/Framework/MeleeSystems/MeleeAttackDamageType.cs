@@ -14,13 +14,13 @@ namespace CombatOverhaul.MeleeSystems;
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
 public class MeleeDamagePacket
 {
-    public string DamageType { get; set; }
+    public string DamageType { get; set; } = "";
     public int Tier { get; set; }
     public int ArmorPiercingTier { get; set; }
     public float Damage { get; set; }
     public float Knockback { get; set; }
-    public double[] Position { get; set; }
-    public string Collider { get; set; }
+    public double[] Position { get; set; } = [];
+    public string Collider { get; set; } = "";
     public int ColliderType { get; set; }
     public long AttackerEntityId { get; set; }
     public long TargetEntityId { get; set; }
@@ -28,6 +28,17 @@ public class MeleeDamagePacket
     public bool MainHand { get; set; }
     public int StaggerTimeMs { get; set; }
     public int StaggerTier { get; set; }
+}
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public class MeleeCollisionPacket
+{
+    public int PushTier { get; set; }
+    public string Collider { get; set; } = "";
+    public int ColliderType { get; set; }
+    public long AttackerEntityId { get; set; }
+    public long TargetEntityId { get; set; }
+    public bool MainHand { get; set; }
 }
 
 public class MeleeDamageTypeJson
@@ -39,6 +50,7 @@ public class MeleeDamageTypeJson
     public float Radius { get; set; } = 0.1f;
     public int StaggerTimeMs { get; set; } = 0;
     public int StaggerTier { get; set; } = 1;
+    public int PushTier { get; set; } = 0;
 
     public MeleeDamageType ToDamageType() => new(this);
 }
@@ -56,6 +68,7 @@ public class MeleeDamageType : IHasLineCollider
     public readonly int StaggerTimeMs;
     public readonly int StaggerTier;
     public readonly float Radius;
+    public readonly int PushTier;
 
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
@@ -69,21 +82,9 @@ public class MeleeDamageType : IHasLineCollider
         StaggerTimeMs = stats.StaggerTimeMs;
         StaggerTier = stats.StaggerTier;
         Radius = stats.Radius;
+        PushTier = stats.PushTier;
     }
 
-    public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter)
-    {
-        bool collided = Collide(target, out collider, out collisionPoint, out double parameter, out ColliderTypes colliderType);
-
-        packet = new();
-
-        if (maximumParameter < parameter) return false;
-        if (!collided) return false;
-
-        bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, new ItemStackMeleeWeaponStats());
-
-        return received;
-    }
     public bool TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats)
     {
         bool collided = Collide(target, out collider, out collisionPoint, out double parameter, out ColliderTypes colliderType);
@@ -99,6 +100,79 @@ public class MeleeDamageType : IHasLineCollider
         bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, stats);
 
         return received;
+    }
+    public (bool collided, bool attacked) TryAttack(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeDamagePacket packet, out MeleeCollisionPacket collisionPacket, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats)
+    {
+        bool collided = Collide(target, out collider, out collisionPoint, out double parameter, out ColliderTypes colliderType);
+
+        packet = new();
+        collisionPacket = new()
+        {
+            PushTier = PushTier,
+            Collider = collider,
+            ColliderType = (int)colliderType,
+            AttackerEntityId = attacker.Entity.EntityId,
+            TargetEntityId = target.EntityId,
+            MainHand = mainHand
+        };
+
+        if (maximumParameter < parameter)
+        {
+            return (false, false);
+        }
+        if (!collided) return (false, false);
+
+        bool received = Attack(attacker.Entity, target, collisionPoint, collider, out packet, mainHand, colliderType, stats);
+
+        return (true, received);
+    }
+    public bool Collide(IPlayer attacker, Entity target, out string collider, out Vector3d collisionPoint, out MeleeCollisionPacket packet, bool mainHand, double maximumParameter, ItemStackMeleeWeaponStats stats, out ColliderTypes colliderType)
+    {
+        bool collided = Collide(target, out collider, out collisionPoint, out double parameter, out colliderType);
+
+        packet = new()
+        {
+            PushTier = PushTier,
+            Collider = collider,
+            ColliderType = (int)colliderType,
+            AttackerEntityId = attacker.Entity.EntityId,
+            TargetEntityId = target.EntityId,
+            MainHand = mainHand
+        };
+
+        if (maximumParameter < parameter)
+        {
+            return false;
+        }
+
+        return collided;
+    }
+    public bool Collide(Entity target, out string collider, out Vector3d collisionPoint, out double parameter, out ColliderTypes colliderType)
+    {
+        parameter = 1f;
+
+        colliderType = ColliderTypes.Torso;
+        collisionPoint = Vector3.Zero;
+        CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
+        if (colliders != null)
+        {
+            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Radius, out collider, out parameter, out collisionPoint);
+
+            if (intersects) colliders.CollidersTypes.TryGetValue(collider, out colliderType);
+
+            return intersects;
+        }
+
+        collider = "";
+
+        Cuboidf collisionBox = GetCollisionBox(target);
+        if (!InWorldCollider.RoughIntersect(collisionBox)) return false;
+        Vector3d? point = InWorldCollider.IntersectCuboid(collisionBox, out parameter);
+
+        if (point == null) return false;
+
+        collisionPoint = point.Value;
+        return true;
     }
     public bool Attack(Entity attacker, Entity target, Vector3d position, string collider, out MeleeDamagePacket packet, bool mainHand, ColliderTypes colliderType, ItemStackMeleeWeaponStats stats)
     {
@@ -155,33 +229,7 @@ public class MeleeDamageType : IHasLineCollider
         return received;
     }
 
-    private bool Collide(Entity target, out string collider, out Vector3d collisionPoint, out double parameter, out ColliderTypes colliderType)
-    {
-        parameter = 1f;
-
-        colliderType = ColliderTypes.Torso;
-        collisionPoint = Vector3.Zero;
-        CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
-        if (colliders != null)
-        {
-            bool intersects = colliders.Collide(InWorldCollider.Position, PreviousInWorldCollider.Position, InWorldCollider.Direction, PreviousInWorldCollider.Direction, Radius, out collider, out parameter, out collisionPoint);
-
-            if (intersects) colliders.CollidersTypes.TryGetValue(collider, out colliderType);
-
-            return intersects;
-        }
-
-        collider = "";
-
-        Cuboidf collisionBox = GetCollisionBox(target);
-        if (!InWorldCollider.RoughIntersect(collisionBox)) return false;
-        Vector3d? point = InWorldCollider.IntersectCuboid(collisionBox, out parameter);
-
-        if (point == null) return false;
-
-        collisionPoint = point.Value;
-        return true;
-    }
+    
     private static Cuboidf GetCollisionBox(Entity entity)
     {
         Cuboidf collisionBox = entity.CollisionBox.Clone(); // @TODO: Refactor to not clone
