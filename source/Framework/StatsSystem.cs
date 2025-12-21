@@ -36,6 +36,7 @@ public class StatsSystemClient
     private const string _networkChannelId = "CombatOverhaul:stats";
     private readonly IClientNetworkChannel _clientChannel;
     private readonly ICoreClientAPI _api;
+    
 }
 
 public class StatsSystemServer
@@ -52,5 +53,8 @@ public class StatsSystemServer
     private void HandlePacket(IServerPlayer player, StatsPacket packet)
     {
         player.Entity.Stats.Set(packet.Stat, packet.Category, packet.Value);
+        OnStatSet?.Invoke(player, packet.Stat, packet.Value);
     }
+
+    internal static event Action<IServerPlayer, string, float>? OnStatSet;
 }

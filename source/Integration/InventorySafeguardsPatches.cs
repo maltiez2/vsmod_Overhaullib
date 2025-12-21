@@ -13,6 +13,9 @@ internal static class InventorySafeguardsPatches
         new Harmony(harmonyId).Patch(typeof(PlayerInventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryUpdate)]),
             prefix: new HarmonyMethod(InventorySafeguardsPatches.UpdateFromPacket)
             );
+        new Harmony(harmonyId).Patch(typeof(InventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryUpdate)]),
+            prefix: new HarmonyMethod(InventorySafeguardsPatches.UpdateFromPacket2)
+            );
         new Harmony(harmonyId).Patch(typeof(InventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryDoubleUpdate)]),
             prefix: new HarmonyMethod(InventorySafeguardsPatches.UpdateFromPacketDouble)
             );
@@ -24,6 +27,7 @@ internal static class InventorySafeguardsPatches
     public static void Unpatch(string harmonyId)
     {
         new Harmony(harmonyId).Unpatch(typeof(PlayerInventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryUpdate)]), HarmonyPatchType.Prefix);
+        new Harmony(harmonyId).Unpatch(typeof(InventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryUpdate)]), HarmonyPatchType.Prefix);
         new Harmony(harmonyId).Unpatch(typeof(InventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryDoubleUpdate)]), HarmonyPatchType.Prefix);
         new Harmony(harmonyId).Unpatch(typeof(InventoryNetworkUtil).GetMethod("UpdateFromPacket", BindingFlags.Instance | BindingFlags.Public, [typeof(IWorldAccessor), typeof(Packet_InventoryContents)]), HarmonyPatchType.Prefix);
     }
@@ -45,6 +49,27 @@ internal static class InventorySafeguardsPatches
         }
 
         _skipUpdateFromPacket = false;
+
+        return false;
+    }
+
+    [ThreadStatic] private static bool _skipUpdateFromPacket2;
+    private static bool UpdateFromPacket2(InventoryNetworkUtil __instance, IWorldAccessor resolver, Packet_InventoryUpdate packet)
+    {
+        if (_skipUpdateFromPacket2) return true;
+
+        _skipUpdateFromPacket2 = true;
+
+        try
+        {
+            __instance.UpdateFromPacket(resolver, packet);
+        }
+        catch (Exception exception)
+        {
+            LoggerUtil.Verbose(__instance.Api, typeof(InventorySafeguardsPatches), $"Error in 'UpdateFromPacket' (single).\nException: {exception}");
+        }
+
+        _skipUpdateFromPacket2 = false;
 
         return false;
     }

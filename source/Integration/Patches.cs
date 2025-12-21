@@ -82,8 +82,6 @@ internal static class HarmonyPatches
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
-
-
         EntityPlayer? entity = (Entity?)_entity?.GetValue(__instance) as EntityPlayer;
 
         if (entity?.Api?.Side != EnumAppSide.Client) return true;

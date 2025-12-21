@@ -112,7 +112,7 @@ public sealed class TogglePacket
     public string HotKeyCode { get; set; } = "";
 }
 
-public sealed class CombatOverhaulSystem : ModSystem
+public partial class CombatOverhaulSystem : ModSystem
 {
     public event Action? OnDispose;
     public event Action<Settings>? SettingsLoaded;
@@ -167,6 +167,7 @@ public sealed class CombatOverhaulSystem : ModSystem
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:TextureFromAttributes", typeof(TextureFromAttributes));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:TexturesFromAttributes", typeof(TexturesFromAttributes));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:AdditionalSlots", typeof(AdditionalSlotsBehavior));
+        api.RegisterCollectibleBehaviorClass("CombatOverhaul:GoesIntoSlotsInfo", typeof(GoesIntoSlotsInfo));
 
         api.RegisterItemClass("CombatOverhaul:Bow", typeof(BowItem));
         api.RegisterItemClass("CombatOverhaul:Sling", typeof(SlingItem));
@@ -489,7 +490,7 @@ public sealed class CombatOverhaulSystem : ModSystem
     }
 }
 
-public sealed class CombatOverhaulAnimationsSystem : ModSystem
+public partial class CombatOverhaulAnimationsSystem : ModSystem
 {
     public AnimationsManager? PlayerAnimationsManager { get; private set; }
     public DebugWindowManager? DebugManager { get; private set; }

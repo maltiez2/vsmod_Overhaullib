@@ -86,7 +86,7 @@ public sealed class MeleeAttack
     {
         Attack(player, slot, mainHand, out terrainCollisions, out entitiesCollisions, new());
     }
-    public void Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
+    public bool Attack(IPlayer player, ItemSlot slot, bool mainHand, out IEnumerable<(Block block, Vector3d point)> terrainCollisions, out IEnumerable<(Entity entity, Vector3d point)> entitiesCollisions, ItemStackMeleeWeaponStats stats)
     {
         terrainCollisions = Array.Empty<(Block block, Vector3d point)>();
         entitiesCollisions = Array.Empty<(Entity entity, Vector3d point)>();
@@ -112,7 +112,7 @@ public sealed class MeleeAttack
 
         //if (CollideWithTerrain && collidedWithTerrain) return; // instead use parameter comparison
 
-        TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
+        bool attacked = TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
 
 #if DEBUG
         foreach (var entyry in entitiesCollisions)
@@ -122,6 +122,8 @@ public sealed class MeleeAttack
             //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
         }
 #endif
+
+        return attacked;
     }
     public void PrepareColliders(IPlayer player, ItemSlot slot, bool mainHand)
     {
@@ -140,7 +142,7 @@ public sealed class MeleeAttack
         if (damagePackets.Any()) _meleeSystem.SendPackets(damagePackets);
         if (collisions.Any()) _meleeSystem.SendPackets(collisions);
 
-        return entitiesCollisions.Any();
+        return damagePackets.Any();
     }
 
     public void RenderDebugColliders(IPlayer player, ItemSlot slot, bool rightHand = true)

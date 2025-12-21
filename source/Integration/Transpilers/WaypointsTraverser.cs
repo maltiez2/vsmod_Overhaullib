@@ -5,7 +5,7 @@ using System.Reflection.Emit;
 
 namespace CombatOverhaul.Integration.Transpilers;
 
-[HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorTaskAI), "Initialize")]
+/*[HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorTaskAI), "Initialize")]
 [HarmonyPatchCategory("combatoverhaul")]
 public static class EntityBehaviorTaskAIInitializePatch
 {
@@ -38,5 +38,5 @@ public static class EntityBehaviorTaskAIInitializePatch
             yield return instr;
         }
     }
-}
+}*/
 

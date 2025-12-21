@@ -903,7 +903,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         if (handle != null)
         {
-            handle.Attack(
+            bool handleAttacked = handle.Attack(
                         player.Player,
                         slot,
                         mainHand,
@@ -911,20 +911,20 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
                         stackStats);
 
-            if (!HandleHitTerrain && handleTerrainCollision.Any())
+            if (!HandleHitTerrain && handleAttacked)
             {
                 if (stats.HandleHitSound != null) SoundsSystem.Play(stats.HandleHitSound);
                 HandleHitTerrain = true;
             }
 
-            if (handleTerrainCollision.Any())
+            if (handleAttacked)
             {
                 hitTerrain = true;
                 return;
             }
         }
 
-        attack.Attack(
+        bool attacked = attack.Attack(
             player.Player,
             slot,
             mainHand,
@@ -939,12 +939,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             hitTerrain = true;
         }
 
-        if (entitiesCollision.Any() && stats.AttackHitSound != null)
+        if (attacked && stats.AttackHitSound != null)
         {
             SoundsSystem.Play(stats.AttackHitSound);
         }
 
-        if (entitiesCollision.Any() && Stats.AnimationStaggerOnHitDurationMs > 0)
+        if (attacked && Stats.AnimationStaggerOnHitDurationMs > 0)
         {
             AnimationBehavior?.SetSpeedModifier(AttackImpactFunction);
             Api.World.AddCameraShake(Stats.ScreenShakeStrength);
@@ -1244,7 +1244,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         if (handle != null)
         {
-            handle.Attack(
+            bool hanldeAttacked = handle.Attack(
                         player.Player,
                         slot,
                         mainHand,
@@ -1252,16 +1252,16 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
                         stackStats);
 
-            if (!HandleHitTerrain && handleTerrainCollision.Any())
+            if (!HandleHitTerrain && hanldeAttacked)
             {
                 if (stats.HandleHitSound != null) SoundsSystem.Play(stats.HandleHitSound);
                 HandleHitTerrain = true;
             }
 
-            if (handleTerrainCollision.Any()) return;
+            if (hanldeAttacked) return;
         }
 
-        attack.Attack(
+        bool attacked = attack.Attack(
             player.Player,
             slot,
             mainHand,
@@ -1271,12 +1271,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         if (handle != null) handle.AddAttackedEntities(attack);
 
-        if (entitiesCollision.Any() && stats.BashHitSound != null)
+        if (attacked && stats.BashHitSound != null)
         {
             SoundsSystem.Play(stats.BashHitSound);
         }
 
-        if (entitiesCollision.Any() && Stats.AnimationStaggerOnHitDurationMs > 0)
+        if (attacked && Stats.AnimationStaggerOnHitDurationMs > 0)
         {
             AnimationBehavior?.SetSpeedModifier(AttackImpactFunction);
             Api.World.AddCameraShake(Stats.ScreenShakeStrength);

@@ -78,7 +78,7 @@ public readonly struct ActionEventData
 /// <summary>
 /// Listen for action change status events, tracks action states and calls subscriptions on specified action in specified state
 /// </summary>
-public sealed class ActionListener : IDisposable
+public partial class ActionListener : IDisposable
 {
     /// <summary>
     /// Time before action is considered to be in <see cref="ActionState.Hold"/> state

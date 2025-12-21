@@ -7,6 +7,24 @@
 
   "game:charactertab-armor": "Armor",
 
+  "slot-types": "Can be put into slots",
+  "slot-headgear": "head gear",
+  "slot-frontgear": "front gear",
+  "slot-backgear": "back gear",
+  "slot-rightshouldergear": "right shoulder gear",
+  "slot-leftshouldergear": "left shoulder gear",
+  "slot-waistgear": "waist gear",
+  "slot-miscgear": "misc gear",
+  "slot-addBeltLeft": "belt left",
+  "slot-addBeltRight": "belt right",
+  "slot-addBeltBack": "belt back",
+  "slot-addBeltFront": "belt front",
+  "slot-addBackpack1": "backapck first",
+  "slot-addBackpack2": "backpack second",
+  "slot-addBackpack3": "backpack third",
+  "slot-addBackpack4": "backpack fourth",
+
+
   "armor-inventory-dialog-attack-tier": "Attack tier",
   "armor-inventory-dialog-armor-stats": "{0:P0}|{1:P0}|{2:P0}",
   "armor-inventory-dialog-attack-legend": "Piercing|Slashing|Blunt",

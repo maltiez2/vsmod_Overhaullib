@@ -12,6 +12,40 @@ using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Armor;
 
+public class GoesIntoSlotsInfo : CollectibleBehavior
+{
+    public GoesIntoSlotsInfo(CollectibleObject collObj) : base(collObj)
+    {
+    }
+
+    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
+    {
+        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+
+        if (inSlot.Itemstack?.Collectible == null) return;
+
+        string? stackDressType = inSlot.Itemstack.Collectible.Attributes["clothescategory"].AsString() ?? inSlot.Itemstack.Collectible.Attributes["attachableToEntity"]["categoryCode"].AsString();
+        string[]? stackDressTypes = inSlot.Itemstack.Collectible.Attributes["clothescategories"].AsObject<string[]>() ?? inSlot.Itemstack.Collectible.Attributes["attachableToEntity"]["categoryCodes"].AsObject<string[]>();
+
+        List<string> slotTypes = [];
+        if (stackDressTypes != null)
+        {
+            slotTypes.AddRange(stackDressTypes);
+        }
+        if (stackDressType != null)
+        {
+            slotTypes.Add(stackDressType);
+        }
+
+        if (!slotTypes.Any()) return;
+
+        string slotTypeNames = slotTypes.Select(slot => Lang.Get($"combatoverhaul:slot-{slot}")).Aggregate((f, s) => $"{f}, {s}");
+        string slotTypePrefix = Lang.Get("combatoverhaul:slot-types");
+
+        dsc.AppendLine($"{slotTypePrefix}: {slotTypeNames}");
+    }
+}
+
 public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteractions
 {
     public SlotConfig DefaultSlotConfig { get; protected set; } = new([], []);
@@ -220,13 +254,6 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
         }
 
         return bagContents;
-    }
-
-    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
-    {
-        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
-
-
     }
 
     public void OnAttached(ItemSlot itemslot, int slotIndex, Entity toEntity, EntityAgent byEntity)
