@@ -183,6 +183,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         _statsSystem.SetStat(stat, category, value);
     }
+    public void FlipDirectionToOpposite() => _directionController.FlipDirectionToOpposite();
 
     private readonly bool _mainPlayer = false;
     private readonly ICoreClientAPI _api;

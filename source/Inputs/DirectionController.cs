@@ -139,6 +139,22 @@ public sealed class DirectionController
         }
     }
 
+    public void FlipDirectionToOpposite()
+    {
+        AttackDirection newDirection = GetOppositeDirection(CurrentDirection, DirectionsConfiguration);
+
+        CurrentDirection = newDirection;
+        CurrentDirectionNormalized = (int)newDirection;
+        _directionCursorRenderer.CurrentDirection = (int)CurrentDirection;
+
+        if (Configurations.TryGetValue(DirectionsConfiguration, out List<int>? allowedDirections) && !allowedDirections.Contains((int)CurrentDirection))
+        {
+            CurrentDirection = (AttackDirection)allowedDirections[0];
+            CurrentDirectionNormalized = allowedDirections[0];
+            _directionCursorRenderer.CurrentDirection = (int)CurrentDirection;
+        }
+    }
+
 
     private const float _sensitivityFactor = 1e-3f;
     private readonly ICoreClientAPI _api;
@@ -163,6 +179,57 @@ public sealed class DirectionController
         float angle = MathF.Atan2(yaw, pitch) * GameMath.RAD2DEG;
         float angleOffset = angle + directionOffset + 360;
         return (int)(angleOffset / angleSegment) % directionsCount;
+    }
+
+    private static AttackDirection GetOppositeDirection(AttackDirection direction, DirectionsConfiguration configuration)
+    {
+        switch (configuration)
+        {
+            case DirectionsConfiguration.Triangle:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Top,
+                    AttackDirection.TopRight => AttackDirection.TopLeft,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.BottomLeft,
+                    AttackDirection.Bottom => AttackDirection.Bottom,
+                    AttackDirection.BottomLeft => AttackDirection.BottomRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.TopRight,
+                    _ => AttackDirection.Top
+                };
+            case DirectionsConfiguration.Star:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Top,
+                    AttackDirection.TopRight => AttackDirection.TopRight,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.BottomLeft,
+                    AttackDirection.Bottom => AttackDirection.Bottom,
+                    AttackDirection.BottomLeft => AttackDirection.BottomRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.TopRight,
+                    _ => AttackDirection.Top
+                };
+            case DirectionsConfiguration.None:
+            case DirectionsConfiguration.TopBottom:
+            case DirectionsConfiguration.Square:
+            case DirectionsConfiguration.Eight:
+                return direction switch
+                {
+                    AttackDirection.Top => AttackDirection.Bottom,
+                    AttackDirection.TopRight => AttackDirection.BottomLeft,
+                    AttackDirection.Right => AttackDirection.Left,
+                    AttackDirection.BottomRight => AttackDirection.TopLeft,
+                    AttackDirection.Bottom => AttackDirection.Top,
+                    AttackDirection.BottomLeft => AttackDirection.TopRight,
+                    AttackDirection.Left => AttackDirection.Right,
+                    AttackDirection.TopLeft => AttackDirection.BottomRight,
+                    _ => AttackDirection.Top
+                };
+        }
+
+        return AttackDirection.Top;
     }
 
     private static AttackDirection InvertDirection(AttackDirection direction, DirectionsConfiguration configuration)

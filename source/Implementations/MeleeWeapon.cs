@@ -858,7 +858,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
                     float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
                     MeleeBlockSystem.StopBlock(mainHand);
+                    
                     SetState(MeleeWeaponState.WindingUp, mainHand);
+                    
                     attack.Start(player.Player);
                     handle?.Start(player.Player);
                     AnimationBehavior?.Play(
@@ -883,6 +885,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         OffHandAttackCounter++;
                     }
                     HandleHitTerrain = false;
+
+                    if (Settings.FlipDirectionAfterAttack)
+                    {
+                        PlayerActionsBehavior?.FlipDirectionToOpposite();
+                    }
                 }
                 break;
             case MeleeWeaponState.WindingUp:

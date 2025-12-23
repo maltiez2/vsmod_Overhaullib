@@ -51,6 +51,7 @@ public sealed class Settings
 
     public float DirectionsSensitivity { get; set; } = 1f;
     public bool DirectionsInvert { get; set; } = false;
+    public bool FlipDirectionAfterAttack { get; set; } = true;
 
     public bool HandsYawSmoothing { get; set; } = false;
 
