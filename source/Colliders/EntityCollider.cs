@@ -413,9 +413,6 @@ public readonly struct CuboidAABBCollider
 
     private static BlockPos _blockPosBuffer = new(0);
     private static Vec3d _vecBuffer = new();
-#if DEBUG
-    internal static ICoreAPI? _api; // for debug
-#endif
 
     private static Vector3d GetIntersectingFaceNormal(Vector3d min, Vector3d max, Vector3d dir)
     {

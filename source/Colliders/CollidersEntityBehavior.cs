@@ -69,6 +69,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 {
     public CollidersEntityBehavior(Entity entity) : base(entity)
     {
+        _settings = entity.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
     }
 
     public CuboidAABBCollider BoundingBox { get; private set; }
@@ -334,7 +335,9 @@ public sealed class CollidersEntityBehavior : EntityBehavior
                 {
 #if DEBUG
                     Vec3d pos5 = new(currentIntersection.X, currentIntersection.Y, currentIntersection.Z);
-                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                    Vec3d pos6 = new(segmentClosestPoint.X, segmentClosestPoint.Y, segmentClosestPoint.Z);
+                    //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 0, 255, 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                    //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), pos6, pos6, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
 #endif
 
                     Vector3d segmentPoint = segmentClosestPoint - previousTickOrigin;
@@ -426,24 +429,46 @@ public sealed class CollidersEntityBehavior : EntityBehavior
             Vector3d head = startHead + directionHead * subdivisionParameter;
             Vector3d tail = startTail + directionTail * subdivisionParameter;
 
-#if DEBUG
-            Vec3d pos7 = new(head.X, head.Y, head.Z);
-            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, (int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
-            Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
-            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * subdivisionParameter), (int)(255 * subdivisionParameter), 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 0.5f, EnumParticleModel.Cube);
-
-            float c = 16;
-            for (int i = 0; i < c; i++)
-            {
-                Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
-                //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * (1 - (i / c))), 0, (int)(255 * (i / c)), 125), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
-            }
-#endif
+            const float particleSizeFactor = 16;
+            const float lifeTime = 0.5f;
 
             if (Collide(head, tail, radius, out List<(string, double, Vector3d)> currentIntersections))
             {
                 intersections = intersections.Concat(currentIntersections).ToList();
+
+                if (_settings.DebugWeaponTrailParticles)
+                {
+                    Vec3d pos7 = new(head.X, head.Y, head.Z);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 64), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 64), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+
+                    float c = 8;
+                    for (int i = 0; i < c; i++)
+                    {
+                        Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
+                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 128, 64), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor, EnumParticleModel.Cube);
+                    }
+                }
+
                 break;
+            }
+            else
+            {
+                if (_settings.DebugWeaponTrailParticles)
+                {
+                    Vec3d pos7 = new(head.X, head.Y, head.Z);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 64), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 64), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+
+                    float c = 8;
+                    for (int i = 0; i < c; i++)
+                    {
+                        Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
+                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 64, 64), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor, EnumParticleModel.Cube);
+                    }
+                }  
             }
         }
 
@@ -454,7 +479,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
             double smallestParameter = 1;
             foreach ((string firstCollider, double firstParameter, Vector3d firstIntersection) in intersections)
             {
-                Debug.WriteLine(firstParameter);
+                //Debug.WriteLine(firstParameter);
                 
                 if (smallestParameter < firstParameter) continue;
                 
@@ -486,6 +511,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     private const int _updateFps = 30;
     private const float _updateTimeSec = 1f / _updateFps;
     private float _timeSinceLastUpdate = 0;
+    private readonly Settings _settings;
 
     private void SetColliderElement(ShapeElement element)
     {

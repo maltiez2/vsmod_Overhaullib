@@ -163,7 +163,6 @@ public readonly struct LineSegmentCollider : IWeaponCollider
                     closestIntersection ??= intersection;
                     if (closestIntersection != null && intersection != null && closestIntersection.Value.parameter > intersection.Value.parameter)
                     {
-                        Debug.WriteLine(intersection.Value.parameter);
                         closestIntersection = intersection;
                     }
                 }

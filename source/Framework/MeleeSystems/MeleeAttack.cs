@@ -1,8 +1,6 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.Implementations;
-using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -93,35 +91,29 @@ public sealed class MeleeAttack
 
         PrepareColliders(player, slot, mainHand);
 
-#if DEBUG
-        var pos1 = DamageTypes[0].InWorldCollider.Position;
-        var pos3 = DamageTypes[0].InWorldCollider.Position + DamageTypes[0].InWorldCollider.Direction;
-        Vec3d pos2 = new(pos1.X, pos1.Y, pos1.Z);
-        Vec3d pos4 = new(pos3.X, pos3.Y, pos3.Z);
-        float c = 16;
-        for (int i = 0; i < c; i++)
-        {
-            Vec3d pos5 = pos2 + (i / c) * (pos4 - pos2);
-            //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba((int)(255 * i / c), (int)(255 * i / c), (int)(255 * i / c), 255), pos5, pos5, new Vec3f(), new Vec3f(), 1, 0, 0.3f, EnumParticleModel.Cube);
-        }
-#endif
-
         double parameter = 1f;
 
-        bool collidedWithTerrain = TryCollideWithTerrain(out terrainCollisions, out parameter);
-
-        //if (CollideWithTerrain && collidedWithTerrain) return; // instead use parameter comparison
+        _ = TryCollideWithTerrain(out terrainCollisions, out parameter);
 
         bool attacked = TryAttackEntities(player, slot, out entitiesCollisions, mainHand, parameter, stats);
-
-#if DEBUG
-        foreach (var entyry in entitiesCollisions)
+        
+        /*if (_combatOverhaulSystem.Settings.DebugHitParticles)
         {
-            var pos6 = entyry.point;
-            Vec3d pos7 = new(pos6.X, pos6.Y, pos6.Z);
-            //player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 0, 0, 125), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
-        }
-#endif
+            foreach ((Entity entity, Vector3d point) entry in entitiesCollisions)
+            {
+                Vector3d pos6 = entry.point;
+                Vec3d pos7 = new(pos6.X, pos6.Y, pos6.Z);
+                if (attacked)
+                {
+                    player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 0, 255, 200), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                }
+                else
+                {
+                    player.Entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 64), pos7, pos7, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                }
+                    
+            }
+        }*/
 
         return attacked;
     }
@@ -175,6 +167,13 @@ public sealed class MeleeAttack
             {
                 _attackedEntities[entityId].Add(id);
             }
+        }
+    }
+    public void AddAttackedEntities(MeleeAttack attack, long currentEntityId)
+    {
+        foreach (long id in attack._attackedEntities[currentEntityId])
+        {
+            _attackedEntities[currentEntityId].Add(id);
         }
     }
 

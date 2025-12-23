@@ -6,7 +6,6 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent;
-using VSImGui.Debug;
 
 namespace CombatOverhaul.DamageSystems;
 
@@ -23,7 +22,7 @@ public sealed class EntityDamageModelJson
     {
         //{"Head", new() { Code = "game:sounds/player/projectilehit"}  },
         //{"Critical", new() { Code = "game:sounds/player/projectilehit"}  },
-        {"Resistant", new() { Code = "game:sounds/held/shieldblock-wood-light"}  }
+        //{"Resistant", new() { Code = "game:sounds/held/shieldblock-wood-light"}  }
     };
 }
 

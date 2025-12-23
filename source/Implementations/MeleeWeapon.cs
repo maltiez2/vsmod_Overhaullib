@@ -5,6 +5,7 @@ using CombatOverhaul.Integration;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -556,7 +557,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 {
                     if (attack != null)
                     {
-                        TryAttack(attack, handle, stats, slot, player, mainHand, out bool hitTerrain);
+                        TryAttack(attack, handle, stats, slot, player, mainHand, out bool hitTerrain, Settings.MeleeWeaponIgnoreTerrainBehind);
 
                         if (hitTerrain && Settings.MeleeWeaponStopOnTerrainHit)
                         {
@@ -896,14 +897,16 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return true;
     }
-    protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain)
+    protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain, bool ignoreTerrainBehind)
     {
         hitTerrain = false;
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
 
+        bool handleAttacked = false;
+
         if (handle != null)
         {
-            bool handleAttacked = handle.Attack(
+            handleAttacked = handle.Attack(
                         player.Player,
                         slot,
                         mainHand,
@@ -911,16 +914,62 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
                         stackStats);
 
-            if (!HandleHitTerrain && handleAttacked)
+
+            if (handleTerrainCollision.Any() && !handleAttacked)
             {
-                if (stats.HandleHitSound != null) SoundsSystem.Play(stats.HandleHitSound);
-                HandleHitTerrain = true;
+                if (Settings.DebugHitParticles)
+                {
+                    foreach ((_, Vector3d point) in handleTerrainCollision)
+                    {
+                        Vec3d pos8 = new(point.X, point.Y, point.Z);
+                        player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 255, 125, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                    }
+                }
+
+                hitTerrain = true;
+
+                if (ignoreTerrainBehind)
+                {
+                    Vector3d playerPosition = player.Pos.XYZ.ToOpenTK();
+                    Vector3d eyesPosition = player.LocalEyePos.ToOpenTK() + playerPosition;
+                    Vector3d viewDirection = player.Pos.GetViewVector().ToVec3d().ToOpenTK();
+
+                    double eyesProjection = Vector3d.Dot(viewDirection, eyesPosition);
+
+                    foreach ((_, Vector3d point) in handleTerrainCollision)
+                    {
+                        double hitProjection = Vector3d.Dot(viewDirection, point);
+
+                        if (hitProjection < eyesProjection)
+                        {
+                            hitTerrain = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (hitTerrain)
+                {
+                    if (!HandleHitTerrain)
+                    {
+                        if (stats.HandleHitSound != null)
+                        {
+                            SoundsSystem.Play(stats.HandleHitSound);
+                        }
+                        HandleHitTerrain = true;
+                    }
+
+                    return;
+                }
             }
 
-            if (handleAttacked)
+            if (Settings.DebugHitParticles && handleEntitiesCollision.Any() && handleAttacked)
             {
-                hitTerrain = true;
-                return;
+                foreach ((_, Vector3d point) in handleEntitiesCollision)
+                {
+                    Vec3d pos8 = new(point.X, point.Y, point.Z);
+                    player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+                }
             }
         }
 
@@ -932,7 +981,37 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision,
             stackStats);
 
-        if (handle != null) handle.AddAttackedEntities(attack);
+        if (Settings.DebugHitParticles && terrainCollision.Any() && !attacked)
+        {
+            foreach ((_, Vector3d point) in terrainCollision)
+            {
+                Vec3d pos8 = new(point.X, point.Y, point.Z);
+                player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+            }
+        }
+
+        if (Settings.DebugHitParticles && entitiesCollision.Any() && attacked)
+        {
+            foreach ((_, Vector3d point) in entitiesCollision)
+            {
+                Vec3d pos8 = new(point.X, point.Y, point.Z);
+                player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 0, 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
+            }
+        }
+
+        if (handle != null && !HandleHitTerrain && handleAttacked && !attacked)
+        {
+            if (stats.HandleHitSound != null)
+            {
+                SoundsSystem.Play(stats.HandleHitSound);
+            }
+            HandleHitTerrain = true;
+        }
+
+        if (handle != null)
+        {
+            handle.AddAttackedEntities(attack, player.EntityId);
+        }
 
         if (terrainCollision.Any())
         {
@@ -1106,7 +1185,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 break;
             case "stopParry":
                 {
-                    if (CanBlock(player, mainHand) && blockStats != null)
+                    if (CanBlock(player, mainHand) && blockStats != null && PlayerActionsBehavior?.ActionListener.IsActive(EnumEntityAction.RightMouseDown) == true)
                     {
                         SetState(MeleeWeaponState.Blocking, mainHand);
                         MeleeBlockSystem.StartBlock(blockStats, mainHand);
@@ -1142,7 +1221,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected virtual bool StopBlock(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
         ParryButtonReleased = true;
-        if (!CheckState(mainHand, MeleeWeaponState.Blocking, MeleeWeaponState.Parrying)) return false;
+        if (!CheckState(mainHand, MeleeWeaponState.Blocking)) return false;
 
         MeleeBlockSystem.StopBlock(mainHand);
         AnimationBehavior?.PlayReadyAnimation(mainHand);

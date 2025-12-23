@@ -13,6 +13,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -36,8 +37,6 @@ public sealed class ProjectileServer
 
     public void OnCollision(ProjectileCollisionPacket packet)
     {
-        
-
         Entity receiver = _api.World.GetEntityById(packet.ReceiverEntity);
 
         if (receiver == null) return;
@@ -77,8 +76,6 @@ public sealed class ProjectileServer
     public void TryCollide()
     {
         _system.TryCollide(_entity);
-
-        
     }
 
     private readonly ProjectileStats _stats;
@@ -476,6 +473,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
 {
     public ProjectilePhysicsBehavior(Entity entity) : base(entity)
     {
+        ModSettings = entity.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
     }
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
@@ -497,6 +495,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
     protected BlockPos MaxPos = new(0);
     protected BlockPos PosBuffer = new(0);
     protected Cuboidd EntityBox = new();
+    protected Settings ModSettings;
 
     protected static FieldInfo? EntityBehaviorPassivePhysics_airDragValue = typeof(EntityBehaviorPassivePhysics).GetField("airDragValue", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -509,19 +508,17 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
         Vector3d PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
         Vector3d NextPosition = CurrentPosition + PositionDelta;
 
-#if DEBUG
-        CuboidAABBCollider._api = entity.Api as ICoreServerAPI;
-        if (pos.Motion.Length() > 0.1)
+        if (ModSettings.DebugProjectilesTrailsParticles)
         {
-            CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 0.1f, 0, 0.7f, EnumParticleModel.Cube);
+            if (pos.Motion.Length() > 0.1)
+            {
+                entity.Api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 0.1f, 0, 0.7f, EnumParticleModel.Cube);
+            }
         }
 
         //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
-#endif
 
         bool collided = CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition);
-
-        
 
         if (collided)
         {
