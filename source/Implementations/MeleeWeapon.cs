@@ -7,6 +7,7 @@ using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Reflection.Metadata;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -58,6 +59,7 @@ public class StanceStats
     public bool CanSprint { get; set; } = true;
     public bool CanThrow { get; set; } = false;
     public bool CanBash { get; set; } = false;
+    public bool CanRiposte { get; set; } = false;
     public float SpeedPenalty { get; set; } = 0;
     public float BlockSpeedPenalty { get; set; } = 0;
 
@@ -66,6 +68,7 @@ public class StanceStats
     public float GripMaxLength { get; set; } = 0;
 
     public MeleeAttackStats? Attack { get; set; }
+    public MeleeAttackStats? Riposte { get; set; }
     public MeleeAttackStats? BlockBash { get; set; }
     public Dictionary<string, MeleeAttackStats>? DirectionalAttacks { get; set; }
     public Dictionary<string, MeleeAttackStats>? DirectionalBlockBashes { get; set; }
@@ -85,6 +88,7 @@ public class StanceStats
     public Dictionary<string, string[]> AttackAnimation { get; set; } = [];
     public Dictionary<string, string[]> BlockBashAnimation { get; set; } = [];
     public string? BlockAnimation { get; set; } = null;
+    public string? RiposteAnimation { get; set; } = null;
     public string? ReadyAnimation { get; set; } = null;
     public string? IdleAnimation { get; set; } = null;
     public string? WalkAnimation { get; set; } = null;
@@ -217,6 +221,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             OneHandedAttack = new(api, Stats.OneHandedStance.Attack);
             RegisterCollider(item.Code.ToString(), "onehanded-", OneHandedAttack);
         }
+        if (Stats.OneHandedStance?.Riposte != null)
+        {
+            OneHandedRiposte = new(api, Stats.OneHandedStance.Riposte);
+            RegisterCollider(item.Code.ToString(), "onehanded-riposte-", OneHandedRiposte);
+        }
         else if (Stats.OneHandedStance?.DirectionalAttacks != null)
         {
             DirectionalOneHandedAttacks = new();
@@ -232,6 +241,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             TwoHandedAttack = new(api, Stats.TwoHandedStance.Attack);
             RegisterCollider(item.Code.ToString(), "twohanded-", TwoHandedAttack);
         }
+        if (Stats.TwoHandedStance?.Riposte != null)
+        {
+            TwoHandedRiposte = new(api, Stats.TwoHandedStance.Riposte);
+            RegisterCollider(item.Code.ToString(), "onehanded-riposte-", TwoHandedRiposte);
+        }
         else if (Stats.TwoHandedStance?.DirectionalAttacks != null)
         {
             DirectionalTwoHandedAttacks = new();
@@ -246,6 +260,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         {
             OffHandAttack = new(api, Stats.OffHandStance.Attack);
             RegisterCollider(item.Code.ToString(), "offhand-", OffHandAttack);
+        }
+        if (Stats.OffHandStance?.Riposte != null)
+        {
+            OffHandRiposte = new(api, Stats.OffHandStance.Riposte);
+            RegisterCollider(item.Code.ToString(), "onehanded-riposte-", OffHandRiposte);
         }
         else if (Stats.OffHandStance?.DirectionalAttacks != null)
         {
@@ -790,6 +809,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected const bool EditColliders = false;
     protected AttackDirection CurrentMainHandDirection = AttackDirection.Top;
     protected AttackDirection CurrentOffHandDirection = AttackDirection.Top;
+    protected bool CanRiposteMainHand = false;
+    protected bool CanRiposteOffHand = false;
+    protected bool RiposteMainHand = false;
+    protected bool RiposteOffHand = false;
 
     protected const long GlobalCooldownMs = 1000;
 
@@ -805,6 +828,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected Dictionary<AttackDirection, MeleeAttack>? DirectionalOffHandAttacks;
     protected Dictionary<string, Dictionary<AttackDirection, MeleeAttack>> DirectionalMainHandDualWieldAttacks = [];
     protected Dictionary<string, Dictionary<AttackDirection, MeleeAttack>> DirectionalOffHandDualWieldAttacks = [];
+
+    protected MeleeAttack? OneHandedRiposte;
+    protected MeleeAttack? TwoHandedRiposte;
+    protected MeleeAttack? OffHandRiposte;
 
     protected MeleeAttack? OneHandedBlockBash;
     protected MeleeAttack? TwoHandedBlockBash;
@@ -838,58 +865,27 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         switch (GetState<MeleeWeaponState>(mainHand))
         {
+            case MeleeWeaponState.Parrying:
+                {
+                    bool canRiposte = mainHand ? CanRiposteMainHand : CanRiposteOffHand;
+                    
+                    if (!stats.CanRiposte || !canRiposte) return false;
+
+                    attack = GetStanceAttack(player, mainHand, direction, riposte: true);
+
+                    if (attack == null) return false;
+
+                    TurnOnRiposte(mainHand);
+                    StartAttack(slot, player, mainHand, direction, attack, handle, stats, riposte: true);
+                    ResetRiposte(mainHand);
+
+                    break;
+                }
             case MeleeWeaponState.Idle:
                 {
-                    if (mainHand)
-                    {
-                        CurrentMainHandDirection = direction;
-                    }
-                    else
-                    {
-                        CurrentOffHandDirection = direction;
-                    }
-
-                    int counter = mainHand ? MainHandAttackCounter : OffHandAttackCounter;
-
-                    string attackAnimation =
-                        DirectionsType == DirectionsConfiguration.None ?
-                        stats.AttackAnimation["Main"][counter % stats.AttackAnimation["Main"].Length] :
-                        stats.AttackAnimation[direction.ToString()][counter % stats.AttackAnimation[direction.ToString()].Length];
-
-                    float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
-                    MeleeBlockSystem.StopBlock(mainHand);
-                    
-                    SetState(MeleeWeaponState.WindingUp, mainHand);
-                    
-                    attack.Start(player.Player);
-                    handle?.Start(player.Player);
-                    AnimationBehavior?.Play(
-                        mainHand,
-                        attackAnimation,
-                        animationSpeed: animationSpeed,
-                        category: AnimationCategory(mainHand),
-                        callback: () => AttackAnimationCallback(mainHand),
-                        callbackHandler: code => AttackAnimationCallbackHandler(code, mainHand));
-                    TpAnimationBehavior?.Play(
-                        mainHand,
-                        attackAnimation,
-                        animationSpeed: animationSpeed,
-                        category: AnimationCategory(mainHand));
-
-                    if (mainHand)
-                    {
-                        MainHandAttackCounter++;
-                    }
-                    else
-                    {
-                        OffHandAttackCounter++;
-                    }
-                    HandleHitTerrain = false;
-
-                    if (Settings.FlipDirectionAfterAttack)
-                    {
-                        PlayerActionsBehavior?.FlipDirectionToOpposite();
-                    }
+                    TurnOffRiposte(mainHand);
+                    StartAttack(slot, player, mainHand, direction, attack, handle, stats);
+                    ResetRiposte(mainHand);
                 }
                 break;
             case MeleeWeaponState.WindingUp:
@@ -903,6 +899,60 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         }
 
         return true;
+    }
+    protected virtual void StartAttack(ItemSlot slot, EntityPlayer player, bool mainHand, AttackDirection direction, MeleeAttack attack, MeleeAttack? handle, StanceStats stats, bool riposte = false)
+    {
+        if (mainHand)
+        {
+            CurrentMainHandDirection = direction;
+        }
+        else
+        {
+            CurrentOffHandDirection = direction;
+        }
+
+        int counter = mainHand ? MainHandAttackCounter : OffHandAttackCounter;
+
+        string attackAnimation =
+            riposte ? stats.RiposteAnimation :
+            DirectionsType == DirectionsConfiguration.None ?
+            stats.AttackAnimation["Main"][counter % stats.AttackAnimation["Main"].Length] :
+            stats.AttackAnimation[direction.ToString()][counter % stats.AttackAnimation[direction.ToString()].Length];
+
+        float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
+        MeleeBlockSystem.StopBlock(mainHand);
+
+        SetState(MeleeWeaponState.WindingUp, mainHand);
+
+        attack.Start(player.Player);
+        handle?.Start(player.Player);
+        AnimationBehavior?.Play(
+            mainHand,
+            attackAnimation,
+            animationSpeed: animationSpeed,
+            category: AnimationCategory(mainHand),
+            callback: () => AttackAnimationCallback(mainHand),
+            callbackHandler: code => AttackAnimationCallbackHandler(code, mainHand));
+        TpAnimationBehavior?.Play(
+            mainHand,
+            attackAnimation,
+            animationSpeed: animationSpeed,
+            category: AnimationCategory(mainHand));
+
+        if (mainHand)
+        {
+            MainHandAttackCounter++;
+        }
+        else
+        {
+            OffHandAttackCounter++;
+        }
+        HandleHitTerrain = false;
+
+        if (Settings.FlipDirectionAfterAttack)
+        {
+            PlayerActionsBehavior?.FlipDirectionToOpposite();
+        }
     }
     protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain, bool ignoreTerrainBehind)
     {
@@ -920,7 +970,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         out IEnumerable<(Block block, Vector3d point)> handleTerrainCollision,
                         out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
                         stackStats);
-
 
             if (handleTerrainCollision.Any() && !handleAttacked)
             {
@@ -1138,7 +1187,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             SetState(MeleeWeaponState.Parrying, mainHand);
             if (stats.ParryWithoutDelay)
             {
-                MeleeBlockSystem.StartBlock(parryStats, mainHand);
+                MeleeBlockSystem.StartBlock(parryStats, mainHand, () => RiposteCallback(mainHand, player));
             }
             AnimationBehavior?.Play(
                 mainHand,
@@ -1221,8 +1270,68 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         SetSpeedPenalty(mainHand, player);
 
+        ResetRiposte(mainHand);
+
         return true;
     }
+    protected virtual void RiposteCallback(bool mainHand, EntityPlayer player)
+    {
+        if (!CheckState(mainHand, MeleeWeaponState.Parrying, MeleeWeaponState.Blocking)) return;
+
+        if (mainHand)
+        {
+            CanRiposteMainHand = true;
+        }
+        else
+        {
+            CanRiposteOffHand = true;
+        }
+    }
+    protected virtual void ResetRiposte(bool mainHand)
+    {
+        if (mainHand)
+        {
+            CanRiposteMainHand = false;
+        }
+        else
+        {
+            CanRiposteOffHand = false;
+        }
+    }
+    protected virtual void TurnOnRiposte(bool mainHand)
+    {
+        if (mainHand)
+        {
+            RiposteMainHand = true;
+        }
+        else
+        {
+            RiposteOffHand = true;
+        }
+    }
+    protected virtual void TurnOffRiposte(bool mainHand)
+    {
+        if (mainHand)
+        {
+            RiposteMainHand = false;
+        }
+        else
+        {
+            RiposteOffHand = false;
+        }
+    }
+    protected virtual bool RiposteActive(bool mainHand)
+    {
+        if (mainHand)
+        {
+            return RiposteMainHand;
+        }
+        else
+        {
+            return RiposteOffHand;
+        }
+    }
+
 
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Released)]
     protected virtual bool StopBlock(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
@@ -1242,6 +1351,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         }
 
         SetSpeedPenalty(mainHand, player);
+
+        ResetRiposte(mainHand);
 
         return true;
     }
@@ -1682,17 +1793,22 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             SetState(MeleeWeaponState.Idle, mainHand);
         }
     }
-    protected virtual MeleeAttack? GetStanceAttack(EntityPlayer player, bool mainHand = true, AttackDirection direction = AttackDirection.Top)
+    protected virtual MeleeAttack? GetStanceAttack(EntityPlayer player, bool mainHand = true, AttackDirection direction = AttackDirection.Top, bool riposte = false)
     {
+        if (!riposte)
+        {
+            riposte = RiposteActive(mainHand);
+        }
+        
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         string dualWieldKey = GetDualWieldKey(player, mainHand);
         return stance switch
         {
-            MeleeWeaponStance.MainHand => OneHandedAttack ?? DirectionalOneHandedAttacks?.GetValueOrDefault(direction),
-            MeleeWeaponStance.OffHand => OffHandAttack ?? DirectionalOffHandAttacks?.GetValueOrDefault(direction),
-            MeleeWeaponStance.TwoHanded => TwoHandedAttack ?? DirectionalTwoHandedAttacks?.GetValueOrDefault(direction),
-            MeleeWeaponStance.MainHandDualWield => DirectionalMainHandDualWieldAttacks.Any() ? DirectionalMainHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : MainHandDualWieldHandleAttacks[dualWieldKey],
-            MeleeWeaponStance.OffHandDualWield => DirectionalOffHandDualWieldAttacks.Any() ? DirectionalOffHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : OffHandDualWieldHandleAttacks[dualWieldKey],
+            MeleeWeaponStance.MainHand => riposte ? OneHandedRiposte : OneHandedAttack ?? DirectionalOneHandedAttacks?.GetValueOrDefault(direction),
+            MeleeWeaponStance.OffHand => riposte ? OffHandRiposte : OffHandAttack ?? DirectionalOffHandAttacks?.GetValueOrDefault(direction),
+            MeleeWeaponStance.TwoHanded => riposte ? TwoHandedRiposte : TwoHandedAttack ?? DirectionalTwoHandedAttacks?.GetValueOrDefault(direction),
+            MeleeWeaponStance.MainHandDualWield => riposte ? OneHandedRiposte : DirectionalMainHandDualWieldAttacks.Any() ? DirectionalMainHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : MainHandDualWieldHandleAttacks[dualWieldKey],
+            MeleeWeaponStance.OffHandDualWield => riposte ? OffHandRiposte : DirectionalOffHandDualWieldAttacks.Any() ? DirectionalOffHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : OffHandDualWieldHandleAttacks[dualWieldKey],
             _ => OneHandedAttack,
         };
     }
@@ -2192,50 +2308,5 @@ public class MeleeWeapon : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDyn
     protected virtual void LoadServerSide(ICoreServerAPI serverAPI)
     {
         ServerLogic = new(serverAPI, this);
-    }
-}
-
-public sealed class GripController
-{
-    public GripController(FirstPersonAnimationsBehavior? animationBehavior)
-    {
-        _animationBehavior = animationBehavior;
-    }
-
-
-    public void ChangeGrip(float delta, bool mainHand, float gripFactor, float min, float max)
-    {
-        _grip = GameMath.Clamp(_grip + delta * gripFactor, min, max);
-
-        PlayAnimation(mainHand);
-
-    }
-    public void ResetGrip(bool mainHand)
-    {
-        _grip = 0;
-
-        _animationBehavior?.Stop("grip");
-    }
-
-    private float _grip = 0;
-    private readonly Animations.Animation _gripAnimation = Animations.Animation.Zero.Clone();
-    private readonly FirstPersonAnimationsBehavior? _animationBehavior;
-
-    private PLayerKeyFrame GetAimingFrame()
-    {
-        AnimationElement element = new(_grip, null, null, null, null, null);
-        AnimationElement nullElement = new(null, null, null, null, null, null);
-
-        PlayerFrame frame = new(rightHand: new(element, nullElement, nullElement));
-
-        return new PLayerKeyFrame(frame, TimeSpan.Zero, EasingFunctionType.Linear);
-    }
-    private void PlayAnimation(bool mainHand)
-    {
-        _gripAnimation.PlayerKeyFrames[0] = GetAimingFrame();
-        _gripAnimation.Hold = true;
-
-        AnimationRequest request = new(_gripAnimation, 1.0f, 0, "grip", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true);
-        _animationBehavior?.Play(request, mainHand);
     }
 }

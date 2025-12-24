@@ -696,11 +696,18 @@ public sealed class DamageBlockPacket
     public bool CanBlockProjectiles { get; set; }
     public int StaggerTimeMs { get; set; }
     public int StaggerTier { get; set; }
+    public ulong Id { get; set; }
 
     public DamageBlockStats ToBlockStats(Action<float> callback)
     {
         return new((PlayerBodyPart)Zones, DirectionConstrain.FromArray(Directions), callback, Sound, BlockTier, CanBlockProjectiles, TimeSpan.FromMilliseconds(StaggerTimeMs), StaggerTier);
     }
+}
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public sealed class DamageBlockCallbackPacket
+{
+    public ulong Id { get; set; }
 }
 
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
@@ -754,21 +761,57 @@ public sealed class MeleeBlockSystemClient : MeleeSystem
     {
         _clientChannel = api.Network.RegisterChannel(NetworkChannelId)
             .RegisterMessageType<DamageBlockPacket>()
-            .RegisterMessageType<DamageStopBlockPacket>();
+            .RegisterMessageType<DamageStopBlockPacket>()
+            .RegisterMessageType<DamageBlockCallbackPacket>()
+            .SetMessageHandler<DamageBlockCallbackPacket>(HandleCallback);
     }
 
     public void StartBlock(DamageBlockJson block, bool mainHand)
     {
         DamageBlockPacket packet = block.ToPacket();
+        packet.Id = 0;
         packet.MainHand = mainHand;
+        _clientChannel.SendPacket(packet);
+    }
+    public void StartBlock(DamageBlockJson block, bool mainHand, Action callback)
+    {
+        DamageBlockPacket packet = block.ToPacket();
+        packet.Id = _nextId++;
+        packet.MainHand = mainHand;
+
+        PushCallback(packet.Id, callback);
+
         _clientChannel.SendPacket(packet);
     }
     public void StopBlock(bool mainHand)
     {
         _clientChannel.SendPacket(new DamageStopBlockPacket() { MainHand = mainHand });
     }
+    public void HandleCallback(DamageBlockCallbackPacket packet)
+    {
+        if (_callbacks.TryGetValue(packet.Id, out Action? callback))
+        {
+            callback();
+        }
+    }
 
     private readonly IClientNetworkChannel _clientChannel;
+    private readonly Queue<ulong> _ids = [];
+    private readonly Dictionary<ulong, Action> _callbacks = [];
+    private const int _queueSize = 10;
+    private ulong _nextId = 1;
+
+    private void PushCallback(ulong id, Action callback)
+    {
+        _ids.Enqueue(id);
+        _callbacks[id] = callback;
+
+        if (_ids.Count > _queueSize)
+        {
+            ulong idToRemove = _ids.Dequeue();
+            _callbacks.Remove(idToRemove);
+        }
+    }
 }
 
 public interface IHasServerBlockCallback
@@ -781,21 +824,23 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
     public MeleeBlockSystemServer(ICoreServerAPI api)
     {
         _api = api;
-        api.Network.RegisterChannel(NetworkChannelId)
+        _serverChannel = api.Network.RegisterChannel(NetworkChannelId)
             .RegisterMessageType<DamageBlockPacket>()
             .RegisterMessageType<DamageStopBlockPacket>()
+            .RegisterMessageType<DamageBlockCallbackPacket>()
             .SetMessageHandler<DamageBlockPacket>(HandlePacket)
             .SetMessageHandler<DamageStopBlockPacket>(HandlePacket);
     }
 
     private readonly ICoreServerAPI _api;
+    private readonly IServerNetworkChannel _serverChannel;
 
     private void HandlePacket(IServerPlayer player, DamageBlockPacket packet)
     {
         PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
         if (behavior != null)
         {
-            behavior.CurrentDamageBlock = packet.ToBlockStats(damageBlocked => BlockCallback(player, packet.MainHand, damageBlocked));
+            behavior.CurrentDamageBlock = packet.ToBlockStats(damageBlocked => BlockCallback(player, packet.MainHand, damageBlocked, packet.Id));
         }
     }
 
@@ -808,12 +853,17 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
         }
     }
 
-    private static void BlockCallback(IServerPlayer player, bool mainHand, float damageBlocked)
+    private void BlockCallback(IServerPlayer player, bool mainHand, float damageBlocked, ulong id)
     {
         ItemSlot slot = mainHand ? player.Entity.RightHandItemSlot : player.Entity.LeftHandItemSlot;
 
         if (slot?.Itemstack?.Item is not IHasServerBlockCallback item) return;
 
         item.BlockCallback(player, slot, mainHand, damageBlocked);
+
+        if (id != 0)
+        {
+            _serverChannel?.SendPacket(new DamageBlockCallbackPacket() { Id = id }, player);
+        }
     }
 }
