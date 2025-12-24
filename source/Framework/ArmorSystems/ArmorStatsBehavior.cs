@@ -1,5 +1,4 @@
-﻿using CombatOverhaul.Utils;
-using Vintagestory.API.Common;
+﻿using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.GameContent;
 
@@ -77,7 +76,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (inventory == null) return;
 
-        
+
 
         bool anyStatsChangedItem = itemChanged;
         bool anyStatsChangedBehavior = itemChanged;
@@ -115,7 +114,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (!anyStatsChangedItem && !anyStatsChangedBehavior) return;
 
-        
+
 
         foreach ((string stat, _) in Stats)
         {
@@ -163,13 +162,18 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         _player.walkSpeed = _player.Stats.GetBlended("walkspeed");
 
-        
+
     }
     private void AddStatValue(string stat, float value)
     {
         if (stat == "walkspeed" && value < 0)
         {
             value *= _player.Stats.GetBlended("armorWalkSpeedAffectedness");
+        }
+
+        if (stat == "hungerrate" && value > 0)
+        {
+            value *= _player.Stats.GetBlended("armorHungerRateAffectedness");
         }
 
         if (stat == "manipulationSpeed" && value < 0)

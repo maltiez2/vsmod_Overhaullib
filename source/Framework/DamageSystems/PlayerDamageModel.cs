@@ -1,6 +1,7 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
+using CombatOverhaul.Integration;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using PlayerModelLib;
@@ -175,22 +176,83 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
     }
 
-    public static float GetDamageReductionFactor(IPlayer player, DamageZone zone, EnumDamageType damageType, int damageTier)
+    public static float GetDamageReductionFactor(IPlayer player, DamageZone zone, EnumDamageType damageType, int damageTier, DamageReceivedCalculationType calculationType)
     {
         if (player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName) is not ArmorInventory inventory) return 0;
 
         if (zone == DamageZone.None) return 0;
 
+        float damage = 1;
+
+        PlayerDamageModelBehavior? damageModelBehavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
+
+        if (calculationType == DamageReceivedCalculationType.WithBodyParts)
+        {
+            float zoneMultiplier = damageModelBehavior.BodyPartsToZones
+                .Where(entry => entry.Value == zone)
+                .Select(entry => entry.Key)
+                .Select(zone => damageModelBehavior.DamageModel.GetMultiplier(zone))
+                .Average();
+
+            damage *= zoneMultiplier;
+        }
+
+        if (calculationType == DamageReceivedCalculationType.HitChance)
+        {
+            DirectionOffset direction = new(Angle.FromDegrees(-1), Angle.FromDegrees(1));
+
+            float totalWeight = damageModelBehavior.DamageModel.DamageZones
+                .Where(value => value.Directions.Check(direction))
+                .Select(value => value.Coverage)
+                .Sum();
+
+            IEnumerable<PlayerBodyPart> bodyParts = damageModelBehavior.BodyPartsToZones
+                .Where(entry => entry.Value == zone)
+                .Select(entry => entry.Key);
+
+            float zoneWieght = damageModelBehavior.DamageModel.DamageZones
+                .Where(value => bodyParts.Contains(value.ZoneType))
+                .Where(value => value.Directions.Check(direction))
+                .Select(value => value.Coverage)
+                .Sum();
+
+            damage *= zoneWieght / totalWeight;
+
+            return damage;
+        }
+
+        if (calculationType == DamageReceivedCalculationType.Average)
+        {
+            DirectionOffset direction = new(Angle.Zero, Angle.FromDegrees(1));
+
+            float totalWeight = damageModelBehavior.DamageModel.DamageZones
+                .Where(value => value.Directions.Check(direction))
+                .Select(value => value.Coverage * value.DamageMultiplier)
+                .Sum();
+
+            IEnumerable<PlayerBodyPart> bodyParts = damageModelBehavior.BodyPartsToZones
+                .Where(entry => entry.Value == zone)
+                .Select(entry => entry.Key);
+
+            float zoneWieght = damageModelBehavior.DamageModel.DamageZones
+                .Where(value => bodyParts.Contains(value.ZoneType))
+                .Where(value => value.Directions.Check(direction))
+                .Select(value => value.Coverage * value.DamageMultiplier)
+                .Sum();
+
+            damage *= zoneWieght / totalWeight;
+        }
+
         IEnumerable<ArmorSlot> slots = inventory.GetNotEmptyZoneSlots(zone);
 
-        if (!slots.Any()) return 1;
+        if (!slots.Any()) return damage;
 
         DamageResistData resists = DamageResistData.Combine(slots
             .Where(slot => slot?.Itemstack?.Item != null)
             .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
             .Select(slot => slot.GetResists(zone)));
 
-        float damage = 1;
+
         int durabilityDamage = 0;
 
         _ = resists.ApplyPlayerResist(new(damageType, damageTier, 0), ref damage, out durabilityDamage);
@@ -560,7 +622,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 }
 public sealed class PlayerDamageModel
 {
-    public readonly DamageZoneStats[] DamageZones;
+    public DamageZoneStats[] DamageZones { get; }
 
     public PlayerDamageModel(DamageZoneStatsJson[] zones)
     {

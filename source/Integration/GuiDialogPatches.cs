@@ -4,6 +4,7 @@ using CombatOverhaul.Utils;
 using HarmonyLib;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -12,6 +13,15 @@ using Vintagestory.Common;
 using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Integration;
+
+public enum DamageReceivedCalculationType
+{
+    OnlyArmor,
+    WithBodyParts,
+    HitChance,
+    Average,
+    TypesNumber
+}
 
 internal static class GuiDialogPatches
 {
@@ -103,6 +113,7 @@ internal static class GuiDialogPatches
         { DamageZone.Feet, "textFeetStats" }
     };
     private static Action? _recalcualteArmorStats;
+    private static DamageReceivedCalculationType _calculationType = DamageReceivedCalculationType.OnlyArmor;
 
     // GuiDialogCharacter
     private static FieldInfo? GuiDialogCharacter_insetSlotBounds = typeof(GuiDialogCharacter).GetField("insetSlotBounds", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -349,6 +360,8 @@ internal static class GuiDialogPatches
 
     private static void CharacterSystem_StartClientSide(CharacterSystem __instance, ICoreClientAPI api)
     {
+        if (!api.ModLoader.IsModEnabled("combatoverhaul")) return;
+
         GuiDialogCharacterBase? dialog = (GuiDialogCharacterBase?)CharacterSystem_charDlg?.GetValue(__instance);
         if (dialog == null) return;
 
@@ -375,24 +388,32 @@ internal static class GuiDialogPatches
         }
         CairoFont textFont = CairoFont.WhiteSmallText();
         CairoFont textFontMiddle = CairoFont.WhiteSmallText();
+        CairoFont buttonFont = CairoFont.ButtonText();
         textFont.Orientation = EnumTextOrientation.Right;
         textFontMiddle.Orientation = EnumTextOrientation.Center;
 
-        int height = 356 - 50;
+        int height = 356 - 50 - 30;
 
-        ElementBounds topInsetBounds = ElementBounds.Fixed(-0, 22, 414, 40);
+        ElementBounds topInsetBounds = ElementBounds.Fixed(-0, 22, 414, 80);
         ElementBounds tierTextBounds = ElementBounds.Fixed(-0, 22, 80, 40);
         ElementBounds tierSliderBounds = ElementBounds.Fixed(-0, 22, 130, 40).RightOf(tierTextBounds, 4);
-        ElementBounds legendTextBounds = ElementBounds.Fixed(-0, 22, 180, 40).RightOf(tierSliderBounds, 4);
+        ElementBounds button1Bounds = ElementBounds.Fixed(0, 22, 194, 36).FixedRightOf(tierSliderBounds, 84).WithFixedOffset(0, 2);
+        ElementBounds button1TextBounds = button1Bounds.FlatCopy();
+        ElementBounds leftLegendTextBounds = ElementBounds.Fixed(0, 0, 80, 40).FixedUnder(button1Bounds, 4);
+        ElementBounds middleLegendTextBounds = ElementBounds.Fixed(0, 0, 120, 40).FixedUnder(button1Bounds, 4).RightOf(leftLegendTextBounds, 4);
+        ElementBounds rightLegendTextBounds = ElementBounds.Fixed(0, 0, 190, 40).FixedUnder(button1Bounds, 4).RightOf(middleLegendTextBounds, 12);
 
-        ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 50 + 22, 414, height);
-        ElementBounds baseBounds = ElementBounds.Fixed(0, 25 + 14, 388, height);
+        ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 0/*50 + 22*/, 414, height).FixedUnder(topInsetBounds, 8);
+        ElementBounds baseBounds = ElementBounds.Fixed(0, -52, 388, height).FixedUnder(topInsetBounds, 8);
         ElementBounds childBounds = ElementBounds.Fixed(0, 2, 388, height + 100);
         ElementBounds textBounds = ElementStdBounds.Slot(0, 0).WithFixedWidth(textWidth).WithFixedAlignmentOffset(0, 12);
         ElementBounds slot0Bounds = ElementStdBounds.Slot(textBounds.RightCopy(8).fixedX, textBounds.RightCopy().fixedY);
         ElementBounds slot1Bounds = ElementStdBounds.Slot(slot0Bounds.RightCopy(gap).fixedX, slot0Bounds.RightCopy().fixedY);
         ElementBounds slot2Bounds = ElementStdBounds.Slot(slot1Bounds.RightCopy(gap).fixedX, slot1Bounds.RightCopy().fixedY);
-        ElementBounds statsTextBounds = ElementStdBounds.Slot(slot2Bounds.RightCopy(gap).fixedX, slot2Bounds.RightCopy().fixedY).WithFixedWidth(170).WithFixedAlignmentOffset(0, 12);
+        ElementBounds statsText1Bounds = ElementStdBounds.Slot(slot2Bounds.RightCopy(gap).fixedX, slot2Bounds.RightCopy().fixedY).WithFixedWidth(170 / 3).WithFixedAlignmentOffset(0, 12);
+        ElementBounds statsText2Bounds = statsText1Bounds.RightCopy();
+        ElementBounds statsText3Bounds = statsText2Bounds.RightCopy();
+
 
         ElementBounds scrollbarBounds = baseBounds.CopyOffsetedSibling(baseBounds.fixedWidth + 7, -6, 0, 0).WithFixedWidth(20);
 
@@ -400,8 +421,20 @@ internal static class GuiDialogPatches
 
         compo.AddInset(topInsetBounds, 2);
         compo.AddDynamicText("", textFont, tierTextBounds.WithFixedOffset(0, 10), "textTier");
+        compo.AddHoverText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-tier-hint"), CairoFont.WhiteSmallText(), 400, tierTextBounds.FlatCopy().WithFixedOffset(0, -10));
         compo.AddSlider(value => { _currentAttackTier = value; SetStatsValues(compo, _api.World.Player, value); return true; }, tierSliderBounds, "tierSlider");
-        compo.AddDynamicText("", textFontMiddle, legendTextBounds.WithFixedOffset(0, 10), "textLegend");
+
+        compo.AddButton("", () => ToggleBodyPartsMultipliers(compo), button1Bounds, textFont, EnumButtonStyle.Small, "button1");
+        compo.AddDynamicText(GetCalcTypeText(), textFontMiddle, button1TextBounds.WithFixedOffset(0, 8), "textButton");
+        compo.AddHoverText(GetCalcTypeHoverText(), CairoFont.WhiteSmallText(), 600, button1TextBounds.FlatCopy().WithFixedOffset(0, -10));
+
+        compo.AddDynamicText("", textFontMiddle, leftLegendTextBounds.WithFixedOffset(0, 10), "textLeftLegend");
+        compo.AddHoverText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-left-hint"), CairoFont.WhiteSmallText(), 400, leftLegendTextBounds.FlatCopy().WithFixedOffset(0, -10));
+        compo.AddDynamicText("", textFontMiddle, middleLegendTextBounds.WithFixedOffset(0, 10), "textMiddleLegend");
+        compo.AddHoverText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-middle-hint"), CairoFont.WhiteSmallText(), 400, middleLegendTextBounds.FlatCopy().RightOf(leftLegendTextBounds, 12).WithFixedOffset(0, -10));
+        compo.AddDynamicText("", textFontMiddle, rightLegendTextBounds.WithFixedOffset(0, 10), "textRightLegend");
+        compo.AddHoverText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-right-hint"), CairoFont.WhiteSmallText(), 500, rightLegendTextBounds.FlatCopy().RightOf(middleLegendTextBounds, 12).WithFixedOffset(0, -10));
+
 
         compo.AddInset(outerInsetBounds, 2);
 
@@ -445,14 +478,32 @@ internal static class GuiDialogPatches
         AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Legs, ref slot2Bounds, gap);
         AddSlot(compo, inv, ArmorLayers.Skin, DamageZone.Feet, ref slot2Bounds, gap);
 
-        compo.AddDynamicText("", textFontMiddle, statsTextBounds, "textHeadStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textFaceStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textNeckStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textTorsoStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textArmsStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textHandsStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textLegsStats");
-        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsTextBounds, fixedDeltaY: textGap), "textFeetStats");
+        compo.AddDynamicText("", textFontMiddle, statsText1Bounds, "textHeadStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textFaceStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textNeckStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textTorsoStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textArmsStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textHandsStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textLegsStats1");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText1Bounds, fixedDeltaY: textGap), "textFeetStats1");
+
+        compo.AddDynamicText("", textFontMiddle, statsText2Bounds, "textHeadStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textFaceStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textNeckStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textTorsoStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textArmsStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textHandsStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textLegsStats2");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText2Bounds, fixedDeltaY: textGap), "textFeetStats2");
+
+        compo.AddDynamicText("", textFontMiddle, statsText3Bounds, "textHeadStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textFaceStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textNeckStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textTorsoStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textArmsStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textHandsStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textLegsStats3");
+        compo.AddDynamicText("", textFontMiddle, BelowCopySet(ref statsText3Bounds, fixedDeltaY: textGap), "textFeetStats3");
 
         compo.EndChildElements();
         compo.EndClip();
@@ -462,7 +513,9 @@ internal static class GuiDialogPatches
         compo.GetSlider("tierSlider").SetValues(_currentAttackTier, 0, 12, 1, unit: "");
 
         compo.GetDynamicText("textTier")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-tier"));
-        compo.GetDynamicText("textLegend")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend"));
+        compo.GetDynamicText("textLeftLegend")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-left"));
+        compo.GetDynamicText("textMiddleLegend")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-middle"));
+        compo.GetDynamicText("textRightLegend")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-legend-right"));
 
         compo.GetDynamicText("textHead")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-head"));
         compo.GetDynamicText("textFace")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-face"));
@@ -473,18 +526,36 @@ internal static class GuiDialogPatches
         compo.GetDynamicText("textLegs")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-legs"));
         compo.GetDynamicText("textFeet")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-feet"));
 
-        compo.GetDynamicText("textHeadStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textFaceStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textNeckStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textTorsoStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textArmsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textHandsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textLegsStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
-        compo.GetDynamicText("textFeetStats")?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", 0, 0, 0));
+        compo.GetDynamicText("textHeadStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textFaceStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textNeckStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textTorsoStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textArmsStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textHandsStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textLegsStats1")?.SetNewText("0%");
+        compo.GetDynamicText("textFeetStats1")?.SetNewText("0%");
+
+        compo.GetDynamicText("textHeadStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textFaceStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textNeckStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textTorsoStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textArmsStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textHandsStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textLegsStats2")?.SetNewText("0%");
+        compo.GetDynamicText("textFeetStats2")?.SetNewText("0%");
+
+        compo.GetDynamicText("textHeadStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textFaceStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textNeckStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textTorsoStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textArmsStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textHandsStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textLegsStats3")?.SetNewText("0%");
+        compo.GetDynamicText("textFeetStats3")?.SetNewText("0%");
 
         compo.GetScrollbar("scrollbar").SetHeights(
             height,
-            height + 110
+            height + 150
         );
         compo.GetScrollbar("scrollbar").SetScrollbarPosition(0);
 
@@ -666,16 +737,68 @@ internal static class GuiDialogPatches
         }
         return result.ToArray();
     }
+    private static string GetCalcTypeText()
+    {
+        return Lang.Get($"combatoverhaul:armor-inventory-calctype-{_calculationType}");
+    }
+    private static string GetCalcTypeHoverText()
+    {
+        StringBuilder builder = new();
+
+        foreach (DamageReceivedCalculationType value in Enum.GetValues<DamageReceivedCalculationType>().Where(value => value != DamageReceivedCalculationType.TypesNumber))
+        {
+            builder.AppendLine(Lang.Get($"combatoverhaul:armor-inventory-calctype-hint-{value}"));
+            builder.AppendLine();
+        }
+
+        return builder.ToString();
+    }
     private static void SetStatsValues(GuiComposer composer, IPlayer player, int damageTier)
     {
+        bool invert = _calculationType == DamageReceivedCalculationType.OnlyArmor;
+
         foreach ((DamageZone zone, string textId) in _zonesStatsTextIds)
         {
-            float piercing = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.PiercingAttack, damageTier);
-            float blunt = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.BluntAttack, damageTier);
-            float slash = 1 - PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.SlashingAttack, damageTier);
+            float piercing = PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.PiercingAttack, damageTier, _calculationType);
+            float blunt = PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.BluntAttack, damageTier, _calculationType);
+            float slash = PlayerDamageModelBehavior.GetDamageReductionFactor(player, zone, EnumDamageType.SlashingAttack, damageTier, _calculationType);
 
-            composer.GetDynamicText(textId)?.SetNewText(Lang.Get("combatoverhaul:armor-inventory-dialog-armor-stats", piercing, slash, blunt));
+            if (invert)
+            {
+                piercing = 1 - piercing;
+                blunt = 1 - blunt;
+                slash = 1 - slash;
+            }
+
+            switch (_calculationType)
+            {
+                case DamageReceivedCalculationType.OnlyArmor:
+                case DamageReceivedCalculationType.WithBodyParts:
+                    composer.GetDynamicText(textId + "1")?.SetNewText($"{piercing:P0}");
+                    composer.GetDynamicText(textId + "2")?.SetNewText($"{slash:P0}");
+                    composer.GetDynamicText(textId + "3")?.SetNewText($"{blunt:P0}");
+                    break;
+                case DamageReceivedCalculationType.Average:
+                    composer.GetDynamicText(textId + "1")?.SetNewText($"{piercing:P1}");
+                    composer.GetDynamicText(textId + "2")?.SetNewText($"{slash:P1}");
+                    composer.GetDynamicText(textId + "3")?.SetNewText($"{blunt:P1}");
+                    break;
+                case DamageReceivedCalculationType.HitChance:
+                    composer.GetDynamicText(textId + "1")?.SetNewText($"");
+                    composer.GetDynamicText(textId + "2")?.SetNewText($"{slash:P1}");
+                    composer.GetDynamicText(textId + "3")?.SetNewText($"");
+                    break;
+                default:
+                    break;
+            }
         }
+    }
+    private static bool ToggleBodyPartsMultipliers(GuiComposer composer)
+    {
+        _calculationType = (DamageReceivedCalculationType)((int)(_calculationType + 1) % (int)DamageReceivedCalculationType.TypesNumber);
+        composer.GetDynamicText("textButton")?.SetNewText(GetCalcTypeText());
+        SetStatsValues(composer, _api.World.Player, _currentAttackTier);
+        return false;
     }
 
     private static void CloseIconPressed(GuiDialogInventory __instance) => GuiDialogInventory_CloseIconPressed?.Invoke(__instance, []);

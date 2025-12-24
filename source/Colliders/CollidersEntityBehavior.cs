@@ -112,16 +112,20 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     }
     public override void AfterInitialized(bool onFirstSpawn)
     {
-        if (entity?.Api == null) return;
-
-        if (entity.Api.ModLoader.IsModEnabled(PlayerModelLibId))
-        {
-            SubscribeOnModelChange();
-        }
     }
 
     public override void OnGameTick(float deltaTime)
     {
+        if (!_subscribed)
+        {
+            if (entity?.Api != null && entity.Api.ModLoader.IsModEnabled(PlayerModelLibId))
+            {
+                SubscribeOnModelChange();
+            }
+
+            _subscribed = true;
+        }
+        
         _timeSinceLastUpdate += deltaTime;
         if (_timeSinceLastUpdate < _updateTimeSec)
         {
@@ -135,7 +139,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
 
         if (Animator == null) return;
 
-        if (UnprocessedElementsLeft)
+        if (UnprocessedElementsLeft && !UnprocessedElementsLeftCustom)
         {
             try
             {
@@ -512,6 +516,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
     private const float _updateTimeSec = 1f / _updateFps;
     private float _timeSinceLastUpdate = 0;
     private readonly Settings _settings;
+    private bool _subscribed = false;
 
     private void SetColliderElement(ShapeElement element)
     {
@@ -667,6 +672,7 @@ public sealed class CollidersEntityBehavior : EntityBehavior
         if (skinBehavior != null)
         {
             skinBehavior.OnModelChanged += ReloadCollidersForCustomModel;
+            ReloadCollidersForCustomModel(skinBehavior.CurrentModelCode);
         }
     }
     private void ProcessCollidersForCustomModel()
