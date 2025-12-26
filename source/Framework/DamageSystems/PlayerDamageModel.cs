@@ -191,10 +191,10 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             float zoneMultiplier = damageModelBehavior.BodyPartsToZones
                 .Where(entry => entry.Value == zone)
                 .Select(entry => entry.Key)
-                .Select(zone => damageModelBehavior.DamageModel.GetMultiplier(zone))
+                .Select(damageModelBehavior.DamageModel.GetMultiplier)
                 .Average();
 
-            damage *= zoneMultiplier;
+            damage *= zoneMultiplier * damageModelBehavior.GetStatsMultiplier(zone);
         }
 
         if (calculationType == DamageReceivedCalculationType.HitChance)
@@ -227,7 +227,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
             float totalWeight = damageModelBehavior.DamageModel.DamageZones
                 .Where(value => value.Directions.Check(direction))
-                .Select(value => value.Coverage * value.DamageMultiplier)
+                .Select(value => value.Coverage * value.DamageMultiplier * damageModelBehavior.GetStatsMultiplier(damageModelBehavior.BodyPartsToZones[value.ZoneType]))
                 .Sum();
 
             IEnumerable<PlayerBodyPart> bodyParts = damageModelBehavior.BodyPartsToZones
@@ -237,7 +237,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             float zoneWieght = damageModelBehavior.DamageModel.DamageZones
                 .Where(value => bodyParts.Contains(value.ZoneType))
                 .Where(value => value.Directions.Check(direction))
-                .Select(value => value.Coverage * value.DamageMultiplier)
+                .Select(value => value.Coverage * value.DamageMultiplier * damageModelBehavior.GetStatsMultiplier(damageModelBehavior.BodyPartsToZones[value.ZoneType]))
                 .Sum();
 
             damage *= zoneWieght / totalWeight;
@@ -896,12 +896,14 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
 
     private readonly ICoreServerAPI _api;
     private readonly IServerNetworkChannel _serverChannel;
+    private bool _lastBlockMainHand = false;
 
     private void HandlePacket(IServerPlayer player, DamageBlockPacket packet)
     {
         PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
         if (behavior != null)
         {
+            _lastBlockMainHand = packet.MainHand;
             behavior.CurrentDamageBlock = packet.ToBlockStats(damageBlocked => BlockCallback(player, packet.MainHand, damageBlocked, packet.Id));
         }
     }
@@ -909,7 +911,7 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
     private void HandlePacket(IServerPlayer player, DamageStopBlockPacket packet)
     {
         PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
-        if (behavior != null)
+        if (behavior != null && _lastBlockMainHand == packet.MainHand)
         {
             behavior.CurrentDamageBlock = null;
         }

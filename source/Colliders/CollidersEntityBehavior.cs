@@ -443,15 +443,15 @@ public sealed class CollidersEntityBehavior : EntityBehavior
                 if (_settings.DebugWeaponTrailParticles)
                 {
                     Vec3d pos7 = new(head.X, head.Y, head.Z);
-                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 64), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 128), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
                     Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
-                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 64), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 128), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
 
                     float c = 8;
                     for (int i = 0; i < c; i++)
                     {
                         Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
-                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 128, 64), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor, EnumParticleModel.Cube);
+                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 128, 128), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
                     }
                 }
 
@@ -462,15 +462,15 @@ public sealed class CollidersEntityBehavior : EntityBehavior
                 if (_settings.DebugWeaponTrailParticles)
                 {
                     Vec3d pos7 = new(head.X, head.Y, head.Z);
-                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 64), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 128), pos7, pos7, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
                     Vec3d pos8 = new(tail.X, tail.Y, tail.Z);
-                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 64), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor, EnumParticleModel.Cube);
+                    entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 125, 128), pos8, pos8, new Vec3f(), new Vec3f(), lifeTime, 0, 1.0f * radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
 
                     float c = 8;
                     for (int i = 0; i < c; i++)
                     {
                         Vec3d pos5 = pos7 + (i / c) * (pos8 - pos7);
-                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 64, 64), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor, EnumParticleModel.Cube);
+                        entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(64, 64, 64, 128), pos5, pos5, new Vec3f(), new Vec3f(), lifeTime, 0, radius * particleSizeFactor * _settings.DebugWeaponTrailParticlesSize, EnumParticleModel.Cube);
                     }
                 }  
             }

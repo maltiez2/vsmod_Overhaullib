@@ -79,6 +79,8 @@ public sealed class Settings
 
     public bool DebugWeaponTrailParticles { get; set; } = false;
 
+    public float DebugWeaponTrailParticlesSize { get; set; } = 0.5f;
+
     public bool DebugProjectilesTrailsParticles { get; set; } = false;
 }
 
@@ -202,6 +204,11 @@ public partial class CombatOverhaulSystem : ModSystem
         if (api.ModLoader.IsModEnabled("configlib"))
         {
             SubscribeToConfigChange(api);
+        }
+
+        if (api.ModLoader.IsModEnabled("combatoverhaul"))
+        {
+            EidolonSlam_KnockbackMultiplierPatch.KnockbackMultiplier = 0.2f;
         }
     }
     public override void StartServerSide(ICoreServerAPI api)

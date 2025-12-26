@@ -740,6 +740,7 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnim
 
     public bool CanAttack(EntityPlayer player, bool mainHand) => true;
     public bool CanBlock(EntityPlayer player, bool mainHand) => true;
+    public bool CanThrow(EntityPlayer player, bool mainHand) => false;
     public void OnGameTick(ItemSlot slot, EntityPlayer player, ref int state, bool mainHand)
     {
         ClientLogic?.OnGameTick(slot, player, ref state, mainHand);
@@ -781,6 +782,7 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnim
     }
 
     public bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta) => ClientLogic?.OnMouseWheel(slot, byPlayer, delta) ?? false;
+    
 
     protected WorldInteraction? AltForInteractions;
     protected WorldInteraction? ChangeGripInteraction;

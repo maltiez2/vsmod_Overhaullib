@@ -12,16 +12,33 @@ public sealed class GripController
 
     public void ChangeGrip(float delta, bool mainHand, float gripFactor, float min, float max)
     {
+        if (min > max)
+        {
+            min = 0;
+            max = 0;
+        }
+
         _grip = GameMath.Clamp(_grip + delta * gripFactor, min, max);
 
         PlayAnimation(mainHand);
-
     }
     public void ResetGrip(bool mainHand)
     {
         _grip = 0;
 
         _animationBehavior?.Stop("grip");
+    }
+    public void AdjustGrip(bool mainHand, float min, float max)
+    {
+        if (min > max)
+        {
+            min = 0;
+            max = 0;
+        }
+
+        _grip = GameMath.Clamp(_grip, min, max);
+
+        PlayAnimation(mainHand);
     }
 
     private float _grip = 0;

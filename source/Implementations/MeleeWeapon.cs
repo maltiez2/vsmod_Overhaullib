@@ -7,7 +7,6 @@ using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using System.Reflection.Metadata;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -49,6 +48,7 @@ public interface IHasMeleeWeaponActions
 {
     bool CanAttack(EntityPlayer player, bool mainHand);
     bool CanBlock(EntityPlayer player, bool mainHand);
+    bool CanThrow(EntityPlayer player, bool mainHand);
 }
 
 public class StanceStats
@@ -482,7 +482,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         MeleeBlockSystem.StopBlock(mainHand);
         StopAttackCooldown(mainHand);
         StopBlockCooldown(mainHand);
-        GripController?.ResetGrip(mainHand);
+        //GripController?.ResetGrip(mainHand);
         AnimationBehavior?.StopSpeedModifier();
         PlayerActionsBehavior?.SetStat("walkspeed", mainHand ? PlayerStatsMainHandCategory : PlayerStatsOffHandCategory);
         AimingAnimationController?.Stop(mainHand);
@@ -868,7 +868,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             case MeleeWeaponState.Parrying:
                 {
                     bool canRiposte = mainHand ? CanRiposteMainHand : CanRiposteOffHand;
-                    
+
                     if (!stats.CanRiposte || !canRiposte) return false;
 
                     attack = GetStanceAttack(player, mainHand, direction, riposte: true);
@@ -1365,6 +1365,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (!CanBash(player, mainHand)) return false;
         if (IsAttackOnCooldown(mainHand)) return false;
         if (ActionRestricted(player, mainHand)) return false;
+        if (!mainHand && CanThrowWithOtherHand(player, mainHand)) return false;
 
         MeleeAttack? attack = GetStanceBlockBash(player, mainHand, direction);
         StanceStats? stats = GetStanceStats(player, mainHand);
@@ -1586,7 +1587,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!CanThrow(player, mainHand) || Stats.ThrowAttack == null || AimingStats == null) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle)) return false;
-        //if (mainHand && CanBlockWithOtherHand(player, mainHand)) return false;
+        if (mainHand && CanBlockWithOtherHand(player, mainHand)) return false;
 
         SetState(MeleeWeaponState.StartingAim, mainHand);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
@@ -1611,6 +1612,34 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         SetState(MeleeWeaponState.Aiming, mainHand);
         AimingSystem.AimingState = WeaponAimingState.FullCharge;
+
+        return true;
+    }
+
+    [ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
+    protected virtual bool AimWhenBlocking(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
+    {
+        if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
+        if (!CanThrow(player, mainHand) || Stats.ThrowAttack == null || AimingStats == null) return false;
+        if (!CheckState(mainHand, MeleeWeaponState.Idle)) return false;
+        if (mainHand && !CanBlockWithOtherHand(player, mainHand)) return false;
+
+        SetState(MeleeWeaponState.StartingAim, mainHand);
+        AimingSystem.AimingState = WeaponAimingState.Blocked;
+        AimingAnimationController?.Play(mainHand);
+
+        ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
+        AimingStats stats = AimingStats.Clone();
+        stats.AimDifficulty *= stackStats.ThrownAimingDifficulty;
+
+        AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.ThrownWeaponsCursorType);
+        AimingStats.VerticalLimit = Settings.ThrownWeaponsAimingVerticalLimit * DefaultVerticalLimit;
+        AimingStats.HorizontalLimit = Settings.ThrownWeaponsAimingHorizontalLimit * DefaultHorizontalLimit;
+        AimingSystem.StartAiming(AimingStats);
+
+        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => AimAnimationCallback(slot, mainHand));
+        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat));
+        if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.ThrowAttack.TpAimAnimation, mainHand);
 
         return true;
     }
@@ -1754,6 +1783,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 TpAnimationBehavior?.PlayReadyAnimation(mainHand);
             }
 
+            StanceStats? stats = GetStanceStats(player, mainHand);
+            if (stats != null)
+            {
+                GripController?.AdjustGrip(mainHand, stats.GripMinLength, stats.GripMaxLength);
+            }
+
             return;
         }
 
@@ -1792,6 +1827,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             StopAttackCooldown(mainHand);
             SetState(MeleeWeaponState.Idle, mainHand);
         }
+
+        StanceStats? stanceStats = GetStanceStats(player, mainHand);
+        if (stanceStats != null)
+        {
+            GripController?.AdjustGrip(mainHand, stanceStats.GripMinLength, stanceStats.GripMaxLength);
+        }
     }
     protected virtual MeleeAttack? GetStanceAttack(EntityPlayer player, bool mainHand = true, AttackDirection direction = AttackDirection.Top, bool riposte = false)
     {
@@ -1799,7 +1840,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         {
             riposte = RiposteActive(mainHand);
         }
-        
+
         MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
         string dualWieldKey = GetDualWieldKey(player, mainHand);
         return stance switch
@@ -1915,6 +1956,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
         return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(player, !mainHand) ?? false;
+    }
+    protected virtual bool CanThrowWithOtherHand(EntityPlayer player, bool mainHand = true)
+    {
+        ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
+        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanThrow(player, !mainHand) ?? false;
     }
     protected virtual bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
     {
@@ -2244,6 +2290,7 @@ public class MeleeWeapon : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDyn
 
     public bool CanAttack(EntityPlayer player, bool mainHand) => (ClientLogic?.CanAttack(player, mainHand) ?? false);
     public bool CanBlock(EntityPlayer player, bool mainHand) => (ClientLogic?.CanBlock(player, mainHand) ?? false) || (ClientLogic?.CanParry(player, mainHand) ?? false);
+    public bool CanThrow(EntityPlayer player, bool mainHand) => (ClientLogic?.CanThrow(player, mainHand) ?? false);
     public void OnGameTick(ItemSlot slot, EntityPlayer player, ref int state, bool mainHand)
     {
         ClientLogic?.OnGameTick(slot, player, ref state, mainHand);
