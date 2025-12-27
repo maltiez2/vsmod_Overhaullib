@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using CombatOverhaul.Utils;
+using Newtonsoft.Json.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
@@ -241,7 +242,7 @@ public class TexturesFromAttributes : CollectibleBehavior, IContainedMeshSource
         return renderinfo.ModelRef;
     }
 
-    public MeshData GenMesh(ItemStack itemstack, ITextureAtlasAPI targetAtlas, Shape? overrideShape = null)
+    public MeshData? GenMesh(ItemStack itemstack, ITextureAtlasAPI targetAtlas, Shape? overrideShape = null)
     {
         ContainedTextureSource textureSource = new(_api as ICoreClientAPI, targetAtlas, new Dictionary<string, AssetLocation>(), $"For render in '{_item.Code}'");
 
@@ -272,12 +273,19 @@ public class TexturesFromAttributes : CollectibleBehavior, IContainedMeshSource
             textureSource.Textures[textureProperty.Code] = new AssetLocation(texturePath + ".png");
         }
 
-        _clientAPI.Tesselator.TesselateItem(_item, out MeshData mesh, textureSource);
-
-        return mesh;
+        try
+        {
+            _clientAPI.Tesselator.TesselateItem(_item, out MeshData mesh, textureSource);
+            return mesh;
+        }
+        catch (Exception exception)
+        {
+            LoggerUtil.Warn(_api, this, $"Error on tesselating shape for '{itemstack.Collectible?.Code}':\n{exception}");
+            return null;
+        }
     }
 
-    public MeshData GenMesh(ItemStack itemstack, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos)
+    public MeshData? GenMesh(ItemStack itemstack, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos)
     {
         return GenMesh(itemstack, targetAtlas);
     }

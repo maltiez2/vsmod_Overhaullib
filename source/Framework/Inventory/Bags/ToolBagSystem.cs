@@ -1,6 +1,5 @@
 ﻿using CombatOverhaul.Utils;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -75,7 +74,7 @@ public class ToolBagSystemServer
             {
                 _mainHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
             }
-            
+
             if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, mainHand: false))
             {
                 _offHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;

@@ -244,6 +244,7 @@ public partial class CombatOverhaulSystem : ModSystem
         ClientStatsSystem = new(api);
         ClientAttachmentSystem = new(api);
         ClientToolBagSystem = new(api);
+        ClientToolBagSelectionSystem = new(api, ClientToolBagSystem);
 
         api.Event.RegisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         api.Event.RegisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
@@ -414,6 +415,7 @@ public partial class CombatOverhaulSystem : ModSystem
     public AttachableSystemServer? ServerAttachmentSystem { get; private set; }
     public ToolBagSystemClient? ClientToolBagSystem { get; private set; }
     public ToolBagSystemServer? ServerToolBagSystem { get; private set; }
+    public ToolBagSelectionSystemClient? ClientToolBagSelectionSystem { get; private set; }
 
     private ICoreClientAPI? _clientApi;
     private readonly Vector4 _iconScale = new(-0.1f, -0.1f, 1.2f, 1.2f);
