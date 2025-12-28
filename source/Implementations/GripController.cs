@@ -18,6 +18,12 @@ public sealed class GripController
             max = 0;
         }
 
+        if (min == 0 && max == 0)
+        {
+            StopAnimation(mainHand);
+            return;
+        }
+
         _grip = GameMath.Clamp(_grip + delta * gripFactor, min, max);
 
         PlayAnimation(mainHand);
@@ -28,12 +34,22 @@ public sealed class GripController
 
         _animationBehavior?.Stop("grip");
     }
+    public void StopAnimation(bool mainHand)
+    {
+        _animationBehavior?.Stop("grip");
+    }
     public void AdjustGrip(bool mainHand, float min, float max)
     {
         if (min > max)
         {
             min = 0;
             max = 0;
+        }
+
+        if (min == 0 && max == 0)
+        {
+            StopAnimation(mainHand);
+            return;
         }
 
         _grip = GameMath.Clamp(_grip, min, max);

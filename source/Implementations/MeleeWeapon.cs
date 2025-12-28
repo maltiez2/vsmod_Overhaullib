@@ -483,6 +483,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         StopAttackCooldown(mainHand);
         StopBlockCooldown(mainHand);
         //GripController?.ResetGrip(mainHand);
+        GripController?.StopAnimation(mainHand);
         AnimationBehavior?.StopSpeedModifier();
         PlayerActionsBehavior?.SetStat("walkspeed", mainHand ? PlayerStatsMainHandCategory : PlayerStatsOffHandCategory);
         AimingAnimationController?.Stop(mainHand);
