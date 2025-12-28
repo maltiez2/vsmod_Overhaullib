@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using CombatOverhaul.Utils;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -33,8 +34,17 @@ public sealed class ToolBagSelectionSystemClient
         _api = api;
         _toolBagSystem = toolBagSystem;
         _dialog = new(api, this);
-        _api.Input.RegisterHotKeyFirst(HotkeyCode, Lang.Get(HotkeyLangCode), GlKeys.F, HotkeyType.CharacterControls);
+        try
+        {
+            _api.Input.RegisterHotKeyFirst(HotkeyCode, Lang.Get(HotkeyLangCode), GlKeys.F, HotkeyType.CharacterControls);
+        }
+        catch
+        {
+            LoggerUtil.Notify(_api, this, $"Hotkey '{HotkeyCode}' was already registered.");
+        }
+
         _api.Input.SetHotKeyHandler(HotkeyCode, OnHotkeyPress);
+
 
         GuiDialogToolMode? toolModeDialog = _api.Gui.LoadedGuis.OfType<GuiDialogToolMode>().FirstOrDefault();
         if (toolModeDialog != null)

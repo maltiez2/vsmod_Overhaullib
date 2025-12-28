@@ -127,7 +127,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
         {
             foreach (ItemSlot slot in inventory
                 .Where(slot => slot?.Itemstack?.Item != null)
-                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot.Itemstack.Item.GetMaxDurability(slot.Itemstack) == 0))
             {
                 if (slot?.Itemstack?.Item is not IAffectsPlayerStats item) continue;
 
@@ -142,7 +142,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
         {
             foreach (ItemSlot slot in inventory
                 .Where(slot => slot?.Itemstack?.Item != null)
-                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0))
+                .Where(slot => slot.Itemstack.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot.Itemstack.Item.GetMaxDurability(slot.Itemstack) == 0))
             {
                 IAffectsPlayerStats? behavior = slot.Itemstack.Item.CollectibleBehaviors.Where(behavior => behavior is IAffectsPlayerStats).FirstOrDefault(defaultValue: null) as IAffectsPlayerStats;
 
