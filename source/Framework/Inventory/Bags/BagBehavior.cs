@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -150,7 +151,7 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
         if (slotsTree == null)
         {
-            _ = GetOrCreateSlots(bagstack, slot.Inventory, 0, Api.World);
+            _ = GetOrCreateSlots(bagstack, slot.Inventory, slot.BagIndex, Api.World);
             stackBackPackTree = bagstack.Attributes.GetTreeAttribute("backpack");
             slotsTree = stackBackPackTree?.GetTreeAttribute("slots");
             if (slotsTree == null) return;
@@ -440,6 +441,8 @@ public class ToolBag : GearEquipableBag
 
     public override List<ItemSlotBagContent?> GetOrCreateSlots(ItemStack bagstack, InventoryBase parentinv, int bagIndex, IWorldAccessor world)
     {
+        Debug.WriteLine($"GetOrCreateSlots - bagIndex: {bagIndex}");
+        
         List<ItemSlotBagContent?> bagContents = new();
 
         EnumItemStorageFlags flags = (EnumItemStorageFlags)DefaultFlags;
@@ -717,13 +720,15 @@ public class ToolBag : GearEquipableBag
         {
             string toolBagId = collObj.Code.ToString();
 
-            ItemSlot? slot = inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.SourceBag?.Item?.Id == collObj.Id);
-
-            if (slot != null)
+            for (int slotIndex = 0;  slotIndex < inventory.Count; slotIndex++)
             {
+                ItemSlotToolHolder? slot = inventory[slotIndex] as ItemSlotToolHolder;
+                
+                if (slot == null) continue;
+
                 ToolBagSystemClient? system = ClientApi?.ModLoader?.GetModSystem<CombatOverhaulSystem>()?.ClientToolBagSystem;
 
-                system?.Send(toolBagId, MainHandSlotConfig != null);
+                system?.Send(toolBagId, slotIndex, MainHandSlotConfig != null);
 
                 HotkeyCooldownUntilMs = Api.World.ElapsedMilliseconds + HotkeyCooldown;
 

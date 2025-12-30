@@ -56,17 +56,20 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent, IHasSlotB
 public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
 {
     public string ToolBagId { get; set; }
+    public int ToolBagIndex { get; set; }
     public bool MainHand { get; set; } = true;
 
     public ItemSlotToolHolder(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType, sourceBag, color)
     {
         ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
+        ToolBagIndex = BagIndex;
     }
 }
 
 public class ItemSlotTakeOutOnly : ItemSlotBagContent, IHasSlotBackpackCategory
 {
     public string ToolBagId { get; set; }
+    public int ToolBagIndex { get; set; }
     public bool CanHoldNow { get; set; } = false;
     public bool MainHand { get; set; } = true;
     public string BackpackCategoryCode { get; set; } = "takeout";
@@ -88,6 +91,7 @@ public class ItemSlotTakeOutOnly : ItemSlotBagContent, IHasSlotBackpackCategory
         }
 
         ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
+        ToolBagIndex = BagIndex;
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge) => CanHoldNow;

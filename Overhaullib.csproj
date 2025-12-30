@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ModName>Overhaul Library</ModName>
     <ModType>code</ModType>
-    <ModVersion>1.16.13</ModVersion>
+    <ModVersion>1.16.14</ModVersion>
     <ModId>overhaullib</ModId>
     <Description></Description>
     <Side>universal</Side>
@@ -83,6 +83,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="resources\assets\combatoverhaul\textures\sloticons\" />
+    <Folder Include="source\Framework\Entities\Eidolon\" />
   </ItemGroup>
 
   <!-- Forces rebuild -->

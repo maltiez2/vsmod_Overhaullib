@@ -11,6 +11,7 @@ namespace CombatOverhaul.Armor;
 public sealed class ToolBagPacket
 {
     public string ToolBagId { get; set; } = "";
+    public int ToolBagIndex { get; set; } = 0;
     public bool MainHand { get; set; } = true;
 }
 
@@ -22,11 +23,12 @@ public class ToolBagSystemClient
             .RegisterMessageType<ToolBagPacket>();
     }
 
-    public void Send(string toolBagId, bool mainHand)
+    public void Send(string toolBagId, int toolBagIndex, bool mainHand)
     {
         _clientChannel.SendPacket(new ToolBagPacket
         {
             ToolBagId = toolBagId,
+            ToolBagIndex = toolBagIndex,
             MainHand = mainHand
         });
     }
@@ -70,12 +72,12 @@ public class ToolBagSystemServer
 
         try
         {
-            if (mainHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, mainHand: true))
+            if (mainHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, mainHand: true))
             {
                 _mainHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
             }
 
-            if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, mainHand: false))
+            if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, mainHand: false))
             {
                 _offHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
             }
@@ -86,14 +88,20 @@ public class ToolBagSystemServer
         }
     }
 
-    private ItemSlotToolHolder? GetToolSlot(IInventory inventory, string bagId, bool mainHand)
+    private ItemSlotToolHolder? GetToolSlot(IInventory inventory, string bagId, int bagIndex, bool mainHand)
     {
-        return inventory.FirstOrDefault(slot => (slot as ItemSlotToolHolder)?.ToolBagId == bagId && (slot as ItemSlotToolHolder)?.MainHand == mainHand, null) as ItemSlotToolHolder;
+        return inventory.OfType<ItemSlotToolHolder>().FirstOrDefault(slot => 
+            slot?.ToolBagId == bagId &&
+            slot?.MainHand == mainHand &&
+            slot.ToolBagIndex == bagIndex, null);
     }
 
-    private ItemSlotTakeOutOnly? GetTakeOutSlot(IInventory inventory, string bagId, bool mainHand)
+    private ItemSlotTakeOutOnly? GetTakeOutSlot(IInventory inventory, string bagId, int bagIndex, bool mainHand)
     {
-        return inventory.FirstOrDefault(slot => (slot as ItemSlotTakeOutOnly)?.ToolBagId == bagId && (slot as ItemSlotTakeOutOnly)?.MainHand == mainHand, null) as ItemSlotTakeOutOnly;
+        return inventory.OfType<ItemSlotTakeOutOnly>().FirstOrDefault(slot =>
+            slot?.ToolBagId == bagId &&
+            slot?.MainHand == mainHand &&
+            slot.ToolBagIndex == bagIndex, null);
     }
 
     private ItemSlot GetActiveSlot(IServerPlayer player, bool mainHand)
@@ -110,9 +118,9 @@ public class ToolBagSystemServer
             .FirstOrDefault(slot => slot.Empty && slot.CanTakeFrom(activeSlot));
     }
 
-    private bool ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private bool ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
     {
-        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
         if (toolSlot == null) return false;
 
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
@@ -120,18 +128,18 @@ public class ToolBagSystemServer
 
         if (toolSlot.Empty)
         {
-            return PutBack(player, inventory, bagId, mainHand);
+            return PutBack(player, inventory, bagId, bagIndex, mainHand);
         }
         else
         {
-            return TakeOut(player, inventory, bagId, mainHand);
+            return TakeOut(player, inventory, bagId, bagIndex, mainHand);
         }
     }
 
-    private bool TakeOut(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private bool TakeOut(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
     {
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
-        ItemSlotTakeOutOnly? takeOutSlot = GetTakeOutSlot(inventory, bagId, mainHand);
+        ItemSlotTakeOutOnly? takeOutSlot = GetTakeOutSlot(inventory, bagId, bagIndex, mainHand);
         ItemSlotToolHolder? anotherToolSlot = GetAlternativeToolHolderSlot(inventory, activeSlot);
 
         if (anotherToolSlot != null)
@@ -144,7 +152,7 @@ public class ToolBagSystemServer
 
             if (activeSlot.Empty)
             {
-                ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+                ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
                 if (toolSlot == null || toolSlot.Empty) return false;
 
                 movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
@@ -164,7 +172,7 @@ public class ToolBagSystemServer
 
             if (!activeSlot.Empty) return false;
 
-            ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+            ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
             if (toolSlot == null || toolSlot.Empty) return false;
 
             movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
@@ -177,9 +185,9 @@ public class ToolBagSystemServer
         return false;
     }
 
-    private bool PutBack(IServerPlayer player, IInventory inventory, string bagId, bool mainHand)
+    private bool PutBack(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
     {
-        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, mainHand);
+        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
         if (toolSlot == null || !toolSlot.Empty || activeSlot.Empty) return false;
 

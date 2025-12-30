@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Utils;
 using System.Diagnostics;
+using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -12,15 +13,17 @@ public readonly struct ToolSlotData
     public readonly SlotConfig Config;
     public readonly ItemStack? Stack;
     public readonly string ToolBagId;
+    public readonly int ToolBagIndex;
     public readonly bool MainHand;
     public readonly string Icon;
     public readonly string Color;
 
-    public ToolSlotData(SlotConfig config, ItemStack? stack, string toolBagId, bool mainHand, string icon, string color)
+    public ToolSlotData(SlotConfig config, ItemStack? stack, string toolBagId, int toolBagIndex, bool mainHand, string icon, string color)
     {
         Config = config;
         Stack = stack;
         ToolBagId = toolBagId;
+        ToolBagIndex = toolBagIndex;
         MainHand = mainHand;
         Icon = icon;
         Color = color;
@@ -62,7 +65,7 @@ public sealed class ToolBagSelectionSystemClient
 
         if (inventory == null) return [];
 
-        return inventory.OfType<ItemSlotToolHolder>().Select(slot => new ToolSlotData(slot.Config, slot.Itemstack, slot.ToolBagId, slot.MainHand, slot.BackgroundIcon, slot.HexBackgroundColor ?? ""));
+        return inventory.OfType<ItemSlotToolHolder>().Select(slot => new ToolSlotData(slot.Config, slot.Itemstack, slot.ToolBagId, slot.ToolBagIndex, slot.MainHand, slot.BackgroundIcon, slot.HexBackgroundColor ?? ""));
     }
 
     public void TriggerSlots(IEnumerable<ToolSlotData> slots)
@@ -71,7 +74,7 @@ public sealed class ToolBagSelectionSystemClient
 
         foreach (ToolSlotData slotData in slots)
         {
-            _toolBagSystem.Send(slotData.ToolBagId, slotData.MainHand);
+            _toolBagSystem.Send(slotData.ToolBagId, slotData.ToolBagIndex, slotData.MainHand);
         }
 
         GuiDialogToolMode? toolModeDialog = _api.Gui.LoadedGuis.OfType<GuiDialogToolMode>().FirstOrDefault();
