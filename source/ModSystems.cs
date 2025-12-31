@@ -375,9 +375,15 @@ public partial class CombatOverhaulSystem : ModSystem
     {
         api.Gui.Icons.CustomIcons[key] = delegate (Context ctx, int x, int y, float w, float h, double[] rgba)
         {
+            int value = ColorUtil.ColorFromRgba(75, 75, 75, 125);
+
+            if (rgba.Length == 4)
+            {
+                value = ColorUtil.ColorFromRgba(rgba);
+            }
+            
             AssetLocation location = new(path);
             IAsset svgAsset = api.Assets.TryGet(location);
-            int value = ColorUtil.ColorFromRgba(75, 75, 75, 125);
             Surface target = ctx.GetTarget();
 
             int xNew = x + (int)(w * _iconScale.X);

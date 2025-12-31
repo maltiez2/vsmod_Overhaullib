@@ -114,10 +114,27 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
         _lastCheckTotalHours = totalHours;
     }
 
-    private bool IsSleeping(EntityPlayer ep) => ep.GetBehavior<EntityBehaviorTiredness>()?.IsSleeping == true;
+    private bool IsSleeping(EntityPlayer ep)
+    {
+        try
+        {
+            return ep.GetBehavior<EntityBehaviorTiredness>()?.IsSleeping == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     private void OnLevelFinalize()
     {
-        _playerInventoryBehavior = _clientApi?.World?.Player?.Entity?.GetBehavior<EntityBehaviorPlayerInventory>();
+        try
+        {
+            _playerInventoryBehavior = _clientApi?.World?.Player?.Entity?.GetBehavior<EntityBehaviorPlayerInventory>();
+        }
+        catch
+        {
+            // just keep on
+        }
     }
 }

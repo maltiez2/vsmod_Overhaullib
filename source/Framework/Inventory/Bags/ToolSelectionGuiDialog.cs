@@ -125,9 +125,10 @@ public class ToolSelectionGuiDialog : GuiDialog
     public static SkillItem GetSkillItemWithIcon(ICoreClientAPI clientApi, string iconCode, string color)
     {
         SkillItem item = new();
+        double[] colorArray = ColorUtil.Hex2Doubles(color);
         item.Texture = clientApi.Gui.Icons.GenTexture(48, 48, delegate (Context ctx, ImageSurface surface)
         {
-            clientApi.Gui.Icons.DrawIcon(ctx, iconCode, 5.0, 5.0, 38.0, 38.0, []);
+            clientApi.Gui.Icons.DrawIcon(ctx, iconCode, 5.0, 5.0, 38.0, 38.0, colorArray);
         });
         return item;
     }
