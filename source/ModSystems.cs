@@ -375,11 +375,16 @@ public partial class CombatOverhaulSystem : ModSystem
     {
         api.Gui.Icons.CustomIcons[key] = delegate (Context ctx, int x, int y, float w, float h, double[] rgba)
         {
-            int value = ColorUtil.ColorFromRgba(75, 75, 75, 125);
+            int value = ColorUtil.ColorFromRgba(75, 75, 75, 255);
 
             if (rgba.Length == 4)
             {
                 value = ColorUtil.ColorFromRgba(rgba);
+            }
+
+            if (rgba[0] == 0 && rgba[1] == 0 && rgba[2] == 0 && rgba[3] == 0.2) // To override vanilla clothes and armor icon color
+            {
+                value = ColorUtil.ColorFromRgba(75, 75, 75, 190);
             }
             
             AssetLocation location = new(path);

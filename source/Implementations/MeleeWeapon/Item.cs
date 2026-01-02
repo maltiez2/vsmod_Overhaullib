@@ -12,17 +12,17 @@ using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Implementations;
 
-public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasRangedWeaponLogic, IHasDynamicMoveAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
+public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDynamicMoveAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
 {
     public MeleeWeaponClient? ClientLogic => ClientModes?.CurrentMode;
     public MeleeWeaponServer? ServerLogic { get; private set; }
     public MeleeWeaponClientModesCollection? ClientModes { get; private set; }
 
+    IClientWeaponLogic? IHasWeaponLogic.ClientLogic => ClientLogic;
     IEnumerable<IClientWeaponLogic> IHasMultipleWeaponLogicModes.ClientLogicModes => ClientModes?.Clients.Select(entry => entry.Value) ?? [];
     IServerRangedWeaponLogic? IHasRangedWeaponLogic.ServerWeaponLogic => ServerLogic;
 
     public bool RenderingOffset { get; set; }
-
     
 
     public bool RestrictRightHandAction() => ClientLogic?.RestrictRightHandAction() ?? false;

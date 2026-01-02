@@ -1,12 +1,10 @@
-﻿using CombatOverhaul.Integration;
-using CombatOverhaul.Integration.Transpilers;
+﻿using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.Utils;
 using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
-using Vintagestory.API.Datastructures;
 using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Inputs;
@@ -118,8 +116,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     public override void OnGameTick(float deltaTime)
     {
         if (!_mainPlayer) return;
-        
-        
+
+
 
         if (!entity.Alive)
         {
@@ -167,7 +165,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         ActionListener.SuppressLMB = SuppressLMB;
         ActionListener.SuppressRMB = SuppressRMB;
 
-        
+
     }
 
     public int GetState(bool mainHand = true) => mainHand ? _mainHandState : _offHandState;
@@ -223,6 +221,7 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
             .Select(item => item.CollectibleBehaviors as IEnumerable<CollectibleBehavior>)
             .Aggregate((a, b) => a.Concat(b))
             .OfType<IClientWeaponLogic>()
+            .Where(item => item is not IHasMultipleWeaponLogicModes)
             .Foreach(RegisterWeapon);
 
         _api.World.Items
