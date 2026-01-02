@@ -1,19 +1,9 @@
-﻿using CombatOverhaul.Animations;
-using CombatOverhaul.Inputs;
-using CombatOverhaul.RangedSystems;
-using CombatOverhaul.RangedSystems.Aiming;
+﻿using CombatOverhaul.RangedSystems;
 using CombatOverhaul.Utils;
-using OpenTK.Mathematics;
-using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
-using Vintagestory.API.MathTools;
-using Vintagestory.API.Server;
 using Vintagestory.API.Util;
-using Vintagestory.Client.NoObf;
-using YamlDotNet.Serialization;
 
 namespace CombatOverhaul.Implementations;
 

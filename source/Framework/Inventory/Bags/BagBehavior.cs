@@ -728,7 +728,7 @@ public class ToolBag : GearEquipableBag
 
                 ToolBagSystemClient? system = ClientApi?.ModLoader?.GetModSystem<CombatOverhaulSystem>()?.ClientToolBagSystem;
 
-                system?.Send(toolBagId, slotIndex, MainHandSlotConfig != null);
+                system?.Send(toolBagId, slot.BagIndex, MainHandSlotConfig != null);
 
                 HotkeyCooldownUntilMs = Api.World.ElapsedMilliseconds + HotkeyCooldown;
 

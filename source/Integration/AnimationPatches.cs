@@ -141,8 +141,6 @@ internal static class AnimationPatches
     {
         //if (isShadowPass) return true;
 
-
-
         ItemSlot? slot;
 
         if (right)

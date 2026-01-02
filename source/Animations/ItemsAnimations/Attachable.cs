@@ -80,12 +80,12 @@ public class AnimatableAttachable : Animatable
     protected readonly Dictionary<long, Dictionary<string, bool>> ActiveAttachments = new();
     protected readonly Dictionary<long, bool> SwitchModelsPerEntity = new();
 
-    protected override void RenderShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, ItemSlot itemSlot, Entity entity, float dt)
+    protected override void RenderShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, ItemSlot itemSlot, Entity entity, float dt, MultiTextureMeshRef? meshOverride = null)
     {
         SwitchModelsPerEntity.TryGetValue(entity.EntityId, out bool switchModels);
         SwitchModels = switchModels;
 
-        base.RenderShape(shaderProgram, world, shape, itemStackRenderInfo, render, itemStack, lightrgbs, ItemModelMat, itemSlot, entity, dt);
+        base.RenderShape(shaderProgram, world, shape, itemStackRenderInfo, render, itemStack, lightrgbs, ItemModelMat, itemSlot, entity, dt, meshOverride);
 
         if (Shape?.GetAnimator(entity.EntityId) == null) return;
         if (!ActiveAttachments.ContainsKey(entity.EntityId) || !Attachments.ContainsKey(entity.EntityId)) return;

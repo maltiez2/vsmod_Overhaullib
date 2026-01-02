@@ -218,8 +218,6 @@ internal static class GuiDialogPatches
                 .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 15], additionalSlots2Bounds.RightCopy().RightCopy(), "additionalSlots22")
                 .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 16], additionalSlots2Bounds.RightCopy().RightCopy().RightCopy(), "additionalSlots23")
             .EndIf()
-        //.AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 9, 4).ToArray(), additionalSlots1Bounds, "additionalSlots1")
-        //.AddItemSlotGrid(characterInv, SendInvPacket, 9, Enumerable.Range(ArmorInventory._armorSlotsLastIndex + 13, 4).ToArray(), additionalSlots2Bounds, "additionalSlots2")
         ;
 
         return false;

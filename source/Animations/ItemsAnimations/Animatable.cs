@@ -1,5 +1,4 @@
 ﻿using CombatOverhaul.Integration;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -7,6 +6,11 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Animations;
+
+public interface IMeshReplacer
+{
+    MultiTextureMeshRef? GetReplacement(ICoreClientAPI api, ItemSlot itemSlot, Entity entity);
+}
 
 public class Animatable : CollectibleBehavior
 {
@@ -77,6 +81,8 @@ public class Animatable : CollectibleBehavior
 
         if (itemStackRenderInfo == null) return false;
 
+
+
         /*if (!AnimationsManager.PlayAnimationsInThirdPerson && (!IsOwner(entity) || !IsFirstPerson(entity)))
         {
             //ClientApi?.Render.RenderMultiTextureMesh(renderInfo.ModelRef);
@@ -96,7 +102,15 @@ public class Animatable : CollectibleBehavior
                 return false;
             }
 
-            RenderShape(shader, api.World, CurrentAnimatableShape, itemStackRenderInfo, api.Render, itemSlot.Itemstack, lightrgbs, ItemModelMat, itemSlot, entity, dt);
+            IMeshReplacer? meshReplacer = itemSlot.Itemstack.Collectible?.GetCollectibleInterface<IMeshReplacer>();
+            if (meshReplacer != null)
+            {
+                RenderShape(shader, api.World, CurrentAnimatableShape, itemStackRenderInfo, api.Render, itemSlot.Itemstack, lightrgbs, ItemModelMat, itemSlot, entity, dt, meshReplacer.GetReplacement(api, itemSlot, entity));
+            }
+            else
+            {
+                RenderShape(shader, api.World, CurrentAnimatableShape, itemStackRenderInfo, api.Render, itemSlot.Itemstack, lightrgbs, ItemModelMat, itemSlot, entity, dt);
+            }
         }
 
         return true;
@@ -174,9 +188,9 @@ public class Animatable : CollectibleBehavior
             }
         }
     }
-    protected virtual void RenderShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, ItemSlot itemSlot, Entity entity, float dt)
+    protected virtual void RenderShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, ItemSlot itemSlot, Entity entity, float dt, MultiTextureMeshRef? meshOverride = null)
     {
-        GetCurrentShape(itemStack)?.Render(shaderProgram, itemStackRenderInfo, render, itemStack, lightrgbs, itemModelMat, entity, dt);
+        GetCurrentShape(itemStack)?.Render(shaderProgram, itemStackRenderInfo, render, itemStack, lightrgbs, itemModelMat, entity, dt, meshOverride);
     }
     protected virtual void CalculateAnimation(AnimatorBase? animator, Shape shape, ICoreClientAPI clientApi, Entity entity, EnumItemRenderTarget target, float dt)
     {

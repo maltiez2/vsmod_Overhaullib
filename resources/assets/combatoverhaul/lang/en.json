@@ -4,6 +4,7 @@
 
   "toolmode-noselection": "None",
   "interaction-ammoselection": "Select ammo type",
+  "interaction-mode-selection": "Select weapon mode",
   "tool-selection-hotkey": "Select tool or weapon from sheath, tool belt or sling",
 
   "game:charactertab-armor": "Armor",

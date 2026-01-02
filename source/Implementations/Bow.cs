@@ -425,7 +425,7 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAni
         _ammoSelection = new()
         {
             ActionLangCode = Lang.Get("combatoverhaul:interaction-ammoselection"),
-            HotKeyCodes = new string[1] { "toolmodeselect" },
+            HotKeyCodes = ["toolmodeselect"],
             MouseButton = EnumMouseButton.None
         };
     }

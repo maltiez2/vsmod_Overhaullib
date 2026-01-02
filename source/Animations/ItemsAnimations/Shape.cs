@@ -71,8 +71,9 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
         Vec4f lightrgbs,
         Matrixf itemModelMat,
         Entity entity,
-        float dt
-        ) => _renderer.Render(shaderProgram, itemStackRenderInfo, render, itemStack, lightrgbs, itemModelMat, entity, dt);
+        float dt,
+        MultiTextureMeshRef? meshOverride = null
+        ) => _renderer.Render(shaderProgram, itemStackRenderInfo, render, itemStack, lightrgbs, itemModelMat, entity, dt, meshOverride);
     public void Dispose()
     {
         MeshRef.Dispose();
@@ -255,9 +256,9 @@ internal class AnimatableShapeRenderer
         _clientApi = api;
         _shape = shape;
     }
-    public void Render(IShaderProgram shaderProgram, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, Entity entity, float dt)
+    public void Render(IShaderProgram shaderProgram, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Vec4f lightrgbs, Matrixf itemModelMat, Entity entity, float dt, MultiTextureMeshRef? meshOverride = null)
     {
-        RenderAnimatableShape(shaderProgram, _clientApi.World, _shape, itemStackRenderInfo, render, itemStack, entity, lightrgbs, itemModelMat);
+        RenderAnimatableShape(shaderProgram, _clientApi.World, _shape, itemStackRenderInfo, render, itemStack, entity, lightrgbs, itemModelMat, meshOverride);
         SpawnParticles(itemModelMat, itemStack, dt, ref _timeAccumulation, _clientApi, entity);
     }
 
@@ -265,7 +266,7 @@ internal class AnimatableShapeRenderer
     private readonly ICoreClientAPI _clientApi;
     private readonly AnimatableShape _shape;
 
-    private static void RenderAnimatableShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Entity entity, Vec4f lightrgbs, Matrixf itemModelMat)
+    private static void RenderAnimatableShape(IShaderProgram shaderProgram, IWorldAccessor world, AnimatableShape shape, ItemRenderInfo itemStackRenderInfo, IRenderAPI render, ItemStack itemStack, Entity entity, Vec4f lightrgbs, Matrixf itemModelMat, MultiTextureMeshRef? meshOverride = null)
     {
         string textureSampleName = "tex";
 
@@ -283,7 +284,7 @@ internal class AnimatableShapeRenderer
         {
             render.GlDisableCullFace();
         }
-        render.RenderMultiTextureMesh(shape.MeshRef, textureSampleName);
+        render.RenderMultiTextureMesh(meshOverride ?? shape.MeshRef, textureSampleName);
         if (!itemStackRenderInfo.CullFaces)
         {
             render.GlEnableCullFace();

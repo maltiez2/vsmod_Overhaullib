@@ -47,6 +47,11 @@ public interface IHasWeaponLogic
     IClientWeaponLogic? ClientLogic { get; }
 }
 
+public interface IHasMultipleWeaponLogicModes
+{
+    IEnumerable<IClientWeaponLogic> ClientLogicModes { get; }
+}
+
 public interface ISetsRenderingOffset
 {
     bool RenderingOffset { get; }
@@ -210,14 +215,19 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     private void RegisterWeapons()
     {
         _api.World.Items
-            .OfType<IHasWeaponLogic>()
-            .Select(element => element.ClientLogic)
+            .OfType<IHasMultipleWeaponLogicModes>()
+            .SelectMany(element => element.ClientLogicModes)
             .Foreach(RegisterWeapon);
 
         _api.World.Items
             .Select(item => item.CollectibleBehaviors as IEnumerable<CollectibleBehavior>)
             .Aggregate((a, b) => a.Concat(b))
             .OfType<IClientWeaponLogic>()
+            .Foreach(RegisterWeapon);
+
+        _api.World.Items
+            .OfType<IHasWeaponLogic>()
+            .Select(element => element.ClientLogic)
             .Foreach(RegisterWeapon);
     }
     private void RegisterHotkeys()
