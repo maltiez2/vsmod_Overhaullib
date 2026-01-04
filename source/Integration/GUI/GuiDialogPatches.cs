@@ -25,30 +25,15 @@ public enum DamageReceivedCalculationType
 
 internal static class GuiDialogPatches
 {
-    public class CharacterSlotsStatus
-    {
-        public bool Misc { get; set; } = false;
-        public bool Belt { get; set; } = false;
-        public bool Backpack { get; set; } = false;
-        public bool Headgear { get; set; } = false;
-        public bool FrontGear { get; set; } = false;
-        public bool BackGear { get; set; } = false;
-        public bool RightShoulderGear { get; set; } = false;
-        public bool LeftShoulderGear { get; set; } = false;
-        public bool WaistHear { get; set; } = false;
-    }
-
-    public static CharacterSlotsStatus SlotsStatus { get; set; } = new();
-
     public static GuiDialogInventory? GuiDialogInventoryInstance { get; set; }
 
     public static void Patch(string harmonyId, ICoreClientAPI api)
     {
-        _api = api;
+        Api = api;
 
         new Harmony(harmonyId).Patch(
                 typeof(GuiDialogCharacter).GetMethod("ComposeCharacterTab", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(GuiDialogPatches), nameof(GuiDialogCharacter_ComposeCharacterTab)))
+                prefix: new HarmonyMethod(AccessTools.Method(typeof(CharacterTabPatch), nameof(CharacterTabPatch.GuiDialogCharacter_ComposeCharacterTab)))
             );
 
         new Harmony(harmonyId).Patch(
@@ -80,7 +65,7 @@ internal static class GuiDialogPatches
         new Harmony(harmonyId).Unpatch(typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(CharacterSystem).GetMethod("StartClientSide", AccessTools.all), HarmonyPatchType.Postfix, harmonyId);
 
-        _api = null;
+        Api = null;
     }
 
     public static void RecalculateArmorStatsForGui()
@@ -95,7 +80,8 @@ internal static class GuiDialogPatches
         }
     }
 
-    private static ICoreClientAPI? _api;
+    public static ICoreClientAPI? Api { get; set; }
+
     private static int _lastItemId = 0;
     private static bool _anySlotsHighlighted = false;
     private static List<int> _rows = [];
@@ -115,10 +101,6 @@ internal static class GuiDialogPatches
     private static Action? _recalcualteArmorStats;
     private static DamageReceivedCalculationType _calculationType = DamageReceivedCalculationType.OnlyArmor;
 
-    // GuiDialogCharacter
-    private static FieldInfo? GuiDialogCharacter_insetSlotBounds = typeof(GuiDialogCharacter).GetField("insetSlotBounds", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static FieldInfo? GuiDialogCharacter_characterInv = typeof(GuiDialogCharacter).GetField("characterInv", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static MethodInfo? GuiDialogCharacter_SendInvPacket = typeof(GuiDialogCharacter).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);
     // GuiDialogInventory
     private static FieldInfo? GuiDialogInventory_survivalInvDialog = typeof(GuiDialogInventory).GetField("survivalInvDialog", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? GuiDialogInventory_prevRows = typeof(GuiDialogInventory).GetField("prevRows", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -128,116 +110,6 @@ internal static class GuiDialogPatches
     private static MethodInfo? GuiDialogInventory_SendInvPacket = typeof(GuiDialogInventory).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogInventory_OnNewScrollbarvalue = typeof(GuiDialogInventory).GetMethod("OnNewScrollbarvalue", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? CharacterSystem_charDlg = typeof(CharacterSystem).GetField("charDlg", BindingFlags.NonPublic | BindingFlags.Instance);
-
-    private static bool GuiDialogCharacter_ComposeCharacterTab(GuiDialogCharacter __instance, GuiComposer compo)
-    {
-        if (!_api.Gui.Icons.CustomIcons.ContainsKey("armorhead")) registerArmorIcons();
-
-        double pad = GuiElementItemSlotGridBase.unscaledSlotPadding;
-
-        int additionalHeight = ArmorInventory._disableVanillaArmorSlots ? 0 : 0;
-
-        ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 22, 414, 356 + additionalHeight);
-
-        ElementBounds leftSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 6).FixedGrow(0, pad);
-
-        ElementBounds leftArmorSlotBoundsHead = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftArmorSlotBoundsBody = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23 + 51, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftArmorSlotBoundsLegs = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 0 + 23 + 102, 1, 1).FixedGrow(0, pad);
-
-        ElementBounds leftMiscSlotBounds1 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 153, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftMiscSlotBounds2 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 204, 1, 1).FixedGrow(0, pad);
-        ElementBounds leftMiscSlotBounds3 = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad + 255, 1, 1).FixedGrow(0, pad);
-
-        leftSlotBounds.FixedRightOf(leftArmorSlotBoundsLegs, 2);
-
-        IInventory? characterInv = (IInventory?)GuiDialogCharacter_characterInv?.GetValue(__instance);
-
-        Action<object> SendInvPacket = (object parameter) => GuiDialogCharacter_SendInvPacket?.Invoke(__instance, [parameter]);
-
-        ElementBounds insetSlotBounds = ElementBounds.Fixed(0, 20 + 2 + pad, 250 - 60, leftSlotBounds.fixedHeight - 2 * pad - 4);
-
-        GuiDialogCharacter_insetSlotBounds?.SetValue(__instance, insetSlotBounds);
-
-        insetSlotBounds.FixedRightOf(leftSlotBounds, 10);
-
-        ElementBounds rightSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 6).FixedGrow(0, pad);
-        rightSlotBounds.FixedRightOf(insetSlotBounds, 10);
-        ElementBounds rightGearSlotBounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 0, 20 + pad, 1, 1).FixedGrow(0, pad);
-        rightGearSlotBounds.FixedRightOf(rightSlotBounds);
-
-        ElementBounds additionalSlots1Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 2, 20 + pad + 306, 1, 1).FixedGrow(0, pad);
-        ElementBounds additionalSlots2Bounds = ElementStdBounds.SlotGrid(EnumDialogArea.None, 2, 20 + pad + 306, 1, 1).FixedGrow(0, pad).FixedRightOf(additionalSlots1Bounds, 161);
-
-        leftSlotBounds.fixedHeight -= 6;
-        rightSlotBounds.fixedHeight -= 6;
-        rightGearSlotBounds.fixedHeight -= 6;
-
-        CairoFont hoverTextFont = CairoFont.WhiteSmallText();
-
-        compo
-            .AddInset(outerInsetBounds, 0)
-            .AddIf(!ArmorInventory._disableVanillaArmorSlots)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [12], leftArmorSlotBoundsHead, "armorSlotsHead")
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [13], leftArmorSlotBoundsBody, "armorSlotsBody")
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [14], leftArmorSlotBoundsLegs, "armorSlotsLegs")
-            .EndIf()
-            .AddIf(SlotsStatus.Misc)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 11], leftMiscSlotBounds1, "miscSlot1")
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 10], leftMiscSlotBounds2, "miscSlot2")
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._gearSlotsLastIndex - 9], leftMiscSlotBounds3, "miscSlot3")
-            .EndIf()
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [0, 1, 2, 11, 3, 4], leftSlotBounds, "leftSlots")
-            .AddInset(insetSlotBounds, 2)
-            .AddItemSlotGrid(characterInv, SendInvPacket, 1, [6, 7, 8, 10, 5, 9], rightSlotBounds, "rightSlots")
-            .AddIf(SlotsStatus.Headgear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 0], rightGearSlotBounds, "gearSlots1")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-headgear"), hoverTextFont, 200, rightGearSlotBounds)
-            .EndIf()
-            .AddIf(SlotsStatus.FrontGear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 1], rightGearSlotBounds.BelowCopy(fixedDeltaY: pad), "gearSlots2")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-frontgear"), hoverTextFont, 200, rightGearSlotBounds.BelowCopy(fixedDeltaY: pad))
-            .EndIf()
-            .AddIf(SlotsStatus.BackGear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 2], rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad), "gearSlots3")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-backgear"), hoverTextFont, 200, rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad))
-            .EndIf()
-            .AddIf(SlotsStatus.RightShoulderGear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 3], rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad), "gearSlots4")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-rightshouldergear"), hoverTextFont, 200, rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad))
-            .EndIf()
-            .AddIf(SlotsStatus.LeftShoulderGear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 4], rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad), "gearSlots5")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-leftshouldergear"), hoverTextFont, 200, rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad))
-            .EndIf()
-            .AddIf(SlotsStatus.WaistHear)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 1, [ArmorInventory._armorSlotsLastIndex + 5], rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad), "gearSlots6")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-waistgear"), hoverTextFont, 200, rightGearSlotBounds.BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad).BelowCopy(fixedDeltaY: pad))
-            .EndIf()
-            .AddIf(SlotsStatus.Belt)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 9], additionalSlots1Bounds, "additionalSlots10")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBeltLeft"), hoverTextFont, 200, additionalSlots1Bounds)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 10], additionalSlots1Bounds.RightCopy(), "additionalSlots11")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBeltRight"), hoverTextFont, 200, additionalSlots1Bounds.RightCopy())
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 11], additionalSlots1Bounds.RightCopy().RightCopy(), "additionalSlots12")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBeltBack"), hoverTextFont, 200, additionalSlots1Bounds.RightCopy().RightCopy())
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 12], additionalSlots1Bounds.RightCopy().RightCopy().RightCopy(), "additionalSlots13")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBeltFront"), hoverTextFont, 200, additionalSlots1Bounds.RightCopy().RightCopy().RightCopy())
-            .EndIf()
-            .AddIf(SlotsStatus.Backpack)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 13], additionalSlots2Bounds, "additionalSlots20")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBackpack1"), hoverTextFont, 200, additionalSlots2Bounds)
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 14], additionalSlots2Bounds.RightCopy(), "additionalSlots21")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBackpack2"), hoverTextFont, 200, additionalSlots2Bounds.RightCopy())
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 15], additionalSlots2Bounds.RightCopy().RightCopy(), "additionalSlots22")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBackpack3"), hoverTextFont, 200, additionalSlots2Bounds.RightCopy().RightCopy())
-                .AddItemSlotGrid(characterInv, SendInvPacket, 9, [ArmorInventory._armorSlotsLastIndex + 16], additionalSlots2Bounds.RightCopy().RightCopy().RightCopy(), "additionalSlots23")
-                .AddAutoSizeHoverText(Lang.Get($"combatoverhaul:slot-addBackpack4"), hoverTextFont, 200, additionalSlots2Bounds.RightCopy().RightCopy().RightCopy())
-            .EndIf()
-        ;
-
-        return false;
-    }
 
     private static bool GuiDialogInventory_ComposeSurvivalInvDialog(GuiDialogInventory __instance)
     {
@@ -277,7 +149,7 @@ internal static class GuiDialogPatches
             .ForkBoundingParent(elemToDlgPad, elemToDlgPad + 30, elemToDlgPad + gridBounds.fixedWidth + 20, elemToDlgPad)
         ;
 
-        if (_api.Settings.Bool["immersiveMouseMode"])
+        if (Api.Settings.Bool["immersiveMouseMode"])
         {
             dialogBounds
                 .WithAlignment(EnumDialogArea.RightMiddle)
@@ -297,7 +169,7 @@ internal static class GuiDialogPatches
         scrollBarBounds.fixedOffsetX -= 2;
         scrollBarBounds.fixedWidth = 15;
 
-        GuiComposer survivalInvDialog = _api.Gui.CreateCompo("inventory-backpack", dialogBounds);
+        GuiComposer survivalInvDialog = Api.Gui.CreateCompo("inventory-backpack", dialogBounds);
         survivalInvDialog.AddShadedDialogBG(ElementBounds.Fill);
         survivalInvDialog.AddDialogTitleBar(Lang.Get("Inventory and Crafting"), () => CloseIconPressed(__instance));
         survivalInvDialog.AddVerticalScrollbar((data) => OnNewScrollbarvalue(__instance, data), scrollBarBounds, "scrollbar");
@@ -336,11 +208,11 @@ internal static class GuiDialogPatches
 
         GuiComposer? sid = (GuiComposer?)GuiDialogInventory_survivalInvDialog.GetValue(__instance);
 
-        if (_api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Creative)
+        if (Api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Creative)
         {
             return true;
         }
-        else if (_api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Survival && sid != null)
+        else if (Api.World.Player.WorldData.CurrentGameMode == EnumGameMode.Survival && sid != null)
         {
             ElementBounds bounds = sid.GetSlotGridExcl("slotgrid").Bounds;
             bounds.fixedY = 10 - GuiElementItemSlotGrid.unscaledSlotPadding - value;
@@ -395,7 +267,7 @@ internal static class GuiDialogPatches
         double bgPadding = GuiElement.scaled(9);
         double textWidth = 60;
 
-        IInventory _inv = _api.World.Player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
+        IInventory _inv = Api.World.Player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
         if (_inv is not ArmorInventory inv)
         {
             return;
@@ -419,7 +291,7 @@ internal static class GuiDialogPatches
 
         ElementBounds outerInsetBounds = ElementBounds.Fixed(-0, 0/*50 + 22*/, 414, height).FixedUnder(topInsetBounds, 8);
         ElementBounds baseBounds = ElementBounds.Fixed(0, -52, 388, height).FixedUnder(topInsetBounds, 8);
-        ElementBounds childBounds = ElementBounds.Fixed(0, 2, 388, height + 100);
+        ElementBounds childBounds = ElementBounds.Fixed(0, 2, 388, height + 140);
         ElementBounds textBounds = ElementStdBounds.Slot(0, 0).WithFixedWidth(textWidth).WithFixedAlignmentOffset(0, 12);
         ElementBounds slot0Bounds = ElementStdBounds.Slot(textBounds.RightCopy(8).fixedX, textBounds.RightCopy().fixedY);
         ElementBounds slot1Bounds = ElementStdBounds.Slot(slot0Bounds.RightCopy(gap).fixedX, slot0Bounds.RightCopy().fixedY);
@@ -436,7 +308,7 @@ internal static class GuiDialogPatches
         compo.AddInset(topInsetBounds, 2);
         compo.AddDynamicText("", textFont, tierTextBounds.WithFixedOffset(0, 10), "textTier");
         compo.AddHoverText(Lang.Get("combatoverhaul:armor-inventory-dialog-attack-tier-hint"), CairoFont.WhiteSmallText(), 400, tierTextBounds.FlatCopy().WithFixedOffset(0, -10));
-        compo.AddSlider(value => { _currentAttackTier = value; SetStatsValues(compo, _api.World.Player, value); return true; }, tierSliderBounds, "tierSlider");
+        compo.AddSlider(value => { _currentAttackTier = value; SetStatsValues(compo, Api.World.Player, value); return true; }, tierSliderBounds, "tierSlider");
 
         compo.AddButton("", () => ToggleBodyPartsMultipliers(compo), button1Bounds, textFont, EnumButtonStyle.Small, "button1");
         compo.AddDynamicText(GetCalcTypeText(), textFontMiddle, button1TextBounds.WithFixedOffset(0, 8), "textButton");
@@ -573,8 +445,8 @@ internal static class GuiDialogPatches
         );
         compo.GetScrollbar("scrollbar").SetScrollbarPosition(0);
 
-        SetStatsValues(compo, _api.World.Player, _currentAttackTier);
-        _recalcualteArmorStats = () => SetStatsValues(compo, _api.World.Player, _currentAttackTier);
+        SetStatsValues(compo, Api.World.Player, _currentAttackTier);
+        _recalcualteArmorStats = () => SetStatsValues(compo, Api.World.Player, _currentAttackTier);
 
         _childBounds = childBounds;
     }
@@ -593,7 +465,7 @@ internal static class GuiDialogPatches
 
     private static void SendInvPacket(object packet)
     {
-        _api.Network.SendPacketClient(packet);
+        Api.Network.SendPacketClient(packet);
     }
     private static ElementBounds BelowCopySet(ref ElementBounds bounds, double fixedDeltaX = 0.0, double fixedDeltaY = 0.0, double fixedDeltaWidth = 0.0, double fixedDeltaHeight = 0.0)
     {
@@ -607,20 +479,14 @@ internal static class GuiDialogPatches
             _childBounds.CalcWorldBounds();
         }
     }
-
-    private static void registerArmorIcons()
-    {
-        _api.Gui.Icons.CustomIcons["armorhead"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-helmet.svg"));
-        _api.Gui.Icons.CustomIcons["armorbody"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-body.svg"));
-        _api.Gui.Icons.CustomIcons["armorlegs"] = _api.Gui.Icons.SvgIconSource(new AssetLocation("textures/icons/character/armor-legs.svg"));
-    }
+    
     private static void OnRenderGUI()
     {
-        int currentItem = _api?.World.Player.InventoryManager.MouseItemSlot?.Itemstack?.Item?.ItemId ?? 0;
+        int currentItem = Api?.World.Player.InventoryManager.MouseItemSlot?.Itemstack?.Item?.ItemId ?? 0;
 
         if (_anySlotsHighlighted && currentItem == 0 && _lastItemId == 0)
         {
-            InventoryCharacter? inventory2 = GeneralUtils.GetCharacterInventory(_api?.World.Player);
+            InventoryCharacter? inventory2 = GeneralUtils.GetCharacterInventory(Api?.World.Player);
             if (inventory2 == null) return;
 
             foreach (ItemSlot slot in inventory2)
@@ -642,10 +508,10 @@ internal static class GuiDialogPatches
         if (currentItem == _lastItemId) return;
         _lastItemId = currentItem;
 
-        InventoryCharacter? inventory = GeneralUtils.GetCharacterInventory(_api?.World.Player);
+        InventoryCharacter? inventory = GeneralUtils.GetCharacterInventory(Api?.World.Player);
         if (inventory == null) return;
 
-        ItemSlot mouseSlot = _api.World.Player.InventoryManager.MouseItemSlot;
+        ItemSlot mouseSlot = Api.World.Player.InventoryManager.MouseItemSlot;
 
         _anySlotsHighlighted = false;
         foreach (ItemSlot slot in inventory)
@@ -811,7 +677,7 @@ internal static class GuiDialogPatches
     {
         _calculationType = (DamageReceivedCalculationType)((int)(_calculationType + 1) % (int)DamageReceivedCalculationType.TypesNumber);
         composer.GetDynamicText("textButton")?.SetNewText(GetCalcTypeText());
-        SetStatsValues(composer, _api.World.Player, _currentAttackTier);
+        SetStatsValues(composer, Api.World.Player, _currentAttackTier);
         return false;
     }
 

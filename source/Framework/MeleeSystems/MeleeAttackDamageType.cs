@@ -70,6 +70,8 @@ public class MeleeDamageType : IHasLineCollider
     public readonly float Radius;
     public readonly int PushTier;
 
+    public const string DamageTierPlayerStatPrefix = "meleeDamageTierBonus";
+
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
         Damage = stats.Damage.Damage;
@@ -192,7 +194,12 @@ public class MeleeDamageType : IHasLineCollider
         damage += stats.DamageBonus;
         damage *= stats.DamageMultiplier;
 
-        DamageData damageTypeData = new(DamageTypeData.DamageType, DamageTypeData.Tier + stats.DamageTierBonus, DamageTypeData.ArmorPiercingTier);
+        string damageTierStat = DamageTierPlayerStatPrefix + DamageTypeData.DamageType.ToString();
+        float statValue = attacker.Stats.GetBlended(damageTierStat) - 1;
+        int damageTier = DamageTypeData.Tier + stats.DamageTierBonus + (int)statValue;
+        damageTier = GameMath.Max(damageTier, 0);
+
+        DamageData damageTypeData = new(DamageTypeData.DamageType, damageTier, DamageTypeData.ArmorPiercingTier);
 
         bool damageReceived = target.ReceiveDamage(new DirectionalTypedDamageSource()
         {

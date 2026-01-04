@@ -510,14 +510,10 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (_animationsManager == null) return null;
 
-        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
-
-        if (_animationsManager.Animations.TryGetValue(request.Animation + modelPrefix, out Animation? animation))
+        if (!_animationsManager.GetAnimation(out Animation? animation, request.Animation, _player, firstPerson: true))
         {
-
-        }
-        else if (!_animationsManager.Animations.TryGetValue(request.Animation, out animation))
-        {
+            LoggerUtil.Verbose(_api, this, $"Animation '{request.Animation}' was not found");
+            Debug.WriteLine($"Animation '{request.Animation}' was not found");
             return null;
         }
 
@@ -596,8 +592,6 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             OffhandItemChanged();
         }
 
-        
-
         if (_api != null && _ownerEntityId == 0)
         {
             _ownerEntityId = _api.World?.Player?.Entity?.EntityId ?? 0;
@@ -634,22 +628,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (_animationsManager == null) return;
 
-        string modelPrefix = "-" + entity.WatchedAttributes.GetString("skinModel", "seraph").Replace(':', '-');
-
-        if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp" + modelPrefix, out Animation? animation))
+        if (!_animationsManager.GetAnimation(out Animation? animation, requestByCode.Animation, _player, firstPerson: false))
         {
-
-        }
-        else if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + modelPrefix, out animation))
-        {
-
-        }
-        else if (_animationsManager.Animations.TryGetValue(requestByCode.Animation + "-tp", out animation))
-        {
-
-        }
-        else if (!_animationsManager.Animations.TryGetValue(requestByCode.Animation, out animation))
-        {
+            LoggerUtil.Verbose(_api, this, $"Animation '{requestByCode.Animation}' was not found");
+            Debug.WriteLine($"Animation '{requestByCode.Animation}' was not found");
             return;
         }
 
@@ -669,15 +651,18 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
     {
         if (mainHand)
         {
-            if (_player.RightHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
+            IHasIdleAnimations? staticAnimation = _player.RightHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasIdleAnimations>();
+            IHasDynamicIdleAnimations? dynamicAnimation = _player.RightHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasDynamicIdleAnimations>();
+
+            if (staticAnimation != null)
             {
-                Play(item.ReadyAnimation, mainHand);
-                StartIdleTimer(item.IdleAnimation, mainHand);
+                Play(staticAnimation.ReadyAnimation, mainHand);
+                StartIdleTimer(staticAnimation.IdleAnimation, mainHand);
             }
-            if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
+            if (dynamicAnimation != null)
             {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? readyAnimation = dynamicAnimation.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? idleAnimation = dynamicAnimation.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: mainHand);
 
                 if (readyAnimation != null && idleAnimation != null)
                 {
@@ -688,15 +673,18 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         }
         else
         {
-            if (_player.LeftHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
+            IHasIdleAnimations? staticAnimation = _player.LeftHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasIdleAnimations>();
+            IHasDynamicIdleAnimations? dynamicAnimation = _player.LeftHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasDynamicIdleAnimations>();
+
+            if (staticAnimation != null)
             {
-                Play(item.ReadyAnimation, mainHand);
-                StartIdleTimer(item.IdleAnimation, mainHand);
+                Play(staticAnimation.ReadyAnimation, mainHand);
+                StartIdleTimer(staticAnimation.IdleAnimation, mainHand);
             }
-            if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
+            if (dynamicAnimation != null)
             {
-                AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
-                AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? readyAnimation = dynamicAnimation.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
+                AnimationRequestByCode? idleAnimation = dynamicAnimation.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: mainHand);
 
                 if (readyAnimation != null && idleAnimation != null)
                 {
@@ -857,9 +845,12 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         StopIdleTimer(mainHand: true);
 
-        if (_player.RightHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
+        IHasIdleAnimations? staticAnimation = _player.RightHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasIdleAnimations>();
+        IHasDynamicIdleAnimations? dynamicAnimation = _player.RightHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasDynamicIdleAnimations>();
+
+        if (staticAnimation != null)
         {
-            string readyCategory = item.ReadyAnimation.Category;
+            string readyCategory = staticAnimation.ReadyAnimation.Category;
 
             foreach (string category in _mainHandCategories.Where(element => element != readyCategory))
             {
@@ -867,13 +858,13 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
             _mainHandCategories.Clear();
 
-            Play(item.ReadyAnimation, true);
-            StartIdleTimer(item.IdleAnimation, true);
+            Play(staticAnimation.ReadyAnimation, true);
+            StartIdleTimer(staticAnimation.IdleAnimation, true);
         }
-        else if (_player.RightHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
+        else if (dynamicAnimation != null)
         {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: true);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: true);
+            AnimationRequestByCode? readyAnimation = dynamicAnimation.GetReadyAnimation(_player, _player.RightHandItemSlot, mainHand: true);
+            AnimationRequestByCode? idleAnimation = dynamicAnimation.GetIdleAnimation(_player, _player.RightHandItemSlot, mainHand: true);
 
             if (readyAnimation == null || idleAnimation == null)
             {
@@ -920,9 +911,12 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
 
         StopIdleTimer(false);
 
-        if (_player.LeftHandItemSlot.Itemstack?.Item is IHasIdleAnimations item)
+        IHasIdleAnimations? staticAnimation = _player.LeftHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasIdleAnimations>();
+        IHasDynamicIdleAnimations? dynamicAnimation = _player.LeftHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasDynamicIdleAnimations>();
+
+        if (staticAnimation != null)
         {
-            string readyCategory = item.ReadyAnimation.Category;
+            string readyCategory = staticAnimation.ReadyAnimation.Category;
 
             foreach (string category in _offhandCategories.Where(element => element != readyCategory))
             {
@@ -930,13 +924,13 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
             }
             _offhandCategories.Clear();
 
-            Play(item.ReadyAnimation, false);
-            StartIdleTimer(item.IdleAnimation, false);
+            Play(staticAnimation.ReadyAnimation, false);
+            StartIdleTimer(staticAnimation.IdleAnimation, false);
         }
-        else if (_player.LeftHandItemSlot.Itemstack?.Item is IHasDynamicIdleAnimations item2)
+        else if (dynamicAnimation != null)
         {
-            AnimationRequestByCode? readyAnimation = item2.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
-            AnimationRequestByCode? idleAnimation = item2.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
+            AnimationRequestByCode? readyAnimation = dynamicAnimation.GetReadyAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
+            AnimationRequestByCode? idleAnimation = dynamicAnimation.GetIdleAnimation(_player, _player.LeftHandItemSlot, mainHand: false);
 
             if (readyAnimation == null || idleAnimation == null)
             {
@@ -1025,9 +1019,10 @@ public sealed class ThirdPersonAnimationsBehavior : EntityBehavior, IDisposable
         ItemSlot? slot = mainHand ? _player.RightHandItemSlot : _player.LeftHandItemSlot;
         if (slot == null) return false;
 
-        Item? item = slot.Itemstack?.Item;
+        IHasIdleAnimations? staticAnimation = slot.Itemstack?.Collectible?.GetCollectibleInterface<IHasIdleAnimations>();
+        IHasDynamicIdleAnimations? dynamicAnimation = slot.Itemstack?.Collectible?.GetCollectibleInterface<IHasDynamicIdleAnimations>();
 
-        return item is IHasDynamicIdleAnimations || item is IHasIdleAnimations;
+        return staticAnimation != null || dynamicAnimation != null;
     }
 
     private int GetCurrentItemId(bool mainHand) => mainHand ? _player.RightHandItemSlot.Itemstack?.Item?.Id ?? 0 : _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? 0;

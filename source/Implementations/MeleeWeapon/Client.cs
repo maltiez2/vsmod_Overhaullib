@@ -778,7 +778,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             stats.AttackAnimation["Main"][counter % stats.AttackAnimation["Main"].Length] :
             stats.AttackAnimation[direction.ToString()][counter % stats.AttackAnimation[direction.ToString()].Length];
 
-        float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
+        float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier * Settings.MeleeWeaponAttackSpeedMultiplier;
         MeleeBlockSystem.StopBlock(mainHand);
 
         SetState(MeleeWeaponState.WindingUp, mainHand);
@@ -1825,17 +1825,20 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected virtual bool CanAttackWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanAttack(player, !mainHand) ?? false;
+        IHasMeleeWeaponActions? item = otherHandSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasMeleeWeaponActions>();
+        return item?.CanAttack(player, !mainHand) ?? false;
     }
     protected virtual bool CanBlockWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(player, !mainHand) ?? false;
+        IHasMeleeWeaponActions? item = otherHandSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasMeleeWeaponActions>();
+        return item?.CanBlock(player, !mainHand) ?? false;
     }
     protected virtual bool CanThrowWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanThrow(player, !mainHand) ?? false;
+        IHasMeleeWeaponActions? item = otherHandSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasMeleeWeaponActions>();
+        return item?.CanThrow(player, !mainHand) ?? false;
     }
     protected virtual bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
     {
@@ -1905,14 +1908,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     }
     protected virtual bool ActionRestricted(EntityPlayer player, bool mainHand = true)
     {
-        if (mainHand)
-        {
-            return (player.LeftHandItemSlot.Itemstack?.Item as IRestrictAction)?.RestrictRightHandAction() ?? false;
-        }
-        else
-        {
-            return (player.RightHandItemSlot.Itemstack?.Item as IRestrictAction)?.RestrictLeftHandAction() ?? false;
-        }
+        ItemSlot slot = mainHand ? player.RightHandItemSlot : player.LeftHandItemSlot;
+
+        IRestrictAction? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IRestrictAction>();
+
+        return item?.RestrictRightHandAction() ?? false;
     }
     protected virtual string GetAttackStatsDescription(ItemSlot inSlot, IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
     {

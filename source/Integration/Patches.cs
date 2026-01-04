@@ -1,5 +1,7 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Implementations;
+using CombatOverhaul.Utils;
+using CombatOverhaul.Vanity;
 using HarmonyLib;
 using System.Diagnostics;
 using System.Reflection;
@@ -78,7 +80,6 @@ internal static class HarmonyPatches
     }
 
     private static readonly FieldInfo? _entity = typeof(Vintagestory.API.Common.AnimationManager).GetField("entity", BindingFlags.NonPublic | BindingFlags.Instance);
-
 
     private static bool CreateColliders(Vintagestory.API.Common.AnimationManager __instance, float dt)
     {
@@ -309,6 +310,8 @@ internal static class HarmonyPatches
 
     private static bool BehaviorHealingItem_OnHeldInteractStart(EntityAgent byEntity)
     {
-        return !((byEntity as EntityPlayer)?.LeftHandItemSlot?.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(byEntity as EntityPlayer, false) ?? true;
+        if (byEntity is not EntityPlayer) return true;
+        IHasMeleeWeaponActions? item = (byEntity as EntityPlayer)?.LeftHandItemSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasMeleeWeaponActions>();
+        return !item?.CanBlock(byEntity as EntityPlayer, false) ?? true;
     }
 }

@@ -38,7 +38,9 @@ internal static class MouseWheelPatch
 
         ItemSlot slot = _clientApi.World.Player.InventoryManager.ActiveHotbarSlot;
 
-        if (slot.Itemstack?.Item is IMouseWheelInput item)
+        IMouseWheelInput? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IMouseWheelInput>();
+
+        if (item != null)
         {
             IClientPlayer player = _clientApi.World.Player;
             bool handled = item.OnMouseWheel(slot, player, args.deltaPrecise);

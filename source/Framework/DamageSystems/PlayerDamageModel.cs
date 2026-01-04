@@ -1,6 +1,7 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
+using CombatOverhaul.Implementations;
 using CombatOverhaul.Integration;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
@@ -921,7 +922,9 @@ public sealed class MeleeBlockSystemServer : MeleeSystem
     {
         ItemSlot slot = mainHand ? player.Entity.RightHandItemSlot : player.Entity.LeftHandItemSlot;
 
-        if (slot?.Itemstack?.Item is not IHasServerBlockCallback item) return;
+        IHasServerBlockCallback? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IHasServerBlockCallback>();
+
+        if (item == null) return;
 
         item.BlockCallback(player, slot, mainHand, damageBlocked);
 

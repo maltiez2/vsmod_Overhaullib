@@ -11,6 +11,7 @@ using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
+using CombatOverhaul.Vanity;
 using ConfigLib;
 using HarmonyLib;
 using OpenTK.Mathematics;
@@ -23,6 +24,7 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
+using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Vintagestory.Server;
 
@@ -76,6 +78,8 @@ public partial class CombatOverhaulSystem : ModSystem
     public Settings Settings { get; set; } = new();
     public bool Disposed { get; private set; } = false;
     public static event Action<ICoreAPI>? OnSettingsChange;
+
+    public const string VanityInventoryCode = "combatoverhaul:vanity";
 
     public override void StartPre(ICoreAPI api)
     {
@@ -165,6 +169,7 @@ public partial class CombatOverhaulSystem : ModSystem
         ServerStatsSystem = new(api);
         ServerAttachmentSystem = new(api);
         ServerToolBagSystem = new(api);
+        ServerVanitySystem = new(api);
 
         _serverToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>()
@@ -189,6 +194,7 @@ public partial class CombatOverhaulSystem : ModSystem
         ClientAttachmentSystem = new(api);
         ClientToolBagSystem = new(api);
         ClientToolBagSelectionSystem = new(api, ClientToolBagSystem);
+        ClientVanitySystem = new(api);
 
         api.Event.RegisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         api.Event.RegisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
@@ -313,6 +319,8 @@ public partial class CombatOverhaulSystem : ModSystem
         Disposed = true;
 
         ExtendedElementPose.NameHashCache?.Dispose();
+
+        ServerVanitySystem?.Dispose();
     }
 
     public bool ToggleWearableItem(IPlayer player, string hotkeyCode)
@@ -362,6 +370,8 @@ public partial class CombatOverhaulSystem : ModSystem
     public ToolBagSystemClient? ClientToolBagSystem { get; private set; }
     public ToolBagSystemServer? ServerToolBagSystem { get; private set; }
     public ToolBagSelectionSystemClient? ClientToolBagSelectionSystem { get; private set; }
+    public VanitySystemClient? ClientVanitySystem { get; private set; }
+    public VanitySystemServer? ServerVanitySystem { get; private set; }
 
     private ICoreClientAPI? _clientApi;
     private readonly Vector4 _iconScale = new(-0.1f, -0.1f, 1.2f, 1.2f);
@@ -446,21 +456,21 @@ public partial class CombatOverhaulSystem : ModSystem
     {
         switch (gearType)
         {
-            case "miscgear": GuiDialogPatches.SlotsStatus.Misc = true; break;
-            case "headgear": GuiDialogPatches.SlotsStatus.Headgear = true; break;
-            case "frontgear": GuiDialogPatches.SlotsStatus.FrontGear = true; break;
-            case "backgear": GuiDialogPatches.SlotsStatus.BackGear = true; break;
-            case "rightshouldergear": GuiDialogPatches.SlotsStatus.RightShoulderGear = true; break;
-            case "leftshouldergear": GuiDialogPatches.SlotsStatus.LeftShoulderGear = true; break;
-            case "waistgear": GuiDialogPatches.SlotsStatus.WaistHear = true; break;
-            case "addBeltLeft": GuiDialogPatches.SlotsStatus.Belt = true; break;
-            case "addBeltRight": GuiDialogPatches.SlotsStatus.Belt = true; break;
-            case "addBeltBack": GuiDialogPatches.SlotsStatus.Belt = true; break;
-            case "addBeltFront": GuiDialogPatches.SlotsStatus.Belt = true; break;
-            case "addBackpack1": GuiDialogPatches.SlotsStatus.Backpack = true; break;
-            case "addBackpack2": GuiDialogPatches.SlotsStatus.Backpack = true; break;
-            case "addBackpack3": GuiDialogPatches.SlotsStatus.Backpack = true; break;
-            case "addBackpack4": GuiDialogPatches.SlotsStatus.Backpack = true; break;
+            case "miscgear": CharacterTabPatch.SlotsStatus.Misc = true; break;
+            case "headgear": CharacterTabPatch.SlotsStatus.Headgear = true; break;
+            case "frontgear": CharacterTabPatch.SlotsStatus.FrontGear = true; break;
+            case "backgear": CharacterTabPatch.SlotsStatus.BackGear = true; break;
+            case "rightshouldergear": CharacterTabPatch.SlotsStatus.RightShoulderGear = true; break;
+            case "leftshouldergear": CharacterTabPatch.SlotsStatus.LeftShoulderGear = true; break;
+            case "waistgear": CharacterTabPatch.SlotsStatus.WaistHear = true; break;
+            case "addBeltLeft": CharacterTabPatch.SlotsStatus.Belt = true; break;
+            case "addBeltRight": CharacterTabPatch.SlotsStatus.Belt = true; break;
+            case "addBeltBack": CharacterTabPatch.SlotsStatus.Belt = true; break;
+            case "addBeltFront": CharacterTabPatch.SlotsStatus.Belt = true; break;
+            case "addBackpack1": CharacterTabPatch.SlotsStatus.Backpack = true; break;
+            case "addBackpack2": CharacterTabPatch.SlotsStatus.Backpack = true; break;
+            case "addBackpack3": CharacterTabPatch.SlotsStatus.Backpack = true; break;
+            case "addBackpack4": CharacterTabPatch.SlotsStatus.Backpack = true; break;
         }
     }
 }

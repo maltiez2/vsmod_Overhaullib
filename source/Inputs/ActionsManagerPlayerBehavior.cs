@@ -1,4 +1,5 @@
-﻿using CombatOverhaul.Integration.Transpilers;
+﻿using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Integration.Transpilers;
 using CombatOverhaul.Utils;
 using System.Reflection;
 using Vintagestory.API.Client;
@@ -220,12 +221,20 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         _api.World.Items
             .Select(item => item.CollectibleBehaviors as IEnumerable<CollectibleBehavior>)
             .Aggregate((a, b) => a.Concat(b))
+            .OfType<IHasMultipleWeaponLogicModes>()
+            .SelectMany(element => element.ClientLogicModes)
+            .Foreach(RegisterWeapon);
+
+        _api.World.Items
+            .Select(item => item.CollectibleBehaviors as IEnumerable<CollectibleBehavior>)
+            .Aggregate((a, b) => a.Concat(b))
             .OfType<IClientWeaponLogic>()
             .Where(item => item is not IHasMultipleWeaponLogicModes)
             .Foreach(RegisterWeapon);
 
         _api.World.Items
             .OfType<IHasWeaponLogic>()
+            .Where(item => item is not IHasMultipleWeaponLogicModes)
             .Select(element => element.ClientLogic)
             .Foreach(RegisterWeapon);
     }
@@ -473,7 +482,9 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         ItemStack? stack = _player.ActiveHandItemSlot.Itemstack;
 
-        if (stack != null && stack.Item is ISetsRenderingOffset offset)
+        ISetsRenderingOffset? offset = stack?.Collectible?.GetCollectibleInterface<ISetsRenderingOffset>();
+
+        if (offset != null)
         {
             _mainHandRenderingOffset = offset.RenderingOffset;
         }
@@ -514,7 +525,9 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
 
         ItemStack? stack = _player.LeftHandItemSlot.Itemstack;
 
-        if (stack != null && stack.Item is ISetsRenderingOffset offset)
+        ISetsRenderingOffset? offset = stack?.Collectible?.GetCollectibleInterface<ISetsRenderingOffset>();
+
+        if (offset != null)
         {
             _offHandRenderingOffset = offset.RenderingOffset;
         }

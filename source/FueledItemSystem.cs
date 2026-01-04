@@ -114,11 +114,11 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
         _lastCheckTotalHours = totalHours;
     }
 
-    private bool IsSleeping(EntityPlayer ep)
+    private bool IsSleeping(EntityPlayer player)
     {
         try
         {
-            return ep.GetBehavior<EntityBehaviorTiredness>()?.IsSleeping == true;
+            return player.GetBehavior<EntityBehaviorTiredness>()?.IsSleeping == true;
         }
         catch
         {

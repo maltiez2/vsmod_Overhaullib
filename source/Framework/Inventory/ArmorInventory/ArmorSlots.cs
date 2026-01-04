@@ -1,9 +1,7 @@
 ﻿using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Utils;
-using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Util;
@@ -11,7 +9,14 @@ using Vintagestory.Common;
 
 namespace CombatOverhaul.Armor;
 
-public class ClothesSlot : ItemSlotCharacter
+public interface IClickableSlot
+{
+    delegate bool SlotClickedDelegate(ItemSlot thisSlot, ItemSlot sourceSlot, ref ItemStackMoveOperation operation);
+    
+    SlotClickedDelegate OnSlotClicked { set; get; }
+}
+
+public class ClothesSlot : ItemSlotCharacter, IClickableSlot
 {
     public IWorldAccessor? World { get; set; }
     public string? OwnerUUID { get; set; }
@@ -21,12 +26,16 @@ public class ClothesSlot : ItemSlotCharacter
     public string? PreviousColor { get; set; }
     public bool PreviousEmpty { get; set; } = false;
 
+    public IClickableSlot.SlotClickedDelegate? OnSlotClicked { get; set; }
+
     public ClothesSlot(EnumCharacterDressType type, InventoryBase inventory) : base(type, inventory)
     {
     }
 
     public override void ActivateSlot(ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {
+        if (OnSlotClicked?.Invoke(this, sourceSlot, ref op) == true) return;
+        
         if (Itemstack != null) EmptyBag(Itemstack);
 
         try
@@ -163,9 +172,12 @@ public class GearSlot : ClothesSlot
 
         if (ParentSlot.Itemstack == null || parent == null)
         {
-            HexBackgroundColor = "#999999";
-            PreviousColor = HexBackgroundColor;
-            BackgroundIcon = null;
+            if ((inventory as ArmorInventory)?.ModifyColors == true)
+            {
+                HexBackgroundColor = "#999999";
+                PreviousColor = HexBackgroundColor;
+                BackgroundIcon = null;
+            }
             Config = null;
             Enabled = false;
             return;
@@ -174,8 +186,12 @@ public class GearSlot : ClothesSlot
         BackgroundIcon = parent.GetIcon(ParentSlot.Itemstack, inventory, SlotType);
         Enabled = parent.GetIfEnabled(ParentSlot.Itemstack, inventory, SlotType);
         Config = parent.GetConfig(ParentSlot.Itemstack, inventory, SlotType);
-        HexBackgroundColor = Enabled ? null : "#999999";
-        PreviousColor = HexBackgroundColor;
+
+        if ((inventory as ArmorInventory)?.ModifyColors == true)
+        {
+            HexBackgroundColor = Enabled ? null : "#999999";
+            PreviousColor = HexBackgroundColor;
+        }
     }
 
     public override bool CanTake()
@@ -193,7 +209,7 @@ public class GearSlot : ClothesSlot
             ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Empty its contents before removing it.");
             return false;
         }
-        
+
         return base.CanTake();
     }
 
@@ -252,7 +268,7 @@ public class GearSlot : ClothesSlot
     }
 }
 
-public class ArmorSlot : ItemSlot
+public class ArmorSlot : ItemSlot, IClickableSlot
 {
     public ArmorType ArmorType { get; }
     public ArmorType StoredArmoredType => GetStoredArmorType();
@@ -268,6 +284,8 @@ public class ArmorSlot : ItemSlot
     public bool PreviouslyHeldBag { get; set; } = false;
     public int PreviousItemId { get; set; } = 0;
     public int PreviousDurability { get; set; } = 0;
+
+    public IClickableSlot.SlotClickedDelegate? OnSlotClicked { get; set; }
 
     public ArmorSlot(InventoryBase inventory, ArmorType armorType) : base(inventory)
     {
@@ -287,6 +305,8 @@ public class ArmorSlot : ItemSlot
     }
     public override void ActivateSlot(ItemSlot sourceSlot, ref ItemStackMoveOperation op)
     {
+        if (OnSlotClicked?.Invoke(this, sourceSlot, ref op) == true) return;
+
         if (Itemstack != null) EmptyBag(Itemstack);
 
         try

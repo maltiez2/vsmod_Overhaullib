@@ -2,6 +2,7 @@
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul.Utils;
 
@@ -52,5 +53,25 @@ public static class ToolModesUtils
             clientApi.Gui.Icons.DrawIcon(ctx, iconCode, 5.0, 5.0, 38.0, 38.0, colorArray);
         });
         return item;
+    }
+    public static SkillItem GetSkillItemWithItemStack(ICoreClientAPI clientApi, ItemStack? stack, string icon, string color)
+    {
+        if (stack == null)
+        {
+            return GetSkillItemWithIcon(clientApi, icon, color);
+        }
+
+        DummySlot temporarySlot = new(stack)
+        {
+            BackgroundIcon = icon
+        };
+
+        return new SkillItem
+        {
+            Code = "",
+            Name = "",
+            Data = temporarySlot,
+            RenderHandler = GetItemStackRenderCallback(temporarySlot, clientApi, ColorUtil.WhiteArgb)
+        };
     }
 }

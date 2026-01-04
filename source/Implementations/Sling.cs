@@ -424,7 +424,8 @@ public class SlingClient : RangeWeaponClient
     protected bool CanBlockWithOtherHand(EntityPlayer player, bool mainHand = true)
     {
         ItemSlot otherHandSlot = mainHand ? player.LeftHandItemSlot : player.RightHandItemSlot;
-        return (otherHandSlot.Itemstack?.Item as IHasMeleeWeaponActions)?.CanBlock(player, !mainHand) ?? false;
+        IHasMeleeWeaponActions? item = otherHandSlot.Itemstack?.Collectible?.GetCollectibleInterface<IHasMeleeWeaponActions>();
+        return item?.CanBlock(player, !mainHand) ?? false;
     }
 }
 

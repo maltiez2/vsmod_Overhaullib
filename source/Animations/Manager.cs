@@ -2,8 +2,10 @@
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 
 namespace CombatOverhaul.Animations;
@@ -35,6 +37,47 @@ public sealed class AnimationsManager
         Animations = animationsByCode;
     }
 
+    public Animation? GetAnimation(string code, params string[] tags)
+    {
+        return GetAnimationRecursive(code, tags);
+    }
+
+    public Animation? GetAnimation(string code, EntityPlayer player, bool firstPerson = true)
+    {
+        return GetAnimationRecursive(code, GetTags(player, firstPerson));
+    }
+    
+    public bool GetAnimation([NotNullWhen(true)] out Animation? animation, string code, EntityPlayer player, bool firstPerson = true)
+    {
+        animation = GetAnimationRecursive(code, GetTags(player, firstPerson));
+        return animation != null;
+    }
+
+    public IEnumerable<string> GetTags(EntityPlayer player, bool firstPerson = true)
+    {
+        List<string> tags = [];
+
+        if (!firstPerson)
+        {
+            tags.Add("tp");
+        }
+
+        float intoxication = player.WatchedAttributes.GetFloat("intoxication");
+
+        if (intoxication > 0.1f)
+        {
+            tags.Add("drunk");
+        }
+
+        string modelPrefix = player.WatchedAttributes.GetString("skinModel", "").Replace(':', '-');
+        if (modelPrefix != "")
+        {
+            tags.Add(modelPrefix);
+        }
+
+        return tags;
+    }
+
     [Obsolete("Use one from DebugWindowManager")]
     public static void RegisterTransformByCode(ModelTransform transform, string code) => DebugWindowManager.RegisterTransformByCode(transform, code);
     [Obsolete("Use one from DebugWindowManager")]
@@ -47,6 +90,32 @@ public sealed class AnimationsManager
     private readonly ICoreClientAPI _api;
     private static Dictionary<string, Dictionary<string, (Action<LineSegmentCollider> setter, System.Func<LineSegmentCollider> getter)>> _colliders = new();
     internal static AnimationsManager _instance;
+
+    private Animation? GetAnimationRecursive(string code, IEnumerable<string> tags)
+    {
+        foreach (string tag in tags)
+        {
+            string newCode = code + "-" + tag;
+
+            Animation? result = GetAnimationRecursive(code, tags.Except([tag]));
+
+            if (result != null) return result;
+        }
+
+        foreach (string tag in tags)
+        {
+            Animation? result = GetAnimationRecursive(code, tags.Except([tag]));
+
+            if (result != null) return result;
+        }
+
+        if (Animations.TryGetValue(code, out Animation finalResult))
+        {
+            return finalResult;
+        }
+
+        return null;
+    }
 
     private Dictionary<string, Animation> FromAsset(IAsset asset)
     {

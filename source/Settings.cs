@@ -43,6 +43,8 @@ public sealed class Settings
 
     public bool MeleeWeaponIgnoreTerrainBehind { get; set; } = false;
 
+    public float MeleeWeaponAttackSpeedMultiplier { get; set; } = 1;
+
     public int GlobalAttackCooldownMs { get; set; } = 1000;
 
     public bool SecondChanceParticles { get; set; } = true;

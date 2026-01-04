@@ -78,6 +78,8 @@ public sealed class ProjectileServer
         _system.TryCollide(_entity);
     }
 
+    public const string DamageTierPlayerStatPrefix = "rangedDamageTierBonus";
+
     private readonly ProjectileStats _stats;
     private readonly ProjectileSpawnStats _spawnStats;
     internal readonly ProjectileEntity _entity;
@@ -94,8 +96,11 @@ public sealed class ProjectileServer
         string targetName = target.GetName();
         string projectileName = _entity.GetName();
 
+        string damageTierStat = DamageTierPlayerStatPrefix + _stats.DamageStats.DamageType.ToString();
+        float statValue = attacker.Stats.GetBlended(damageTierStat) - 1;
+
         float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier;
-        int damageTierBonus = _stats.DamageTierBonus;
+        int damageTierBonus = _stats.DamageTierBonus + (int)statValue;
         DamageData damageData = new(
             Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType),
             Math.Max(1, _spawnStats.DamageTier + damageTierBonus),

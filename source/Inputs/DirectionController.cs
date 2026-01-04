@@ -52,6 +52,7 @@ public sealed class DirectionController
     public int CurrentDirectionNormalized { get; private set; }
     public bool AlternativeDirectionControls => _settings.DirectionsMovementControls;
     public bool DirectionsHotkeysControls => _settings.DirectionsHotkeysControls;
+    public bool DirectionLocked { get; private set; } = false;
 
     public static readonly Dictionary<DirectionsConfiguration, List<int>> Configurations = new()
     {
@@ -77,6 +78,8 @@ public sealed class DirectionController
         api.Input.RegisterHotKey("combatoverhaul:directions-cursor-backward", "(CO) Directions cursor Down", GlKeys.S);
         api.Input.RegisterHotKey("combatoverhaul:directions-cursor-left", "(CO) Directions cursor Left", GlKeys.A);
         api.Input.RegisterHotKey("combatoverhaul:directions-cursor-right", "(CO) Directions cursor Right", GlKeys.D);
+        api.Input.RegisterHotKey("combatoverhaul:directions-cursor-lock", "(CO) Directions cursor lock", GlKeys.R, shiftPressed: true);
+        api.Input.SetHotKeyHandler("combatoverhaul:directions-cursor-lock", _ => ToggleDirectionsLock());
 
         _forwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-forward"];
         _backwardHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-backward"];
@@ -84,8 +87,37 @@ public sealed class DirectionController
         _rightHotkey = api.Input.HotKeys["combatoverhaul:directions-cursor-right"];
     }
 
+    public bool ToggleDirectionsLock()
+    {
+        long currentTime = _api.World.ElapsedMilliseconds;
+        if (currentTime - _lastDirectionToggle < 1000)
+        {
+            return false;
+        }
+
+        if (DirectionLocked)
+        {
+            _api.TriggerIngameError(this, "", "Direction cursor unlocked");
+            DirectionLocked = false;
+            _lastDirectionToggle = _api.World.ElapsedMilliseconds;
+            return true;
+        }
+        else
+        {
+            _api.TriggerIngameError(this, "", "Direction cursor locked");
+            DirectionLocked = true;
+            _lastDirectionToggle = _api.World.ElapsedMilliseconds;
+            return true;
+        }
+    }
+
     public void OnGameTick(bool forceNewDirection = false)
     {
+        if (DirectionLocked && !forceNewDirection)
+        {
+            return;
+        }
+
         if (DirectionsConfiguration == 0)
         {
             DirectionsConfiguration = DirectionsConfiguration.None;
@@ -165,6 +197,7 @@ public sealed class DirectionController
     private readonly HotKey _backwardHotkey;
     private readonly HotKey _leftHotkey;
     private readonly HotKey _rightHotkey;
+    private long _lastDirectionToggle = 0;
 
     private int CalculateDirection(float yaw, float pitch, int directionsCount)
     {

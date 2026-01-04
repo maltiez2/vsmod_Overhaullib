@@ -17,7 +17,7 @@ public interface IGearSlotModifiedListener
     public void OnSlotModified(ItemSlot slot, ArmorInventory inventory, EntityPlayer player);
 }
 
-public sealed class ArmorInventory : InventoryCharacter
+public class ArmorInventory : InventoryCharacter
 {
     public ArmorInventory(string className, string playerUID, ICoreAPI api) : base(className, playerUID, api)
     {
@@ -33,8 +33,11 @@ public sealed class ArmorInventory : InventoryCharacter
         {
             if (_disableVanillaArmorSlots && IsVanillaArmorSlot(index))
             {
-                _slots[index].DrawUnavailable = true;
-                _slots[index].HexBackgroundColor = "#884444";
+                if (ModifyColors)
+                {
+                    _slots[index].DrawUnavailable = true;
+                    _slots[index].HexBackgroundColor = "#884444";
+                }
                 _slots[index].MaxSlotStackSize = 0;
             }
         }
@@ -55,8 +58,11 @@ public sealed class ArmorInventory : InventoryCharacter
         {
             if (_disableVanillaArmorSlots && IsVanillaArmorSlot(index))
             {
-                _slots[index].DrawUnavailable = true;
-                _slots[index].HexBackgroundColor = "#884444";
+                if (ModifyColors)
+                {
+                    _slots[index].DrawUnavailable = true;
+                    _slots[index].HexBackgroundColor = "#884444";
+                }
                 _slots[index].MaxSlotStackSize = 0;
             }
         }
@@ -72,6 +78,8 @@ public sealed class ArmorInventory : InventoryCharacter
 
     public event SlotModifiedDelegate? OnSlotModified;
     public event SlotModifiedDelegate? OnArmorSlotModified;
+
+    public virtual bool ModifyColors { get; set; } = true;
 
     public static readonly List<string> GearSlotTypes = [
         "headgear",
@@ -109,8 +117,11 @@ public sealed class ArmorInventory : InventoryCharacter
 
             if (_disableVanillaArmorSlots && IsVanillaArmorSlot(index))
             {
-                _slots[index].DrawUnavailable = true;
-                _slots[index].HexBackgroundColor = "#884444";
+                if (ModifyColors)
+                {
+                    _slots[index].DrawUnavailable = true;
+                    _slots[index].HexBackgroundColor = "#884444";
+                }
                 _slots[index].MaxSlotStackSize = 0;
             }
         }
@@ -231,6 +242,7 @@ public sealed class ArmorInventory : InventoryCharacter
 
             foreach (ArmorSlot armorSlot2 in this.OfType<ArmorSlot>())
             {
+                if (!ModifyColors) break;
                 bool available = IsSlotAvailable(armorSlot2.ArmorType) || !armorSlot2.Empty;
                 if (!available)
                 {
@@ -351,10 +363,10 @@ public sealed class ArmorInventory : InventoryCharacter
         return slots;
     }
 
-    private ItemSlot[] _slots;
-    private readonly Dictionary<string, GearSlot> _gearSlots = [];
-    private readonly Dictionary<ArmorType, ArmorSlot> _slotsByType = [];
-    private readonly Dictionary<EnumCharacterDressType, string> _clothesSlotsIcons = new()
+    internal ItemSlot[] _slots;
+    internal readonly Dictionary<string, GearSlot> _gearSlots = [];
+    internal readonly Dictionary<ArmorType, ArmorSlot> _slotsByType = [];
+    internal readonly Dictionary<EnumCharacterDressType, string> _clothesSlotsIcons = new()
     {
         {
             EnumCharacterDressType.Foot,
@@ -417,8 +429,8 @@ public sealed class ArmorInventory : InventoryCharacter
             "armorlegs"
         }
     };
-    private readonly Dictionary<ArmorType, string> _armorSlotsIcons = [];
-    private readonly Dictionary<string, string> _gearSlotsIcons = [];
+    internal readonly Dictionary<ArmorType, string> _armorSlotsIcons = [];
+    internal readonly Dictionary<string, string> _gearSlotsIcons = [];
     internal const int _clothesArmorSlots = 3;
     internal static readonly int _moddedArmorSlotsCount = (Enum.GetValues<ArmorLayers>().Length - 1) * (Enum.GetValues<DamageZone>().Length - 1);
     internal static readonly int _clothesSlotsCount = Enum.GetValues<EnumCharacterDressType>().Length - _clothesArmorSlots - 1;
@@ -427,12 +439,13 @@ public sealed class ArmorInventory : InventoryCharacter
     internal static readonly int _gearSlotsCount = GearSlotTypes.Count;
     internal static readonly int _gearSlotsLastIndex = _armorSlotsLastIndex + _gearSlotsCount;
     internal static readonly int _totalSlotsNumber = _clothesSlotsCount + _clothesArmorSlots + _moddedArmorSlotsCount + _gearSlotsCount;
-    private static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
-    private readonly ICoreAPI _api;
+    internal static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
+    internal static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
+    internal readonly ICoreAPI _api;
     internal static bool _disableVanillaArmorSlots;
-    private bool _clearedArmorSlots = false;
+    internal bool _clearedArmorSlots = false;
 
+    internal ItemSlot CreateNewSlot(int slotId) => NewSlot(slotId);
 
     protected override ItemSlot NewSlot(int slotId)
     {
@@ -526,7 +539,8 @@ public sealed class ArmorInventory : InventoryCharacter
         }
     }
 
-    private static bool IsVanillaArmorSlot(int index) => index >= _clothesSlotsCount && index < _clothesSlotsCount + _clothesArmorSlots;
+    internal static bool IsVanillaArmorSlot(int index) => index >= _clothesSlotsCount && index < _clothesSlotsCount + _clothesArmorSlots;
+    internal static bool IsModdedArmorSlot(int index) => index >= _vanillaSlots && index < _armorSlotsLastIndex;
 
     internal static ArmorType ArmorTypeFromIndex(int index)
     {
