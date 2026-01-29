@@ -97,7 +97,7 @@ public sealed class AnimationsManager
         {
             string newCode = code + "-" + tag;
 
-            Animation? result = GetAnimationRecursive(code, tags.Except([tag]));
+            Animation? result = GetAnimationRecursive(newCode, tags.Except([tag]));
 
             if (result != null) return result;
         }

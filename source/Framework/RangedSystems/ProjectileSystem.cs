@@ -159,8 +159,8 @@ public sealed class ProjectileSystemClient
         ProjectileCollisionPacket newPacket = new()
         {
             Id = id,
-            CollisionPoint = new double[] { point.X, point.Y, point.Z },
-            AfterCollisionVelocity = new double[] { velocity.X, velocity.Y, velocity.Z },
+            CollisionPoint = [point.X, point.Y, point.Z],
+            AfterCollisionVelocity = [velocity.X, velocity.Y, velocity.Z],
             RelativeSpeed = relativeSpeed,
             ReceiverEntity = target.EntityId,
             Collider = collider,
@@ -176,10 +176,17 @@ public sealed class ProjectileSystemClient
     private readonly EntityPartitioning _entityPartitioning;
     private readonly CombatOverhaulSystem _combatOverhaulSystem;
 
+    //private Stopwatch _stopwatch = new();
+
     private void HandleRequest(ProjectileCollisionCheckRequest packet)
     {
+        Vec3d midPoint = new(
+            (packet.CurrentPosition[0] - packet.PreviousPosition[0]) / 2f + packet.PreviousPosition[0],
+            (packet.CurrentPosition[1] - packet.PreviousPosition[1]) / 2f + packet.PreviousPosition[1],
+            (packet.CurrentPosition[2] - packet.PreviousPosition[2]) / 2f + packet.PreviousPosition[2]);
+
         Entity[] entities = _api.World.GetEntitiesAround(
-            new Vec3d(packet.CurrentPosition[0], packet.CurrentPosition[1], packet.CurrentPosition[2]),
+            midPoint,
             _combatOverhaulSystem.Settings.CollisionRadius + packet.Radius,
             _combatOverhaulSystem.Settings.CollisionRadius + packet.Radius);
 
@@ -194,7 +201,29 @@ public sealed class ProjectileSystemClient
                 return;
             }
         }
+
+        /*_stopwatch.Start();
+
+        for (int i = 0; i < 1000; i++)
+        {
+            Vector3d currentPosition = new(packet.CurrentPosition[0], packet.CurrentPosition[1], packet.CurrentPosition[2]);
+            Vector3d previousPosition = new(packet.PreviousPosition[0], packet.PreviousPosition[1], packet.PreviousPosition[2]);
+            Vector3d velocity = new(packet.Velocity[0], packet.Velocity[1], packet.Velocity[2]);
+
+            foreach (Entity entity in entities.Where(entity => entity.IsCreature))
+            {
+                if (Collide(entity, packet, currentPosition, previousPosition, velocity))
+                {
+                    break;
+                }
+            }
+        }
+
+        _stopwatch.Stop();
+        Console.WriteLine($"{_stopwatch.Elapsed.TotalMicroseconds / 1000:F3} microseconds\t{entities.Length} entities");
+        _stopwatch.Reset();*/
     }
+
     private bool Collide(Entity target, ProjectileCollisionCheckRequest packet, Vector3d currentPosition, Vector3d previousPosition, Vector3d velocity)
     {
         if (target.EntityId == packet.ProjectileEntityId) return false;

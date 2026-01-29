@@ -156,6 +156,7 @@ public class Animatable : CollectibleBehavior
         int renderVariant = itemStack.Attributes.GetAsInt("renderVariant", 0);
         if (renderVariant <= 0) return (CurrentFirstPerson || SwitchModels ? ShapeFirstPerson : Shape) ?? Shape ?? ShapeFirstPerson;
         renderVariant -= RenderVariantOffset;
+        if (renderVariant < 0) return (CurrentFirstPerson || SwitchModels ? ShapeFirstPerson : Shape) ?? Shape ?? ShapeFirstPerson;
 
         if (CurrentFirstPerson && ShapeFirstPerson != null)
         {

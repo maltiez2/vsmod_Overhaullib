@@ -110,8 +110,8 @@ public class BowClient : RangeWeaponClient
         AttachmentSystem.SendAttachPacket(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
         RangedWeaponSystem.Reload(slot, arrowSlot, 1, mainHand, ReloadCallback);
 
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, callback: LoadAnimationCallback);
-        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed);
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, callback: LoadAnimationCallback);
+        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed);
 
         AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.BowsAimingCursorType);
         AimingStats.VerticalLimit = Settings.BowsAimingVerticalLimit * Stats.Aiming.VerticalLimit;
@@ -176,7 +176,7 @@ public class BowClient : RangeWeaponClient
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
-        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
+        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
         AnimationBehavior?.Play(request, mainHand);
         TpAnimationBehavior?.Play(request, mainHand);
 
@@ -432,10 +432,20 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAni
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
-        if (_stats != null && _stats.ProficiencyStat != "")
+        if (_stats != null)
         {
-            string description = Lang.Get("combatoverhaul:iteminfo-proficiency", Lang.Get($"combatoverhaul:proficiency-{_stats.ProficiencyStat}"));
-            dsc.AppendLine(description);
+            string[] stats = _stats.ProficiencyStats;
+            if (_stats.ProficiencyStat != "")
+            {
+                stats = stats.Prepend(_stats.ProficiencyStat).ToArray();
+            }
+
+            if (stats.Length > 0)
+            {
+                string statsList = stats.Select(statName => Lang.Get($"combatoverhaul:proficiency-{statName}")).Aggregate((f, s) => $"{f}, {s}");
+                string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
+                dsc.AppendLine(description);
+            }
         }
 
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);

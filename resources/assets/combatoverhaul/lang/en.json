@@ -122,6 +122,11 @@
   "stat-fallDamageThreshold": "Fall damage threshold",
   "stat-jumpHeightMul": "Jump height",
 
+  "proficiency-rangedProficiency": "Ranged",
+  "proficiency-meleeProficiency": "Melee",
+  "proficiency-polearmsProficiency": "Polearms",
+  "proficiency-poleaxeProficiency": "Poleaxes",
+  "proficiency-knightlyProficiency": "Knightly",
   "proficiency-bowsProficiency": "Bows",
   "proficiency-crossbowsProficiency": "Crossbows",
   "proficiency-firearmsProficiency": "Firearms",

@@ -124,8 +124,8 @@ public class SlingClient : RangeWeaponClient
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
         
         RangedWeaponSystem.Reload(slot, bulletSlot, 1, mainHand, ReloadCallback);
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, weight: 1000, callback: LoadAnimationCallback, callbackHandler: code => LoadAnimationCallback(code, bulletSlot.Itemstack, player));
-        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat) * stackStats.ReloadSpeed, weight: 1000);
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, weight: 1000, callback: LoadAnimationCallback, callbackHandler: code => LoadAnimationCallback(code, bulletSlot.Itemstack, player));
+        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, weight: 1000);
 
         AimingAnimationController?.Play(mainHand);
 
@@ -245,7 +245,7 @@ public class SlingClient : RangeWeaponClient
 
             AnimationRequestByCode request = new(
                 Stats.SwingAnimation,
-                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                GetAnimationSpeed(player, Stats) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
                 1,
                 "main",
                 TimeSpan.FromSeconds(0.2),
@@ -268,7 +268,7 @@ public class SlingClient : RangeWeaponClient
 
             AnimationRequestByCode request = new(
                 Stats.ReleaseAnimation,
-                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                GetAnimationSpeed(player, Stats) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
                 1,
                 "main",
                 TimeSpan.FromSeconds(0.2),
@@ -286,7 +286,7 @@ public class SlingClient : RangeWeaponClient
 
             AnimationRequestByCode request = new(
                 Stats.SwingAnimation,
-                GetAnimationSpeed(player, Stats.ProficiencyStat) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
+                GetAnimationSpeed(player, Stats) * CurrentSwingSpeed * Stats.SwingAnimationSpeed,
                 1,
                 "main",
                 TimeSpan.FromSeconds(0.2),
@@ -381,7 +381,7 @@ public class SlingClient : RangeWeaponClient
         MemoryStream stream = new();
         BinaryWriter writer = new(stream);
         writer.Write(swingSpeed);
-        writer.Write(GetAnimationSpeed(player, Stats.ProficiencyStat));
+        writer.Write(GetAnimationSpeed(player, Stats));
         return stream.ToArray();
     }
 
@@ -570,10 +570,20 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveA
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
-        if (_stats != null && _stats.ProficiencyStat != "")
+        if (_stats != null)
         {
-            string description = Lang.Get("combatoverhaul:iteminfo-proficiency", Lang.Get($"combatoverhaul:proficiency-{_stats.ProficiencyStat}"));
-            dsc.AppendLine(description);
+            string[] stats = _stats.ProficiencyStats;
+            if (_stats.ProficiencyStat != "")
+            {
+                stats = stats.Prepend(_stats.ProficiencyStat).ToArray();
+            }
+
+            if (stats.Length > 0)
+            {
+                string statsList = stats.Select(statName => Lang.Get($"combatoverhaul:proficiency-{statName}")).Aggregate((f, s) => $"{f}, {s}");
+                string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
+                dsc.AppendLine(description);
+            }
         }
 
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);

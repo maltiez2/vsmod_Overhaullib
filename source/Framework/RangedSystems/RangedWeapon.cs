@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.Animations;
+using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;
@@ -75,6 +76,16 @@ public class RangeWeaponClient : IClientWeaponLogic
     {
         float manipulationSpeed = PlayerBehavior?.ManipulationSpeed ?? 1;
         float proficiencyBonus = proficiencyStat == "" ? 0 : player.Stats.GetBlended(proficiencyStat) - 1;
+        return Math.Clamp(manipulationSpeed + proficiencyBonus, min, max);
+    }
+    protected virtual float GetAnimationSpeed(Entity player, WeaponStats stats, float min = 0.5f, float max = 2f)
+    {
+        float manipulationSpeed = PlayerBehavior?.ManipulationSpeed ?? 1;
+        float proficiencyBonus = stats.ProficiencyStat == "" ? 0 : player.Stats.GetBlended(stats.ProficiencyStat) - 1;
+        foreach (string stat in stats.ProficiencyStats)
+        {
+            proficiencyBonus += player.Stats.GetBlended(stat) - 1;
+        }
         return Math.Clamp(manipulationSpeed + proficiencyBonus, min, max);
     }
     protected bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)

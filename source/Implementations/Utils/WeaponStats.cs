@@ -9,4 +9,5 @@ public class WeaponStats
     public string SwimAnimation { get; set; } = "";
     public string SwimIdleAnimation { get; set; } = "";
     public string ProficiencyStat { get; set; } = "";
+    public string[] ProficiencyStats { get; set; } = [];
 }

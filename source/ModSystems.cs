@@ -69,6 +69,26 @@ public sealed class TogglePacket
     public string HotKeyCode { get; set; } = "";
 }
 
+internal class LogStuff : ModSystem
+{
+    public override void Start(ICoreAPI api)
+    {
+        string mods = api.ModLoader.Mods.Select(mod => $"'{mod.Info.ModID}'\t'{mod.Info.Version}'\t'{mod.Info.Name}'\t'{Aggregate(mod.Info.Authors, mod)}'\t'{mod.FileName}'").Aggregate((f, s) => $"{f}\n{s}");
+        api.Logger.Event("Loaded mods:\n" + mods);
+    }
+
+    private static string Aggregate(IEnumerable<string> list, Mod mod)
+    {
+        if (!list.Any())
+        {
+            mod.Logger.Warning($"Mod '{mod.Info.Name} ({mod.FileName})' has no authors specified in mod info.");
+            return "-";
+        }
+
+        return list.Aggregate((f, s) => $"{f}, {s}");
+    }
+}
+
 public partial class CombatOverhaulSystem : ModSystem
 {
     public event Action? OnDispose;
@@ -420,6 +440,8 @@ public partial class CombatOverhaulSystem : ModSystem
 
             setting.AssignSettingValue(Settings);
             SettingsChanged?.Invoke(Settings);
+
+            DamageResistData.EntityProtectionFactor = Settings.EntityProtectionMultiplier;
         };
 
         system.ConfigsLoaded += () =>
@@ -427,6 +449,8 @@ public partial class CombatOverhaulSystem : ModSystem
             system.GetConfig("combatoverhaul")?.AssignSettingsValues(Settings);
             system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
             SettingsLoaded?.Invoke(Settings);
+
+            DamageResistData.EntityProtectionFactor = Settings.EntityProtectionMultiplier;
         };
     }
 

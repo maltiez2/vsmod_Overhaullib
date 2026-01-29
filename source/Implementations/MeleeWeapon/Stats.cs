@@ -36,11 +36,13 @@ public class StanceStats
 
     public float AttackCooldownMs { get; set; } = 0;
     public float BlockCooldownMs { get; set; } = 0;
+    public float ParryCooldownMs { get; set; } = 0;
     public bool ParryWithoutDelay { get; set; } = true;
 
     public string AttackDirectionsType { get; set; } = "None";
     public Dictionary<string, string[]> AttackAnimation { get; set; } = [];
     public Dictionary<string, string[]> BlockBashAnimation { get; set; } = [];
+    public string? ParryAnimation { get; set; } = null;
     public string? BlockAnimation { get; set; } = null;
     public string? RiposteAnimation { get; set; } = null;
     public string? ReadyAnimation { get; set; } = null;

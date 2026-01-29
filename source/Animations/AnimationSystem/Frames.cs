@@ -611,7 +611,7 @@ public readonly struct PlayerFrame
                 {
                     if (LowerTorso != null)
                     {
-                        AnimationElement torso = new(LowerTorso?.OffsetX, (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier, LowerTorso?.OffsetZ, LowerTorso?.RotationX, LowerTorso?.RotationY, LowerTorso?.RotationZ);
+                        AnimationElement torso = new(LowerTorso.Value.OffsetX, (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier, LowerTorso.Value.OffsetZ, LowerTorso.Value.RotationX, LowerTorso.Value.RotationY, LowerTorso.Value.RotationZ);
                         torso.Apply(pose);
                     }
                     else

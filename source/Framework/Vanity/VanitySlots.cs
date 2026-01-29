@@ -51,6 +51,8 @@ public class ClothesVanitySlot : ClothesSlot, ISlotContentCanHide
             MarkDirty();
         }
     }
+
+    public override ItemStack? TakeOut(int quantity) => null;
 }
 
 public class GearVanitySlot : GearSlot, ISlotContentCanHide
@@ -93,6 +95,8 @@ public class GearVanitySlot : GearSlot, ISlotContentCanHide
             MarkDirty();
         }
     }
+
+    public override ItemStack? TakeOut(int quantity) => null;
 }
 
 public class ArmorVanitySlot : ArmorSlot, ISlotContentCanHide
@@ -135,4 +139,6 @@ public class ArmorVanitySlot : ArmorSlot, ISlotContentCanHide
             MarkDirty();
         }
     }
+
+    public override ItemStack? TakeOut(int quantity) => null;
 }

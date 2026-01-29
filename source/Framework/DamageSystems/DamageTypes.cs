@@ -75,33 +75,34 @@ public class DamageResistData
 
     public static int MaxAttackTier { get; set; } = 9;
     public static int MaxArmorTier { get; set; } = 24;
-    public static float[][] DamageReduction { get; set; } = new float[][]
-    {
-        new float[] { 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.25f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.10f, 0.25f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.05f, 0.15f, 0.33f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.03f, 0.10f, 0.25f, 0.40f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f },
-        new float[] { 0.02f, 0.05f, 0.20f, 0.33f, 0.40f, 0.50f, 0.75f, 1.00f, 1.00f },
-        new float[] { 0.01f, 0.03f, 0.15f, 0.25f, 0.35f, 0.45f, 0.50f, 0.75f, 1.00f },
-        new float[] { 0.01f, 0.02f, 0.10f, 0.20f, 0.30f, 0.40f, 0.45f, 0.50f, 0.75f },
-        new float[] { 0.01f, 0.01f, 0.05f, 0.15f, 0.25f, 0.35f, 0.40f, 0.45f, 0.50f },
-        new float[] { 0.01f, 0.01f, 0.03f, 0.10f, 0.20f, 0.30f, 0.35f, 0.41f, 0.46f },
-        new float[] { 0.01f, 0.01f, 0.02f, 0.07f, 0.15f, 0.25f, 0.30f, 0.37f, 0.42f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.05f, 0.10f, 0.20f, 0.25f, 0.33f, 0.39f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.15f, 0.20f, 0.29f, 0.36f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.10f, 0.17f, 0.25f, 0.33f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.08f, 0.15f, 0.21f, 0.30f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.12f, 0.18f, 0.27f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.10f, 0.15f, 0.24f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.08f, 0.12f, 0.21f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.10f, 0.18f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.08f, 0.15f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.07f, 0.12f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.06f, 0.10f },
-        new float[] { 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.05f, 0.08f }
-    };
+    public static float[][] DamageReduction { get; set; } =
+    [
+        [0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f],
+        [0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f],
+        [0.25f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f],
+        [0.10f, 0.25f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f],
+        [0.05f, 0.15f, 0.33f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f, 1.00f],
+        [0.03f, 0.10f, 0.25f, 0.40f, 0.50f, 0.75f, 1.00f, 1.00f, 1.00f],
+        [0.02f, 0.05f, 0.20f, 0.33f, 0.40f, 0.50f, 0.75f, 1.00f, 1.00f],
+        [0.01f, 0.03f, 0.15f, 0.25f, 0.35f, 0.45f, 0.50f, 0.75f, 1.00f],
+        [0.01f, 0.02f, 0.10f, 0.20f, 0.30f, 0.40f, 0.45f, 0.50f, 0.75f],
+        [0.01f, 0.01f, 0.05f, 0.15f, 0.25f, 0.35f, 0.40f, 0.45f, 0.50f],
+        [0.01f, 0.01f, 0.03f, 0.10f, 0.20f, 0.30f, 0.35f, 0.41f, 0.46f],
+        [0.01f, 0.01f, 0.02f, 0.07f, 0.15f, 0.25f, 0.30f, 0.37f, 0.42f],
+        [0.01f, 0.01f, 0.01f, 0.05f, 0.10f, 0.20f, 0.25f, 0.33f, 0.39f],
+        [0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.15f, 0.20f, 0.29f, 0.36f],
+        [0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.10f, 0.17f, 0.25f, 0.33f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.08f, 0.15f, 0.21f, 0.30f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.12f, 0.18f, 0.27f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.10f, 0.15f, 0.24f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.08f, 0.12f, 0.21f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.07f, 0.10f, 0.18f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.06f, 0.08f, 0.15f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.07f, 0.12f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.03f, 0.06f, 0.10f],
+        [0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.01f, 0.02f, 0.05f, 0.08f]
+    ];
+    public static float EntityProtectionFactor { get; set; } = 0.5f;
 
     public DamageResistData(Dictionary<EnumDamageType, float> resists, Dictionary<EnumDamageType, float> flatDamageReduction)
     {
@@ -308,11 +309,6 @@ public class DamageResistData
     }
     private static float FlatMultiplier(float protection, float attackTier)
     {
-        if (attackTier >= protection)
-            return 1;
-        else if (attackTier < protection - 1)
-            return 0.5f;
-        else
-            return 0.75f;
+        return attackTier >= protection ? 1 : EntityProtectionFactor;
     }
 }

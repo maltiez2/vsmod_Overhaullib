@@ -39,8 +39,8 @@ public sealed class Composer
             ProcessWeight(category, state);
         }
 
-        List<(PlayerItemFrame, float)> frames = new();
-        foreach ((string category, Animator? animator) in _animators)
+        List<(PlayerItemFrame, float)> frames = [];
+        foreach ((string category, Animator animator) in _animators)
         {
             PlayerItemFrame frame = animator.Animate(delta, out IEnumerable<string> callbacks);
             frames.Add((frame, _currentWeight[category]));
@@ -49,15 +49,25 @@ public sealed class Composer
             {
                 _requests[category].CallbackHandler?.Invoke(callbackId);
             }
+
+            if (animator.Finished())
+            {
+                IEnumerable<string> unfiredCallbacks = animator.GetUnfiredCallbacks();
+                foreach (string callbackId in unfiredCallbacks)
+                {
+                    _requests[category].CallbackHandler?.Invoke(callbackId);
+                }
+                animator.ClearUnfiredCallbacks();
+            }
         }
 
         PlayerItemFrame result = PlayerItemFrame.Compose(frames);
 
         foreach (string category in _requests.Select(entry => entry.Key).ToArray())
         {
-            if ((_animators[category].Finished() && _weightState[category] == AnimatorWeightState.Finished))
+            if (_animators[category].Finished() && _weightState[category] == AnimatorWeightState.Finished)
             {
-                System.Func<bool>? callback = _requests[category].FinishCallback;
+                Func<bool>? callback = _requests[category].FinishCallback;
                 bool removeCategory = true;
                 if (callback != null && !_callbacksCalled[category])
                 {
@@ -81,7 +91,7 @@ public sealed class Composer
 
             if (_animators[category].Stopped() && _requests[category].FinishCallback != null)
             {
-                System.Func<bool>? callback = _requests[category].FinishCallback;
+                Func<bool>? callback = _requests[category].FinishCallback;
                 bool removeCategory = false;
                 if (callback != null && !_callbacksCalled[category])
                 {
@@ -317,57 +327,9 @@ public readonly struct AnimationRequestByCode
         Weight = request.Weight;
         Category = request.Category;
         EaseOutDuration = request.EaseOutDuration;
-        EaseInDuration= request.EaseInDuration;
+        EaseInDuration = request.EaseInDuration;
         EaseOut = request.EaseOut;
         FinishCallback = finishCallback;
         CallbackHandler = callbackHandler;
     }
-}
-
-internal class Animator
-{
-    public Animator(Animation animation, SoundsSynchronizerClient? soundsManager, ParticleEffectsManager? particleEffectsManager, EntityPlayer player, float animationSpeed)
-    {
-        _currentAnimation = animation;
-        _soundsManager = soundsManager;
-        _animationSpeed = animationSpeed;
-        _player = player;
-        _particleEffectsManager = particleEffectsManager;
-    }
-
-    public bool FinishOverride { get; set; } = false;
-
-    public void Play(Animation animation, TimeSpan duration) => Play(animation, (float)(animation.TotalDuration / duration));
-    public void Play(Animation animation, float animationSpeed)
-    {
-        _currentAnimation = animation;
-        _animationSpeed = animationSpeed;
-        _currentDuration = TimeSpan.Zero;
-        _previousAnimationFrame = _lastFrame;
-    }
-
-    public PlayerItemFrame Animate(TimeSpan delta, out IEnumerable<string> callbacks)
-    {
-        TimeSpan previousDuration = _currentDuration * _animationSpeed;
-        _currentDuration += delta;
-        TimeSpan adjustedDuration = _currentDuration * _animationSpeed;
-
-        if (_soundsManager != null) _currentAnimation.PlaySounds(_soundsManager, previousDuration, adjustedDuration);
-        if (_particleEffectsManager != null) _currentAnimation.SpawnParticles(_player, _particleEffectsManager, previousDuration, adjustedDuration);
-        callbacks = _currentAnimation.GetCallbacks(previousDuration, adjustedDuration);
-
-        _lastFrame = _currentAnimation.Interpolate(_previousAnimationFrame, adjustedDuration);
-        return _lastFrame;
-    }
-    public bool Stopped() => _currentAnimation.TotalDuration <= _currentDuration * _animationSpeed;
-    public bool Finished() => FinishOverride || (Stopped() && !_currentAnimation.Hold);
-
-    private PlayerItemFrame _previousAnimationFrame = PlayerItemFrame.Zero;
-    private PlayerItemFrame _lastFrame = PlayerItemFrame.Zero;
-    private TimeSpan _currentDuration = TimeSpan.Zero;
-    private float _animationSpeed;
-    private Animation _currentAnimation;
-    private readonly SoundsSynchronizerClient? _soundsManager;
-    private readonly ParticleEffectsManager? _particleEffectsManager;
-    private readonly EntityPlayer _player;
 }

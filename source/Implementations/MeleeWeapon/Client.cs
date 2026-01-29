@@ -1,4 +1,5 @@
-﻿using CombatOverhaul.Animations;
+﻿using Cairo;
+using CombatOverhaul.Animations;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
@@ -451,10 +452,20 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
     public void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
-        if (Stats.ProficiencyStat != "")
+        if (Stats != null)
         {
-            string description = Lang.Get("combatoverhaul:iteminfo-proficiency", Lang.Get($"combatoverhaul:proficiency-{Stats.ProficiencyStat}"));
-            dsc.AppendLine(description);
+            string[] stats = Stats.ProficiencyStats;
+            if (Stats.ProficiencyStat != "")
+            {
+                stats = stats.Prepend(Stats.ProficiencyStat).ToArray();
+            }
+
+            if (stats.Length > 0)
+            {
+                string statsList = stats.Select(statName => Lang.Get($"combatoverhaul:proficiency-{statName}")).Aggregate((f, s) => $"{f}, {s}");
+                string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
+                dsc.AppendLine(description);
+            }
         }
 
         if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageTypes.Length > 0)
@@ -627,8 +638,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-melee-weapon-parryStats", $"{blockTier:F0}", bodyParts, Lang.Get("combatoverhaul:iteminfo-melee-weapon-offhanded-block")));
         }
     }
-    public bool RestrictRightHandAction() => !CheckState(false, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown) && GetStance<MeleeWeaponStance>(false) != MeleeWeaponStance.OffHandDualWield;
-    public bool RestrictLeftHandAction() => !CheckState(true, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown) && GetStance<MeleeWeaponStance>(true) != MeleeWeaponStance.MainHandDualWield;
+    public bool RestrictRightHandAction() => !CheckState(true, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown) && GetStance<MeleeWeaponStance>(true) != MeleeWeaponStance.OffHandDualWield;
+    public bool RestrictLeftHandAction() => !CheckState(false, MeleeWeaponState.Idle, MeleeWeaponState.Aiming, MeleeWeaponState.StartingAim, MeleeWeaponState.Cooldown) && GetStance<MeleeWeaponStance>(false) != MeleeWeaponStance.MainHandDualWield;
 
     public void PlayReadyAnimation(bool mainHand)
     {
@@ -773,12 +784,13 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         int counter = mainHand ? MainHandAttackCounter : OffHandAttackCounter;
 
         string attackAnimation =
-            riposte ? stats.RiposteAnimation :
+            (riposte ? stats.RiposteAnimation :
             DirectionsType == DirectionsConfiguration.None ?
             stats.AttackAnimation["Main"][counter % stats.AttackAnimation["Main"].Length] :
-            stats.AttackAnimation[direction.ToString()][counter % stats.AttackAnimation[direction.ToString()].Length];
+            stats.AttackAnimation[direction.ToString()][counter % stats.AttackAnimation[direction.ToString()].Length])
+            ?? throw new InvalidOperationException($"[Combat Overhaul] Item '{Item.Code}' does not have attack animation specified");
 
-        float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier * Settings.MeleeWeaponAttackSpeedMultiplier;
+        float animationSpeed = GetAnimationSpeed(player, Stats) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier * Settings.MeleeWeaponAttackSpeedMultiplier;
         MeleeBlockSystem.StopBlock(mainHand);
 
         SetState(MeleeWeaponState.WindingUp, mainHand);
@@ -1012,7 +1024,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!CanBlock(player, mainHand) && !CanParry(player, mainHand)) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle, MeleeWeaponState.WindingUp, MeleeWeaponState.Cooldown)) return handleEvent;
-        //if (IsBlockOnCooldown(mainHand)) return handleEvent;
+        if (IsBlockOnCooldown(mainHand)) return handleEvent;
         EnsureStance(player, mainHand);
         if (mainHand && CanBlockWithOtherHand(player, mainHand)) return handleEvent;
         if (ActionRestricted(player, mainHand)) return handleEvent;
@@ -1054,14 +1066,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             }
             AnimationBehavior?.Play(
                 mainHand,
-                stats.BlockAnimation,
+                stats.ParryAnimation ?? stats.BlockAnimation ?? throw new InvalidOperationException($"[Combat Overhaul] Item '{Item.Code}' does not have block or parry animations specified"),
                 animationSpeed: PlayerActionsBehavior?.ManipulationSpeed ?? 1,
                 category: AnimationCategory(mainHand),
-                callback: () => BlockAnimationCallback(mainHand, player),
+                callback: () => BlockAnimationCallback(mainHand, player, TimeSpan.FromMilliseconds(stats.ParryCooldownMs)),
                 callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats, player));
             TpAnimationBehavior?.Play(
                 mainHand,
-                stats.BlockAnimation,
+                stats.ParryAnimation ?? stats.BlockAnimation ?? throw new InvalidOperationException($"[Combat Overhaul] Item '{Item.Code}' does not have block or parry animations specified"),
                 animationSpeed: PlayerActionsBehavior?.ManipulationSpeed ?? 1,
                 category: AnimationCategory(mainHand));
 
@@ -1073,15 +1085,15 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             MeleeBlockSystem.StartBlock(blockStats, mainHand);
             AnimationBehavior?.Play(
                 mainHand,
-                stats.BlockAnimation,
-                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                stats.BlockAnimation ?? throw new InvalidOperationException($"[Combat Overhaul] Item '{Item.Code}' does not have block or parry animations specified"),
+                animationSpeed: GetAnimationSpeed(player, Stats),
                 category: AnimationCategory(mainHand),
-                callback: () => BlockAnimationCallback(mainHand, player),
+                callback: () => BlockAnimationCallback(mainHand, player, TimeSpan.FromMilliseconds(stats.BlockCooldownMs)),
                 callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats, player));
             TpAnimationBehavior?.Play(
                 mainHand,
-                stats.BlockAnimation,
-                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                stats.BlockAnimation ?? throw new InvalidOperationException($"[Combat Overhaul] Item '{Item.Code}' does not have block or parry animations specified"),
+                animationSpeed: GetAnimationSpeed(player, Stats),
                 category: AnimationCategory(mainHand));
         }
 
@@ -1117,7 +1129,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 break;
         }
     }
-    protected virtual bool BlockAnimationCallback(bool mainHand, EntityPlayer player)
+    protected virtual bool BlockAnimationCallback(bool mainHand, EntityPlayer player, TimeSpan cooldown)
     {
         if (!CheckState(mainHand, MeleeWeaponState.Parrying)) return true;
 
@@ -1125,10 +1137,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         AnimationBehavior?.PlayReadyAnimation(mainHand);
         TpAnimationBehavior?.PlayReadyAnimation(mainHand);
 
-        float cooldown = GetStanceStats(player, mainHand)?.BlockCooldownMs ?? 0;
-        if (cooldown != 0)
+        if (cooldown > TimeSpan.Zero)
         {
-            StartBlockCooldown(mainHand, TimeSpan.FromMilliseconds(cooldown));
+            StartBlockCooldown(mainHand, cooldown);
         }
 
         SetSpeedPenalty(mainHand, player);
@@ -1260,7 +1271,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         stats.BlockBashAnimation["Main"][counter % stats.BlockBashAnimation["Main"].Length] :
                         stats.BlockBashAnimation[direction.ToString()][counter % stats.BlockBashAnimation[direction.ToString()].Length];
 
-                    float animationSpeed = GetAnimationSpeed(player, Stats.ProficiencyStat) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
+                    float animationSpeed = GetAnimationSpeed(player, Stats) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
                     SetState(MeleeWeaponState.BlockBashWindingUp, mainHand);
                     ParryButtonReleased = true;
                     attack.Start(player.Player);
@@ -1434,14 +1445,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             AnimationBehavior?.Play(
                 mainHand,
                 stats.BlockAnimation,
-                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                animationSpeed: GetAnimationSpeed(player, Stats),
                 category: AnimationCategory(mainHand),
-                callback: () => BlockAnimationCallback(mainHand, player),
+                callback: () => BlockAnimationCallback(mainHand, player, TimeSpan.FromMilliseconds(stats.BlockCooldownMs)),
                 callbackHandler: code => BlockAnimationCallbackHandler(code, mainHand, blockStats, parryStats, player));
             TpAnimationBehavior?.Play(
                 mainHand,
                 stats.BlockAnimation,
-                animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat),
+                animationSpeed: GetAnimationSpeed(player, Stats),
                 category: AnimationCategory(mainHand));
         }
 
@@ -1471,8 +1482,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         AimingStats.HorizontalLimit = Settings.ThrownWeaponsAimingHorizontalLimit * DefaultHorizontalLimit;
         AimingSystem.StartAiming(AimingStats);
 
-        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => AimAnimationCallback(slot, mainHand));
-        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat));
+        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats), callback: () => AimAnimationCallback(slot, mainHand));
+        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats));
         if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.ThrowAttack.TpAimAnimation, mainHand);
 
         return true;
@@ -1508,8 +1519,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         AimingStats.HorizontalLimit = Settings.ThrownWeaponsAimingHorizontalLimit * DefaultHorizontalLimit;
         AimingSystem.StartAiming(AimingStats);
 
-        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => AimAnimationCallback(slot, mainHand));
-        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat));
+        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats), callback: () => AimAnimationCallback(slot, mainHand));
+        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.AimAnimation, animationSpeed: GetAnimationSpeed(player, Stats));
         if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.ThrowAttack.TpAimAnimation, mainHand);
 
         return true;
@@ -1524,8 +1535,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (!CheckState(mainHand, MeleeWeaponState.Aiming)) return false;
 
         SetState(MeleeWeaponState.Throwing, mainHand);
-        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.ThrowAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat), callback: () => ThrowAnimationCallback(slot, player, mainHand));
-        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.ThrowAnimation, animationSpeed: GetAnimationSpeed(player, Stats.ProficiencyStat));
+        AnimationBehavior?.Play(mainHand, Stats.ThrowAttack.ThrowAnimation, animationSpeed: GetAnimationSpeed(player, Stats), callback: () => ThrowAnimationCallback(slot, player, mainHand));
+        TpAnimationBehavior?.Play(mainHand, Stats.ThrowAttack.ThrowAnimation, animationSpeed: GetAnimationSpeed(player, Stats));
         AnimationBehavior?.StopVanillaAnimation(Stats.ThrowAttack.TpAimAnimation, mainHand);
         if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.ThrowAttack.TpThrowAnimation, mainHand);
 
@@ -1906,18 +1917,36 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         float proficiencyBonus = proficiencyStat == "" ? 0 : player.Stats.GetBlended(proficiencyStat) - 1;
         return Math.Clamp(manipulationSpeed + proficiencyBonus, min, max);
     }
+    protected virtual float GetAnimationSpeed(Entity player, WeaponStats stats, float min = 0.5f, float max = 2f)
+    {
+        float manipulationSpeed = PlayerActionsBehavior?.ManipulationSpeed ?? 1;
+        float proficiencyBonus = stats.ProficiencyStat == "" ? 0 : player.Stats.GetBlended(stats.ProficiencyStat) - 1;
+        foreach (string stat in stats.ProficiencyStats)
+        {
+            proficiencyBonus += player.Stats.GetBlended(stat) - 1;
+        }
+        return Math.Clamp(manipulationSpeed + proficiencyBonus, min, max);
+    }
+
     protected virtual bool ActionRestricted(EntityPlayer player, bool mainHand = true)
     {
-        ItemSlot slot = mainHand ? player.RightHandItemSlot : player.LeftHandItemSlot;
+        ItemSlot slot = !mainHand ? player.RightHandItemSlot : player.LeftHandItemSlot;
 
         IRestrictAction? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IRestrictAction>();
 
-        return item?.RestrictRightHandAction() ?? false;
+        if (item == null)
+        {
+            return false;
+        }
+
+        return !mainHand ? item.RestrictRightHandAction() : item.RestrictLeftHandAction();
     }
     protected virtual string GetAttackStatsDescription(ItemSlot inSlot, IEnumerable<DamageDataJson> damageTypesData, string descriptionLangCode)
     {
-        float damage = 0;
-        float tier = 0;
+        float maxDamage = 0;
+        float minDamage = float.MaxValue;
+        float maxTier = 0;
+        float minTier = float.MaxValue;
         int armorPiercingTier = 0;
         HashSet<string> damageTypes = new();
 
@@ -1926,15 +1955,24 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         foreach (DamageDataJson attack in damageTypesData)
         {
             float attackDamage = attack.Damage * stackStats.DamageMultiplier;
-            if (attackDamage > damage)
+            if (attackDamage > maxDamage)
             {
-                damage = attackDamage;
+                maxDamage = attackDamage;
+            }
+
+            if (attackDamage < minDamage)
+            {
+                minDamage = attackDamage;
             }
 
             float currentTier = Math.Max(attack.Strength, attack.Tier) + stackStats.DamageTierBonus;
-            if (currentTier > tier)
+            if (currentTier > maxTier)
             {
-                tier = currentTier;
+                maxTier = currentTier;
+            }
+            if (currentTier < minTier)
+            {
+                minTier = currentTier;
             }
 
             int currentArmorPiercingTier = attack.ArmorPiercingTier;
@@ -1948,7 +1986,10 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         string damageType = damageTypes.Select(element => Lang.Get($"combatoverhaul:damage-type-{element}")).Aggregate((first, second) => $"{first}, {second}");
 
-        return Lang.Get(descriptionLangCode, $"{damage:F1}", tier, damageType) + (armorPiercingTier > 0 ? "\n" + Lang.Get("combatoverhaul:iteminfo-melee-weapon-armorpiercing", armorPiercingTier) : "");
+        string damageString = minDamage == maxDamage ? $"{maxDamage:F0}" : $"{minDamage:F0}-{maxDamage:F0}";
+        string tierString = minTier == maxTier ? $"{maxTier:F0}" : $"{minTier:F0}-{maxTier:F0}";
+
+        return Lang.Get(descriptionLangCode, damageString, tierString, damageType) + (armorPiercingTier > 0 ? "\n" + Lang.Get("combatoverhaul:iteminfo-melee-weapon-armorpiercing", armorPiercingTier) : "");
     }
     protected virtual bool ItemInOtherHandBlocksAttack(EntityPlayer player, bool mainHand)
     {

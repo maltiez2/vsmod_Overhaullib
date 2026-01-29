@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Vintagestory.API.Common;
+﻿using Vintagestory.API.Common;
 
 namespace CombatOverhaul.Animations;
 
@@ -32,7 +31,7 @@ public sealed class IdleAnimationsController
     public void Stop()
     {
         if (_currentAnimation == EnumAnimationType.None) return;
-        
+
         _currentItemId = 0;
         _currentAnimation = EnumAnimationType.None;
         _stopAnimationCallback?.Invoke();

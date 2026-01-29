@@ -2,8 +2,8 @@
 
 public sealed class Settings
 {
-    public float DirectionsCursorTransparency { get; set; } = 1.0f;
-    public float DirectionsCursorScale { get; set; } = 1.0f;
+    public float DirectionsCursorTransparency { get; set; } = 0.5f;
+    public float DirectionsCursorScale { get; set; } = 0.5f;
 
     public string BowsAimingCursorType { get; set; } = "Fixed";
     public float BowsAimingHorizontalLimit { get; set; } = 0.125f;
@@ -56,4 +56,6 @@ public sealed class Settings
     public float DebugWeaponTrailParticlesSize { get; set; } = 0.5f;
 
     public bool DebugProjectilesTrailsParticles { get; set; } = false;
+
+    public float EntityProtectionMultiplier { get; set; } = 0.5f;
 }
