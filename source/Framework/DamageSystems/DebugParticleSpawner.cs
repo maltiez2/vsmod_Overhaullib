@@ -26,23 +26,23 @@ public static class DebugParticleSpawner
         Color4 bordersColor = Color4.Yellow;
         DirectionConstrain constraint = stats.Directions.Expand(Angle.FromDegrees(0));
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawRight, constraint.PitchTop),
-            new DirectionOffset(constraint.YawLeft, constraint.PitchTop), 16, 0, 0.5f);
+            new DirectionOffset(constraint.PitchTop, constraint.YawRight),
+            new DirectionOffset(constraint.PitchTop, constraint.YawLeft), 16, 0, 0.5f);
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawRight, constraint.PitchBottom),
-            new DirectionOffset(constraint.YawLeft, constraint.PitchBottom), 16, 0, 0.5f);
+            new DirectionOffset(constraint.PitchBottom, constraint.YawRight),
+            new DirectionOffset(constraint.PitchBottom, constraint.YawLeft), 16, 0, 0.5f);
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawRight, constraint.PitchTop),
-            new DirectionOffset(constraint.YawRight, constraint.PitchBottom), 16, 0, 0.5f);
+            new DirectionOffset(constraint.PitchTop, constraint.YawRight),
+            new DirectionOffset(constraint.PitchBottom, constraint.YawRight), 16, 0, 0.5f);
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawLeft, constraint.PitchTop),
-            new DirectionOffset(constraint.YawLeft, constraint.PitchBottom), 16, 0, 0.5f);
+            new DirectionOffset(constraint.PitchTop, constraint.YawLeft),
+            new DirectionOffset(constraint.PitchBottom, constraint.YawLeft), 16, 0, 0.5f);
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawRight, constraint.PitchTop),
-            new DirectionOffset(constraint.YawLeft, constraint.PitchBottom), 32, 0, 0.2f);
+            new DirectionOffset(constraint.PitchTop, constraint.YawRight),
+            new DirectionOffset(constraint.PitchBottom, constraint.YawLeft), 32, 0, 0.2f);
         SpawnParticlesArc(api, bordersColor, viewDirection, center,
-            new DirectionOffset(constraint.YawRight, constraint.PitchBottom),
-            new DirectionOffset(constraint.YawLeft, constraint.PitchTop), 32, 0, 0.2f);
+            new DirectionOffset(constraint.PitchBottom, constraint.YawRight),
+            new DirectionOffset(constraint.PitchTop, constraint.YawLeft), 32, 0, 0.2f);
     }
 
 
