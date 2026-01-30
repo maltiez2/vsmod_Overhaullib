@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using CombatOverhaul.Utils;
+using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -17,7 +18,8 @@ public interface ITypedDamage
 public class DamageDataJson
 {
     public string DamageType { get; set; } = "PiercingAttack";
-    public float Strength { get; set; } // Tier, left for compatibility reasons
+    [Obsolete]
+    public float Strength { get => Tier; set => Tier = (int)value; } // Tier, left for compatibility reasons
     public int Tier { get; set; }
     public float Damage { get; set; }
     public int ArmorPiercingTier { get; set; }
@@ -68,10 +70,12 @@ public class TypedDamageSource : DamageSource, ITypedDamage, IWeaponDamageSource
     public ItemStack? Weapon { get; set; }
 }
 
-public class DamageResistData
+public sealed class DamageResistData
 {
     public Dictionary<EnumDamageType, float> Resists { get; }
     public Dictionary<EnumDamageType, float> FlatDamageReduction { get; }
+    public IEnumerable<DirectionConstrain> DirectionsCoverage { get; }
+
 
     public static int MaxAttackTier { get; set; } = 9;
     public static int MaxArmorTier { get; set; } = 24;
@@ -104,24 +108,42 @@ public class DamageResistData
     ];
     public static float EntityProtectionFactor { get; set; } = 0.5f;
 
+    public DamageResistData(Dictionary<EnumDamageType, float> resists, Dictionary<EnumDamageType, float> flatDamageReduction, IEnumerable<DirectionConstrain> directionsCoverage)
+    {
+        Resists = resists;
+        FlatDamageReduction = flatDamageReduction;
+        DirectionsCoverage = directionsCoverage;
+    }
     public DamageResistData(Dictionary<EnumDamageType, float> resists, Dictionary<EnumDamageType, float> flatDamageReduction)
     {
         Resists = resists;
         FlatDamageReduction = flatDamageReduction;
+        DirectionsCoverage = [];
     }
     public DamageResistData(Dictionary<EnumDamageType, float> resists)
     {
         Resists = resists;
         FlatDamageReduction = (new Dictionary<EnumDamageType, float>());
+        DirectionsCoverage = [];
     }
     public DamageResistData()
     {
         Resists = (new Dictionary<EnumDamageType, float>());
         FlatDamageReduction = (new Dictionary<EnumDamageType, float>());
+        DirectionsCoverage = [];
     }
 
     public static DamageResistData Empty => new();
 
+    public bool CheckDirection(DirectionOffset direction)
+    {
+        if (!DirectionsCoverage.Any())
+        {
+            return true;
+        }
+        
+        return DirectionsCoverage.Any(constraint => constraint.Check(direction));
+    }
     public DamageData ApplyResist(DamageData damageData, ref float damage)
     {
         float protectionLevel = 0;
@@ -216,7 +238,9 @@ public class DamageResistData
             }
         }
 
-        return new(combinedResists, combinedFlat);
+        IEnumerable<DirectionConstrain> directionsCoverage = resists.SelectMany(element => element.DirectionsCoverage);
+
+        return new(combinedResists, combinedFlat, directionsCoverage);
     }
 
     private static float DamageMultiplier(float protectionLevel, DamageData damageData)
@@ -284,15 +308,6 @@ public class DamageResistData
     }
 
     private static float Percentage(float protection, float strength) => Math.Clamp(1 + strength - protection, 0, 1);
-    private static float PenetrationCheck(float protection, float strength) => protection > strength ? 0 : 1;
-    private static float PenetrationPercentage(float protection, float strength, float power, float threshold)
-    {
-        if (protection == 0 || protection <= strength) return 1;
-
-        float multiplier = Math.Clamp(MathF.Pow(strength / protection, power), 0, 1);
-
-        return multiplier <= threshold ? 0 : multiplier;
-    }
     private static float LookupTableMultiplier(float protection, float attackTier) => LookupTableMultiplier((int)protection, (int)attackTier);
     private static float LookupTableMultiplier(int protection, int attackTier)
     {

@@ -57,5 +57,7 @@ public sealed class Settings
 
     public bool DebugProjectilesTrailsParticles { get; set; } = false;
 
+    public bool DebugBlockAnglesParticles { get; set; } = false;
+
     public float EntityProtectionMultiplier { get; set; } = 0.5f;
 }

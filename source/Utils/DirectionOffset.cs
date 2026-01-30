@@ -1,4 +1,5 @@
 ﻿using OpenTK.Mathematics;
+using System.Diagnostics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
@@ -22,6 +23,11 @@ public readonly struct Angle
     public static Angle FromDegrees(float degrees) => new(degrees * GameMath.DEG2RAD);
     public static Angle FromMinutes(float minutes) => new(minutes * GameMath.DEG2RAD / 60f);
     public static Angle FromSeconds(float seconds) => new(seconds * GameMath.DEG2RAD / 3600f);
+
+    public static Angle FromRadians(double radians) => FromRadians((float)radians);
+    public static Angle FromDegrees(double degrees) => FromDegrees((float)degrees);
+    public static Angle FromMinutes(double minutes) => FromMinutes((float)minutes);
+    public static Angle FromSeconds(double seconds) => FromSeconds((float)seconds);
 
     public static Angle BetweenVectors(Vector3d a, Vector3d b)
     {
@@ -79,6 +85,15 @@ public readonly struct DirectionOffset
     public readonly Angle Pitch;
     public readonly Angle Yaw;
 
+    public DirectionOffset(Vector3d direction, Vector3d reference)
+    {
+        // (x1 * z2 - x2 * z1) / sqrt( (x2^2 + z2^2) * (x1^2 + z1^2) )
+        double yawSin = (reference.Z * direction.X - reference.X * direction.Z) / Math.Sqrt((reference.X * reference.X + reference.Z * reference.Z) * (direction.X * direction.X + direction.Z * direction.Z));
+        double pitchSin = (reference.Z * direction.Y - reference.Y * direction.Z) / Math.Sqrt((reference.Y * reference.Y + reference.Z * reference.Z) * (direction.Y * direction.Y + direction.Z * direction.Z));
+
+        Yaw = Angle.FromRadians((float)GameMath.Clamp(Math.Asin(yawSin), -2 * Math.PI, 2 * Math.PI));
+        Pitch = Angle.FromRadians((float)GameMath.Clamp(Math.Asin(pitchSin), -2 * Math.PI, 2 * Math.PI));
+    }
     public DirectionOffset(Vec3d direction, Vec3d reference)
     {
         // (x1 * z2 - x2 * z1) / sqrt( (x2^2 + z2^2) * (x1^2 + z1^2) )
@@ -97,61 +112,25 @@ public readonly struct DirectionOffset
         Yaw = Angle.FromRadians(GameMath.Clamp(MathF.Asin(yawSin), -2f * MathF.PI, 2f * MathF.PI));
         Pitch = Angle.FromRadians(GameMath.Clamp(MathF.Asin(pitchSin), -2f * MathF.PI, 2f * MathF.PI));
     }
-    public DirectionOffset(Vec3d direction)
+    public DirectionOffset(Vector3d direction)
     {
-        if (Math.Abs(direction.X * direction.X + direction.Z * direction.Z) < 1E-6f)
-        {
-            Yaw = Angle.FromDegrees(0);
-            if (direction.Y > 0)
-            {
-                Pitch = Angle.FromDegrees(90);
-            }
-            else
-            {
-                Pitch = Angle.FromDegrees(-90);
-            }
-
-            return;
-        }
-
-        double yawSin = direction.X / Math.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
-        double pitchSin = direction.Y / Math.Sqrt(direction.X * direction.X + direction.Y * direction.Y + direction.Z * direction.Z);
-        double yawCos = direction.Z / Math.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
-
-        Angle yawSinAngle = Angle.FromRadians((float)GameMath.Clamp(Math.Asin(yawSin), -2 * Math.PI, 2 * Math.PI));
-        Angle pitchSinAngle = Angle.FromRadians((float)GameMath.Clamp(Math.Asin(pitchSin), -2 * Math.PI, 2 * Math.PI));
-        Angle yawCosAngle = Angle.FromRadians((float)GameMath.Clamp(Math.Acos(yawCos), -2 * Math.PI, 2 * Math.PI));
-
-        Yaw = yawCosAngle * Math.Sign(yawSinAngle.Degrees);
-        Pitch = pitchSinAngle;
+        (Angle yaw, Angle pitch) = YawPitchFromDirection(direction);
+        Yaw = yaw;
+        Pitch = pitch;
     }
-    public DirectionOffset(Vec3f direction)
+    public DirectionOffset(Vec3d directionVanilla)
     {
-        if (Math.Abs(direction.X * direction.X + direction.Z * direction.Z) < 1E-6f)
-        {
-            Yaw = Angle.FromDegrees(0);
-            if (direction.Y > 0)
-            {
-                Pitch = Angle.FromDegrees(90);
-            }
-            else
-            {
-                Pitch = Angle.FromDegrees(-90);
-            }
-
-            return;
-        }
-
-        float yawSin = direction.X / MathF.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
-        float pitchSin = direction.Y / MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y + direction.Z * direction.Z);
-        float yawCos = direction.Z / MathF.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
-
-        Angle yawSinAngle = Angle.FromRadians(GameMath.Clamp(MathF.Asin(yawSin), -2f * MathF.PI, 2f * MathF.PI));
-        Angle pitchSinAngle = Angle.FromRadians(GameMath.Clamp(MathF.Asin(pitchSin), -2f * MathF.PI, 2f * MathF.PI));
-        Angle yawCosAngle = Angle.FromRadians(GameMath.Clamp(MathF.Acos(yawCos), -2f * MathF.PI, 2f * MathF.PI));
-
-        Yaw = yawCosAngle * Math.Sign(yawSinAngle.Degrees);
-        Pitch = pitchSinAngle;
+        Vector3d direction = directionVanilla.ToOpenTK();
+        (Angle yaw, Angle pitch) = YawPitchFromDirection(direction);
+        Yaw = yaw;
+        Pitch = pitch;
+    }
+    public DirectionOffset(Vec3f directionVanilla)
+    {
+        Vector3d direction = directionVanilla.ToOpenTK();
+        (Angle yaw, Angle pitch) = YawPitchFromDirection(direction);
+        Yaw = yaw;
+        Pitch = pitch;
     }
     public DirectionOffset(Angle pitch, Angle yaw)
     {
@@ -250,6 +229,15 @@ public readonly struct DirectionOffset
 
         return localX * position.X + localY * position.Y + localZ * position.Z;
     }
+    public static Vec3d FromReferenceFrame(Vec3d reference, Vec3d position)
+    {
+        Vec3d vertical = new(0, 1, 0);
+        Vec3d localZ = reference.Normalize();
+        Vec3d localX = reference.Cross(vertical).Normalize();
+        Vec3d localY = localX.Cross(localZ);
+
+        return localX * position.X + localY * position.Y + localZ * position.Z;
+    }
     public static void InverseMatrix(Vec3d X, Vec3d Y, Vec3d Z)
     {
         double[] matrix = { X.X, X.Y, X.Z, Y.X, Y.Y, Y.Z, Z.X, Z.Y, Z.Z };
@@ -299,7 +287,61 @@ public readonly struct DirectionOffset
         Vec3d attackDirection = sourceEyesPosition - receiverEyesPosition;
         Vec3d playerViewDirection = EntityPos.GetViewVector(receiver.SidedPos.Pitch, receiver.SidedPos.Yaw).ToVec3d();
         Vec3d direction = ToReferenceFrame(playerViewDirection, attackDirection);
+
         return new(direction);
+    }
+    public static DirectionOffset GetDirectionWithRespectToCamera(Vector3d view, Vector3d direction)
+    {
+        Vec3d attackDirection = direction.ToVanillaRef();
+        Vec3d playerViewDirection = view.ToVanillaRef();
+        Vec3d resultDirection = ToReferenceFrame(playerViewDirection, attackDirection);
+        return new(resultDirection.ToOpenTK());
+    }
+    public static Vector3d GetDirectionVectorWithRespectToCamera(Vector3d view, Vector3d direction)
+    {
+        Vec3d attackDirection = direction.ToVanillaRef();
+        Vec3d playerViewDirection = view.ToVanillaRef();
+        Vec3d resultDirection = ToReferenceFrame(playerViewDirection, attackDirection);
+        return resultDirection.ToOpenTK();
+    }
+    public static Vector3d GetDirectionVectorWithRespectToWorld(Vector3d view, Vector3d direction)
+    {
+        Vec3d attackDirection = direction.ToVanillaRef();
+        Vec3d playerViewDirection = view.ToVanillaRef();
+        Vec3d resultDirection = FromReferenceFrame(playerViewDirection, attackDirection);
+        return resultDirection.ToOpenTK();
+    }
+    public static Vector3d DirectionFromYawPitch((Angle yaw, Angle pitch) angles)
+    {
+        return DirectionFromYawPitch(angles.yaw, angles.pitch);
+    }
+    public static Vector3d DirectionFromYawPitch(DirectionOffset angles)
+    {
+        return DirectionFromYawPitch(angles.Yaw, angles.Pitch);
+    }
+    public static Vector3d DirectionFromYawPitch(Angle yaw, Angle pitch)
+    {
+        double cosPitch = Math.Cos(pitch.Radians);
+
+        return new Vector3d(
+            Math.Sin(yaw.Radians) * cosPitch,
+            Math.Sin(pitch.Radians),
+            Math.Cos(yaw.Radians) * cosPitch
+        );
+    }
+    public static (Angle yaw, Angle pitch) YawPitchFromDirection(Vector3d direction)
+    {
+        direction = direction.Normalized();
+        Angle yaw = Angle.FromRadians(Math.Atan2(direction.X, direction.Z));
+        Angle pitch = Angle.FromRadians(Math.Asin(direction.Y));
+        return (yaw, pitch);
+    }
+    public static DirectionOffset OffsetFromDirection(Vector3d direction)
+    {
+        direction = direction.Normalized();
+        Angle yaw = Angle.FromRadians(Math.Atan2(direction.X, direction.Z));
+        Angle pitch = Angle.FromRadians(Math.Asin(direction.Y));
+        return new(pitch, yaw);
     }
 }
 
@@ -357,6 +399,11 @@ public readonly struct DirectionConstrain
             YawLeft.Degrees,
             -YawRight.Degrees
         };
+    }
+
+    public DirectionConstrain Expand(Angle angle)
+    {
+        return new(PitchTop + angle, PitchBottom - angle, YawRight + angle, YawLeft - angle);
     }
 
     public static DirectionConstrain FromArray(float[] array)

@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using Vintagestory.API.Common;
@@ -85,12 +86,13 @@ public interface IModularArmor
 
 public sealed class ArmorStatsJson
 {
-    public string[] Layers { get; set; } = Array.Empty<string>();
-    public string[] Zones { get; set; } = Array.Empty<string>();
-    public Dictionary<string, float> Resists { get; set; } = new();
-    public Dictionary<string, float> FlatReduction { get; set; } = new();
-    public Dictionary<string, float> PlayerStats { get; set; } = new();
-    public Dictionary<string, Dictionary<string, float>> ResistsByZone { get; set; } = new();
+    public string[] Layers { get; set; } = [];
+    public string[] Zones { get; set; } = [];
+    public float[][] AnglesCoverage { get; set; } = [];
+    public Dictionary<string, float> Resists { get; set; } = [];
+    public Dictionary<string, float> FlatReduction { get; set; } = [];
+    public Dictionary<string, float> PlayerStats { get; set; } = [];
+    public Dictionary<string, Dictionary<string, float>> ResistsByZone { get; set; } = [];
 }
 
 public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffectsPlayerStats
@@ -101,8 +103,8 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
 
     public ArmorType ArmorType { get; protected set; } = new(ArmorLayers.None, DamageZone.None);
     public DamageResistData Resists { get; protected set; } = new();
-    public Dictionary<ArmorType, DamageResistData> ResistsByType { get; protected set; } = new();
-    public Dictionary<string, float> Stats { get; protected set; } = new();
+    public Dictionary<ArmorType, DamageResistData> ResistsByType { get; protected set; } = [];
+    public Dictionary<string, float> Stats { get; protected set; } = [];
     public bool StatsChanged { get; set; } = false;
 
     public Dictionary<string, float> PlayerStats(ItemSlot slot, EntityPlayer player) => Stats;
@@ -120,10 +122,13 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
             return;
         }
 
+        IEnumerable<DirectionConstrain> angleCoverage = stats.AnglesCoverage.Select(DirectionConstrain.FromArray);
+
         ArmorType = new(stats.Layers.Select(Enum.Parse<ArmorLayers>).Aggregate((first, second) => first | second), stats.Zones.Select(Enum.Parse<DamageZone>).Aggregate((first, second) => first | second));
         Resists = new(
             stats.Resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
-            stats.FlatReduction.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value));
+            stats.FlatReduction.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
+            angleCoverage);
 
         foreach ((string type, Dictionary<string, float> resists) in stats.ResistsByZone)
         {
@@ -132,7 +137,9 @@ public class ArmorBehavior : CollectibleBehavior, IArmor, IModularArmor, IAffect
             DamageZone zone = Enum.Parse<DamageZone>(typeSplit[1]);
             ArmorType typeEnum = new(layer, zone);
 
-            ResistsByType.Add(typeEnum, new(resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value), []));
+            DamageResistData resistsData = new(resists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value), [], angleCoverage);
+
+            ResistsByType.Add(typeEnum, resistsData);
         }
     }
     public void Initialize(ArmorType armorType, DamageResistData resists, Dictionary<string, float> stats)

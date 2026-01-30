@@ -1,13 +1,9 @@
 ﻿using CombatOverhaul.Armor;
 using CombatOverhaul.Colliders;
 using CombatOverhaul.Compatibility;
-using CombatOverhaul.Implementations;
 using CombatOverhaul.Integration;
-using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using PlayerModelLib;
-using ProtoBuf;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -129,20 +125,25 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     {
         if (!_serverSide) return;
 
+        if (_settings.DebugBlockAnglesParticles && CurrentDamageBlock != null && entity.Api is ICoreServerAPI serverApi)
+        {
+            DebugParticleSpawner.SpawnDebugBlockParticles(serverApi, entity, CurrentDamageBlock);
+        }
+
         long currentTime = entity.World.ElapsedMilliseconds;
         if (_nextTemperatureDamageCheck < currentTime)
         {
             ApplyDamageFromHotClothes();
             _nextTemperatureDamageCheck = currentTime + _temperatureDamageCheckCooldownMs;
+
+            float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
+            secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
+            entity.WatchedAttributes.SetFloat("secondChanceCooldown", secondChanceCooldown);
+
+            float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
+            secondChanceGracePeriod = Math.Clamp(secondChanceGracePeriod - deltaTime, 0, secondChanceGracePeriod);
+            entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
         }
-
-        float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
-        secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
-        entity.WatchedAttributes.SetFloat("secondChanceCooldown", secondChanceCooldown);
-
-        float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
-        secondChanceGracePeriod = Math.Clamp(secondChanceGracePeriod - deltaTime, 0, secondChanceGracePeriod);
-        entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
     }
 
     public static float GetDamageReductionFactor(IPlayer player, DamageZone zone, EnumDamageType damageType, int damageTier, DamageReceivedCalculationType calculationType)
@@ -240,7 +241,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     private const float _maxTemperatureToDamage = 1000;
     private const float _maxTemperatureDamage = 16f;
     private long _nextTemperatureDamageCheck = 0;
-    private const long _temperatureDamageCheckCooldownMs = 2000;
+    private const long _temperatureDamageCheckCooldownMs = 1000;
 
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
@@ -277,6 +278,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     {
         if (_settings.PrintPlayerHits && message != "") ((entity as EntityPlayer)?.Player as IServerPlayer)?.SendMessage(GlobalConstants.DamageLogChatGroup, message, EnumChatType.Notification);
     }
+
 
     private float GetStatsMultiplier(DamageZone part)
     {
@@ -331,23 +333,10 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             return;
         }
 
-        if (damageSource is IDirectionalDamage directionalDamage)
+        if (GetAttackDirection(damageSource, out DirectionOffset direction) && !CurrentDamageBlock.Directions.Check(direction))
         {
-            if (!CurrentDamageBlock.Directions.Check(directionalDamage.Direction))
-            {
-                damageLogMessage = Lang.Get("combatoverhaul:damagelog-missed-block-direction", directionalDamage.Direction);
-                return;
-            }
-        }
-        else if (damageSource.SourceEntity != null)
-        {
-            DirectionOffset offset = DirectionOffset.GetDirectionWithRespectToCamera(entity, damageSource.SourceEntity);
-
-            if (!CurrentDamageBlock.Directions.Check(offset))
-            {
-                damageLogMessage = Lang.Get("combatoverhaul:damagelog-missed-block-direction", offset);
-                return;
-            }
+            damageLogMessage = Lang.Get("combatoverhaul:damagelog-missed-block-direction", direction);
+            return;
         }
 
         int damageTier = damageSource.DamageTier;
@@ -403,10 +392,17 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         if (!slots.Any()) return;
 
-        DamageResistData resists = DamageResistData.Combine(slots
+        IEnumerable<DamageResistData> resistsFromSlots = slots
             .Where(slot => slot?.Itemstack?.Item != null)
             .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
-            .Select(slot => slot.GetResists(zone)));
+            .Select(slot => slot.GetResists(zone));
+
+        if (GetAttackDirection(damageSource, out DirectionOffset direction))
+        {
+            resistsFromSlots = resistsFromSlots.Where(resist => resist.CheckDirection(direction));
+        }
+
+        DamageResistData resists = DamageResistData.Combine(resistsFromSlots);
 
         float previousDamage = damage;
         int durabilityDamage = 0;
@@ -588,6 +584,24 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             };
 
             entity.ReceiveDamage(heatDamageSource, damage);
+        }
+    }
+    private bool GetAttackDirection(DamageSource damageSource, out DirectionOffset direction)
+    {
+        if (damageSource is IDirectionalDamage directionalDamage)
+        {
+            direction = directionalDamage.Direction;
+            return true;
+        }
+        else if (damageSource.SourceEntity != null)
+        {
+            direction = DirectionOffset.GetDirectionWithRespectToCamera(entity, damageSource.SourceEntity);
+            return true;
+        }
+        else
+        {
+            direction = new();
+            return false;
         }
     }
 }

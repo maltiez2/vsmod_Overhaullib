@@ -227,7 +227,10 @@ public partial class CombatOverhaulSystem : ModSystem
             .RegisterMessageType<TogglePacket>();
 
 #if DEBUG
-        api.Event.EnqueueMainThreadTask(() => OnSettingsChange?.Invoke(api), "game");
+        if (!api.IsSinglePlayer)
+        {
+            api.Event.EnqueueMainThreadTask(() => OnSettingsChange?.Invoke(api), "game");
+        }
 #else
         if (!api.IsSinglePlayer)
         {

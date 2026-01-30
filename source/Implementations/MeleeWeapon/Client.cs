@@ -1967,7 +1967,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 minDamage = attackDamage;
             }
 
-            float currentTier = Math.Max(attack.Strength, attack.Tier) + stackStats.DamageTierBonus;
+            float currentTier = attack.Tier + stackStats.DamageTierBonus;
             if (currentTier > maxTier)
             {
                 maxTier = currentTier;

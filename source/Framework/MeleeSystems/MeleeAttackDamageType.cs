@@ -75,7 +75,7 @@ public class MeleeDamageType : IHasLineCollider
     public MeleeDamageType(MeleeDamageTypeJson stats)
     {
         Damage = stats.Damage.Damage;
-        DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), (int)Math.Max(stats.Damage.Strength, stats.Damage.Tier), stats.Damage.ArmorPiercingTier);
+        DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), stats.Damage.Tier, stats.Damage.ArmorPiercingTier);
         Knockback = stats.Knockback;
         RelativeCollider = new LineSegmentCollider(stats.Collider);
         InWorldCollider = RelativeCollider;
