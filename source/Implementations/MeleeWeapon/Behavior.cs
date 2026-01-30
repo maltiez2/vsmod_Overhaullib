@@ -117,7 +117,7 @@ public class MeleeWeaponBehavior : CollectibleBehavior, IHasMultipleWeaponLogicM
         return interactionHelp?.Append(AltForInteractions);
     }
 
-    public virtual void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked)
+    public virtual void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked, int attackTier, int blockTier)
     {
         Item.DamageItem(player.Entity.World, player.Entity, slot, 1);
     }

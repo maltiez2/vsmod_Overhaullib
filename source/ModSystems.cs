@@ -226,10 +226,14 @@ public partial class CombatOverhaulSystem : ModSystem
         _clientToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>();
 
+#if DEBUG
+        api.Event.EnqueueMainThreadTask(() => OnSettingsChange?.Invoke(api), "game");
+#else
         if (!api.IsSinglePlayer)
         {
             api.Event.EnqueueMainThreadTask(() => OnSettingsChange?.Invoke(api), "game");
         }
+#endif
 
         api.Input.RegisterHotKey("toggleWearableLight", "Toggle wearable light source", GlKeys.L);
         api.Input.SetHotKeyHandler("toggleWearableLight", _ => ToggleWearableItem(api.World.Player, "toggleWearableLight"));

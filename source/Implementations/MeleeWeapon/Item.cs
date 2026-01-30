@@ -109,10 +109,10 @@ public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, 
         return interactionHelp?.Append(AltForInteractions);
     }
 
-    public virtual void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked)
+    public virtual void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked, int attackTier, int blockTier)
     {
-        DamageItem(player.Entity.World, player.Entity, slot, 1);
-        //DamageItem(player.Entity.World, player.Entity, slot, (int)MathF.Ceiling(damageBlocked)); // Damages swords too much
+        int durabilityDamage = 1 + Math.Clamp(attackTier - blockTier, 0, attackTier);
+        DamageItem(player.Entity.World, player.Entity, slot, durabilityDamage);
     }
 
     public virtual bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta) => ClientLogic?.OnMouseWheel(slot, byPlayer, delta) ?? false;

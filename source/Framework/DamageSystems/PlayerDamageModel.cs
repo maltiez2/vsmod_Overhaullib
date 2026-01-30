@@ -18,38 +18,6 @@ using Vintagestory.GameContent;
 
 namespace CombatOverhaul.DamageSystems;
 
-[Flags]
-public enum DamageZone
-{
-    None = 0,
-    Head = 1,
-    Face = 2,
-    Neck = 4,
-    Torso = 8,
-    Arms = 16,
-    Hands = 32,
-    Legs = 64,
-    Feet = 128
-}
-
-[Flags]
-public enum PlayerBodyPart
-{
-    None = 0,
-    Head = 1,
-    Face = 2,
-    Neck = 4,
-    Torso = 8,
-    LeftArm = 16,
-    RightArm = 32,
-    LeftHand = 64,
-    RightHand = 128,
-    LeftLeg = 256,
-    RightLeg = 512,
-    LeftFoot = 1024,
-    RightFoot = 2048
-}
-
 public interface IArmorPiercing
 {
     int ArmorPiercingTier { get; }
@@ -382,7 +350,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             }
         }
 
-        float damageTier = damageSource.DamageTier;
+        int damageTier = damageSource.DamageTier;
+        int blockTier = 0;
         float initialDamage = damage;
         EnumDamageType damageType = damageSource.Type;
 
@@ -394,12 +363,12 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
                 return;
             }
 
-            float blockTier = CurrentDamageBlock.BlockTier[damageType];
+            blockTier = CurrentDamageBlock.BlockTier[damageType];
             if (blockTier < damageTier)
             {
                 ApplyBlockResists(blockTier, damageTier, ref damage);
-                //damageSource.DamageTier = (int)(damageTier - blockTier);
-                damageLogMessage = Lang.Get("combatoverhaul:damagelog-partial-block", Lang.Get($"combatoverhaul:detailed-damage-zone-{zone}"), $"{initialDamage - damage:F1}");
+                damageSource.DamageTier = Math.Clamp(damageTier - blockTier, 0, damageTier);
+                damageLogMessage = Lang.Get("combatoverhaul:damagelog-partial-block", Lang.Get($"combatoverhaul:detailed-damage-zone-{zone}"), $"{damageSource.DamageTier:F0}");
             }
             else
             {
@@ -417,7 +386,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             damageSource.SourceEntity?.GetBehavior<StaggerBehavior>()?.TriggerStagger(CurrentDamageBlock.StaggerTime, CurrentDamageBlock.StaggerTier);
         }
 
-        CurrentDamageBlock.Callback.Invoke(initialDamage - damage);
+        CurrentDamageBlock.Callback.Invoke(initialDamage - damage, damageTier, blockTier);
 
         if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new(CurrentDamageBlock.Sound), entity);
     }
@@ -460,7 +429,8 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
     }
     private void ApplyBlockResists(float blockTier, float damageTier, ref float damage)
     {
-        damage *= 1 - MathF.Exp((blockTier - damageTier) / 2f);
+        float multiplier = damageTier > blockTier ? 1 : 0;
+        damage *= multiplier;
     }
     private void ApplySecondChance(ref float damage)
     {
@@ -621,6 +591,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         }
     }
 }
+
 public sealed class PlayerDamageModel
 {
     public DamageZoneStats[] DamageZones { get; }
@@ -693,244 +664,4 @@ public interface IDirectionalDamage
     DirectionOffset Direction { get; }
     PlayerBodyPart Target { get; }
     float WeightMultiplier { get; }
-}
-
-public sealed class DamageZoneStatsJson
-{
-    public string Zone { get; set; } = "None";
-    public float Coverage { get; set; } = 0;
-    public float Top { get; set; } = 0;
-    public float Bottom { get; set; } = 0;
-    public float Left { get; set; } = 0;
-    public float Right { get; set; } = 0;
-    public float DamageMultiplier { get; set; } = 1;
-
-    public DamageZoneStats ToStats() => new(Enum.Parse<PlayerBodyPart>(Zone), Coverage, DirectionConstrain.FromDegrees(Top, Bottom, Right, Left), DamageMultiplier);
-}
-
-public readonly struct DamageZoneStats
-{
-    public readonly PlayerBodyPart ZoneType;
-    public readonly float Coverage;
-    public readonly DirectionConstrain Directions;
-    public readonly float DamageMultiplier;
-
-    public DamageZoneStats(PlayerBodyPart type, float coverage, DirectionConstrain directions, float damageMultiplier)
-    {
-        ZoneType = type;
-        Coverage = coverage;
-        Directions = directions;
-        DamageMultiplier = damageMultiplier;
-    }
-}
-
-public sealed class DamageBlockStats
-{
-    public readonly PlayerBodyPart ZoneType;
-    public readonly DirectionConstrain Directions;
-    public readonly Action<float> Callback;
-    public readonly string? Sound;
-    public readonly Dictionary<EnumDamageType, float>? BlockTier;
-    public readonly bool CanBlockProjectiles;
-    public readonly TimeSpan StaggerTime;
-    public readonly int StaggerTier;
-
-    public DamageBlockStats(PlayerBodyPart type, DirectionConstrain directions, Action<float> callback, string? sound, Dictionary<EnumDamageType, float>? blockTier, bool canBlockProjectiles, TimeSpan staggerTime, int staggerTier)
-    {
-        ZoneType = type;
-        Directions = directions;
-        Callback = callback;
-        Sound = sound;
-        BlockTier = blockTier;
-        CanBlockProjectiles = canBlockProjectiles;
-        StaggerTime = staggerTime;
-        StaggerTier = staggerTier;
-    }
-}
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class DamageBlockPacket
-{
-    public int Zones { get; set; }
-    public float[] Directions { get; set; } = Array.Empty<float>();
-    public bool MainHand { get; set; }
-    public string? Sound { get; set; } = null;
-    public Dictionary<EnumDamageType, float>? BlockTier { get; set; }
-    public bool CanBlockProjectiles { get; set; }
-    public int StaggerTimeMs { get; set; }
-    public int StaggerTier { get; set; }
-    public ulong Id { get; set; }
-
-    public DamageBlockStats ToBlockStats(Action<float> callback)
-    {
-        return new((PlayerBodyPart)Zones, DirectionConstrain.FromArray(Directions), callback, Sound, BlockTier, CanBlockProjectiles, TimeSpan.FromMilliseconds(StaggerTimeMs), StaggerTier);
-    }
-}
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class DamageBlockCallbackPacket
-{
-    public ulong Id { get; set; }
-}
-
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public sealed class DamageStopBlockPacket
-{
-    public bool MainHand { get; set; }
-}
-
-public sealed class DamageBlockJson
-{
-    public string[] Zones { get; set; } = Array.Empty<string>();
-    public float[] Directions { get; set; } = Array.Empty<float>();
-    public string? Sound { get; set; } = null;
-    public Dictionary<string, float>? BlockTier { get; set; }
-    public bool CanBlockProjectiles { get; set; } = true;
-    public int StaggerTimeMs { get; set; } = 0;
-    public int StaggerTier { get; set; } = 1;
-
-    public DamageBlockPacket ToPacket()
-    {
-        return new()
-        {
-            Zones = (int)Zones.Select(Enum.Parse<PlayerBodyPart>).Aggregate((first, second) => first | second),
-            Directions = Directions,
-            Sound = Sound,
-            BlockTier = BlockTier?.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value),
-            CanBlockProjectiles = CanBlockProjectiles,
-            StaggerTimeMs = StaggerTimeMs,
-            StaggerTier = StaggerTier
-        };
-    }
-
-    public DamageBlockJson Clone()
-    {
-        return new()
-        {
-            Zones = Zones,
-            Directions = Directions,
-            Sound = Sound,
-            BlockTier = BlockTier?.ToDictionary(entry => entry.Key, entry => entry.Value),
-            CanBlockProjectiles = CanBlockProjectiles,
-            StaggerTimeMs = StaggerTimeMs,
-            StaggerTier = StaggerTier
-        };
-    }
-}
-
-public sealed class MeleeBlockSystemClient : MeleeSystem
-{
-    public MeleeBlockSystemClient(ICoreClientAPI api)
-    {
-        _clientChannel = api.Network.RegisterChannel(NetworkChannelId)
-            .RegisterMessageType<DamageBlockPacket>()
-            .RegisterMessageType<DamageStopBlockPacket>()
-            .RegisterMessageType<DamageBlockCallbackPacket>()
-            .SetMessageHandler<DamageBlockCallbackPacket>(HandleCallback);
-    }
-
-    public void StartBlock(DamageBlockJson block, bool mainHand)
-    {
-        DamageBlockPacket packet = block.ToPacket();
-        packet.Id = 0;
-        packet.MainHand = mainHand;
-        _clientChannel.SendPacket(packet);
-    }
-    public void StartBlock(DamageBlockJson block, bool mainHand, Action callback)
-    {
-        DamageBlockPacket packet = block.ToPacket();
-        packet.Id = _nextId++;
-        packet.MainHand = mainHand;
-
-        PushCallback(packet.Id, callback);
-
-        _clientChannel.SendPacket(packet);
-    }
-    public void StopBlock(bool mainHand)
-    {
-        _clientChannel.SendPacket(new DamageStopBlockPacket() { MainHand = mainHand });
-    }
-    public void HandleCallback(DamageBlockCallbackPacket packet)
-    {
-        if (_callbacks.TryGetValue(packet.Id, out Action? callback))
-        {
-            callback();
-        }
-    }
-
-    private readonly IClientNetworkChannel _clientChannel;
-    private readonly Queue<ulong> _ids = [];
-    private readonly Dictionary<ulong, Action> _callbacks = [];
-    private const int _queueSize = 10;
-    private ulong _nextId = 1;
-
-    private void PushCallback(ulong id, Action callback)
-    {
-        _ids.Enqueue(id);
-        _callbacks[id] = callback;
-
-        if (_ids.Count > _queueSize)
-        {
-            ulong idToRemove = _ids.Dequeue();
-            _callbacks.Remove(idToRemove);
-        }
-    }
-}
-
-public interface IHasServerBlockCallback
-{
-    public void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked);
-}
-
-public sealed class MeleeBlockSystemServer : MeleeSystem
-{
-    public MeleeBlockSystemServer(ICoreServerAPI api)
-    {
-        _api = api;
-        _serverChannel = api.Network.RegisterChannel(NetworkChannelId)
-            .RegisterMessageType<DamageBlockPacket>()
-            .RegisterMessageType<DamageStopBlockPacket>()
-            .RegisterMessageType<DamageBlockCallbackPacket>()
-            .SetMessageHandler<DamageBlockPacket>(HandlePacket)
-            .SetMessageHandler<DamageStopBlockPacket>(HandlePacket);
-    }
-
-    private readonly ICoreServerAPI _api;
-    private readonly IServerNetworkChannel _serverChannel;
-    private bool _lastBlockMainHand = false;
-
-    private void HandlePacket(IServerPlayer player, DamageBlockPacket packet)
-    {
-        PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
-        if (behavior != null)
-        {
-            _lastBlockMainHand = packet.MainHand;
-            behavior.CurrentDamageBlock = packet.ToBlockStats(damageBlocked => BlockCallback(player, packet.MainHand, damageBlocked, packet.Id));
-        }
-    }
-
-    private void HandlePacket(IServerPlayer player, DamageStopBlockPacket packet)
-    {
-        PlayerDamageModelBehavior behavior = player.Entity.GetBehavior<PlayerDamageModelBehavior>();
-        if (behavior != null && _lastBlockMainHand == packet.MainHand)
-        {
-            behavior.CurrentDamageBlock = null;
-        }
-    }
-
-    private void BlockCallback(IServerPlayer player, bool mainHand, float damageBlocked, ulong id)
-    {
-        ItemSlot slot = mainHand ? player.Entity.RightHandItemSlot : player.Entity.LeftHandItemSlot;
-
-        IHasServerBlockCallback? item = slot.Itemstack?.Collectible?.GetCollectibleInterface<IHasServerBlockCallback>();
-
-        if (item == null) return;
-
-        item.BlockCallback(player, slot, mainHand, damageBlocked);
-
-        if (id != 0)
-        {
-            _serverChannel?.SendPacket(new DamageBlockCallbackPacket() { Id = id }, player);
-        }
-    }
 }

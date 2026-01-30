@@ -775,10 +775,9 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnim
         return interactionHelp?.Append(AltForInteractions);
     }*/
 
-    public void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked)
+    public void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked, int attackTier, int blockTier)
     {
         DamageItem(player.Entity.World, player.Entity, slot, 1);
-        //DamageItem(player.Entity.World, player.Entity, slot, (int)MathF.Ceiling(damageBlocked)); // Damages swords too much
     }
 
     public bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta) => ClientLogic?.OnMouseWheel(slot, byPlayer, delta) ?? false;

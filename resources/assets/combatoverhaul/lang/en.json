@@ -146,7 +146,7 @@
   "damagelog-missed-block-damageType": "Player tried blocking, but was not able to block {0} damage",
   "damagelog-missed-block-projectile": "Can't block projectiles with this weapon/shield",
   "damagelog-success-block": "Player successfully blocked {1} damage to {0}",
-  "damagelog-partial-block": "Player partially blocked {1} damage to {0}",
+  "damagelog-partial-block": "Player tried blocking, but attack went through and hit {0}, with its tier reduced to {1}, player's weapon received additional {1} durability damage'",
   "damagelog-armor-damage-negation": "Armor negated {0} amount of {3} ({4} tier) damage to {1} and lost {2} durability",
   "damagelog-received-damage": "Player receives {0} {2} damage to {1}",
   "damagelog-dealt-damage": "Player hit {0} of {1} dealing {2} damage",

@@ -1,5 +1,4 @@
-﻿using Cairo;
-using CombatOverhaul.Animations;
+﻿using CombatOverhaul.Animations;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
@@ -452,21 +451,24 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
     public void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
-        if (Stats != null)
+        if (Stats == null)
         {
-            string[] stats = Stats.ProficiencyStats;
-            if (Stats.ProficiencyStat != "")
-            {
-                stats = stats.Prepend(Stats.ProficiencyStat).ToArray();
-            }
-
-            if (stats.Length > 0)
-            {
-                string statsList = stats.Select(statName => Lang.Get($"combatoverhaul:proficiency-{statName}")).Aggregate((f, s) => $"{f}, {s}");
-                string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
-                dsc.AppendLine(description);
-            }
+            return;
         }
+        
+        string[] stats = Stats.ProficiencyStats;
+        if (Stats.ProficiencyStat != "")
+        {
+            stats = stats.Prepend(Stats.ProficiencyStat).ToArray();
+        }
+
+        if (stats.Length > 0)
+        {
+            string statsList = stats.Select(statName => Lang.Get($"combatoverhaul:proficiency-{statName}")).Aggregate((f, s) => $"{f}, {s}");
+            string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
+            dsc.AppendLine(description);
+        }
+        
 
         if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageTypes.Length > 0)
         {
