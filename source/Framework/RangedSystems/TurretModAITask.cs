@@ -5,6 +5,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using VSEssentialsMod.Entity.AI.Task;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -44,6 +45,14 @@ public class AiTaskCOTurretMode : AiTaskTurretModeR
         ProjectileSystem = system.ServerProjectileSystem ?? throw new Exception();
         LastEntityPosition = entity.Pos.XYZ.Clone();
         BallisticSolver = new BallisticSolver();
+
+        CreatureHostility = entity.World.Config.GetString("creatureHostility") switch
+        {
+            "aggressive" => EnumCreatureHostility.Aggressive,
+            "passive" => EnumCreatureHostility.Passive,
+            "off" => EnumCreatureHostility.NeverHostile,
+            _ => EnumCreatureHostility.Aggressive
+        };
     }
 
     protected enum EnumArcCalculationType
@@ -58,6 +67,22 @@ public class AiTaskCOTurretMode : AiTaskTurretModeR
     protected ProjectileSystemServer ProjectileSystem;
     protected ICoreAPI Api => entity.Api;
     protected IBallisticSolver BallisticSolver;
+    protected EnumCreatureHostility CreatureHostility;
+
+    protected override bool CheckEntityHostility(EntityPlayer target)
+    {
+        if (!Config.FriendlyTarget && AggressiveTargeting)
+        {
+            return CreatureHostility switch
+            {
+                EnumCreatureHostility.Aggressive => true,
+                EnumCreatureHostility.Passive => emotionStatesBehavior == null || !IsInEmotionState(HostileEmotionStates),
+                EnumCreatureHostility.NeverHostile => false,
+                _ => false,
+            };
+        }
+        return true;
+    }
 
 
     protected override void SetOrAdjustDispersion()
