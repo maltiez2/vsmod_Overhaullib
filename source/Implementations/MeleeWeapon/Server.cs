@@ -48,7 +48,10 @@ public class MeleeWeaponServer : RangeWeaponServer
 
         AssetLocation projectileCode = slot.Itemstack.Item.Code.Clone();
 
-        ProjectileSystem.Spawn(packet.ProjectileId[0], stats, spawnStats, slot.TakeOut(1), slot.Itemstack, shooter);
+        ItemStack weaponStack = slot.Itemstack.Clone();
+        ItemStack projectileStack = slot.TakeOut(1);
+
+        ProjectileSystem.Spawn(packet.ProjectileId[0], stats, spawnStats, projectileStack, weaponStack, shooter);
 
         SwapToNewProjectile(player, slot, projectileCode);
 
