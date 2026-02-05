@@ -210,7 +210,8 @@ public class MeleeDamageType : IHasLineCollider
             Position = position,
             Collider = collider,
             KnockbackStrength = Knockback * stats.KnockbackMultiplier,
-            IgnoreInvFrames = true
+            IgnoreInvFrames = true,
+            Type = DamageTypeData.DamageType
         }, damage);
 
         bool received = damageReceived || Damage > 0;
