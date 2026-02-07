@@ -188,6 +188,17 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         _statsSystem.SetStat(stat, category, value);
     }
     public void FlipDirectionToOpposite() => _directionController.FlipDirectionToOpposite();
+    public void SetItemChanged(bool mainHand)
+    {
+        if (mainHand)
+        {
+            _currentMainHandItemId = -1;
+        }
+        else
+        {
+            _currentOffHandItemId = -1;
+        }
+    }
 
     private readonly bool _mainPlayer = false;
     private readonly ICoreClientAPI _api;
@@ -205,6 +216,8 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
     private IClientWeaponLogic? _currentOffHandWeapon;
     private int _currentMainHandItemId = -1;
     private int _currentOffHandItemId = -1;
+    private long _currentMainHandStackItemId = 0;
+    private long _currentOffHandStackItemId = 0;
     private int _currentMainHandSlotId = -1;
     private int _mainHandState = 0;
     private int _offHandState = 0;
@@ -447,7 +460,15 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
         int mainHandId = _player.ActiveHandItemSlot.Itemstack?.Item?.Id ?? -1;
         int mainHandSlotId = _player.ActiveHandItemSlot.Inventory.GetSlotId(_player.ActiveHandItemSlot);
         int offHandId = _player.LeftHandItemSlot.Itemstack?.Item?.Id ?? -1;
-        bool anyChanged = mainHandId != _currentMainHandItemId || offHandId != _currentOffHandItemId || mainHandSlotId != _currentMainHandSlotId;
+        long mainHandStackId = GeneralUtils.GetItemMark(_player.ActiveHandItemSlot);
+        long offHandStackId = GeneralUtils.GetItemMark(_player.LeftHandItemSlot);
+
+        bool anyChanged =
+            mainHandId != _currentMainHandItemId || 
+            offHandId != _currentOffHandItemId || 
+            mainHandSlotId != _currentMainHandSlotId || 
+            _currentMainHandStackItemId != mainHandStackId || 
+            _currentOffHandStackItemId != offHandStackId;
 
         if (anyChanged)
         {
@@ -455,17 +476,19 @@ public sealed class ActionsManagerPlayerBehavior : EntityBehavior
             SuppressRMB = false;
         }
 
-        if (anyChanged && (_currentMainHandItemId != mainHandId || mainHandSlotId != _currentMainHandSlotId))
+        if (anyChanged && (_currentMainHandItemId != mainHandId || mainHandSlotId != _currentMainHandSlotId || mainHandStackId != _currentMainHandStackItemId))
         {
             ProcessMainHandItemChanged();
             _currentMainHandItemId = mainHandId;
             _currentMainHandSlotId = mainHandSlotId;
+            _currentMainHandStackItemId = mainHandStackId;
         }
 
-        if (anyChanged && _currentOffHandItemId != offHandId)
+        if (anyChanged && (_currentOffHandItemId != offHandId || offHandStackId != _currentOffHandStackItemId))
         {
             ProcessOffHandItemChanged();
             _currentOffHandItemId = offHandId;
+            _currentOffHandStackItemId = offHandStackId;
         }
 
         return !anyChanged;

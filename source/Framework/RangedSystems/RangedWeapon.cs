@@ -1,11 +1,13 @@
 ﻿using CombatOverhaul.Animations;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -51,7 +53,7 @@ public class RangeWeaponClient : IClientWeaponLogic
     protected ThirdPersonAnimationsBehavior? TpAnimationBehavior;
     protected ActionsManagerPlayerBehavior? PlayerBehavior;
     protected bool TwoHanded = true;
-    
+
     protected static bool CheckState<TState>(int state, params TState[] statesToCheck)
         where TState : struct, Enum
     {
@@ -91,7 +93,7 @@ public class RangeWeaponClient : IClientWeaponLogic
     protected bool CheckForOtherHandEmpty(bool mainHand, EntityPlayer player)
     {
         if (!TwoHanded) return true;
-        
+
         if (mainHand && !player.LeftHandItemSlot.Empty)
         {
             (player.World.Api as ICoreClientAPI)?.TriggerIngameError(this, "offhandShouldBeEmpty", Lang.Get("combatoverhaul:message-offhand-empty"));
@@ -121,14 +123,17 @@ public class RangeWeaponServer : IServerRangedWeaponLogic
 
     public virtual bool Reload(IServerPlayer player, ItemSlot slot, ItemSlot? ammoSlot, ReloadPacket packet)
     {
+        GeneralUtils.MarkItemStack(slot);
         return false;
     }
     public virtual bool Shoot(IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
     {
+        GeneralUtils.MarkItemStack(slot);
         return false;
     }
     public virtual bool Shoot(ICoreAPI api, IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
     {
+        GeneralUtils.MarkItemStack(slot);
         return Shoot(player, slot, packet, shooter);
     }
 

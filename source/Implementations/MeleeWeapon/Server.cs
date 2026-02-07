@@ -1,4 +1,5 @@
 ﻿using CombatOverhaul.RangedSystems;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -25,6 +26,8 @@ public class MeleeWeaponServer : RangeWeaponServer
 
     public override bool Shoot(IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
     {
+        GeneralUtils.MarkItemStack(slot);
+
         if (slot?.Itemstack == null || slot.Itemstack.StackSize < 1) return false;
 
         ProjectileStats? stats = slot.Itemstack.Item.GetCollectibleBehavior<ProjectileBehavior>(true)?.GetStats(slot.Itemstack);
@@ -133,4 +136,6 @@ public class MeleeWeaponServer : RangeWeaponServer
             }
         }
     }
+
+
 }

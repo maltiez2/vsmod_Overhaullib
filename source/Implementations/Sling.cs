@@ -2,6 +2,7 @@
 using CombatOverhaul.Inputs;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -439,6 +440,8 @@ public class SlingServer : RangeWeaponServer
 
     public override bool Reload(IServerPlayer player, ItemSlot slot, ItemSlot? ammoSlot, ReloadPacket packet)
     {
+        GeneralUtils.MarkItemStack(slot);
+
         if (ammoSlot?.Itemstack?.Item != null && ammoSlot.Itemstack.Item.HasBehavior<ProjectileBehavior>() && WildcardUtil.Match(Stats.BulletWildcard, ammoSlot.Itemstack.Item.Code.ToString()))
         {
             BulletSlots[player.Entity.EntityId] = (ammoSlot.Inventory, ammoSlot.Inventory.GetSlotId(ammoSlot));
@@ -456,6 +459,8 @@ public class SlingServer : RangeWeaponServer
 
     public override bool Shoot(IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
     {
+        GeneralUtils.MarkItemStack(slot);
+
         if (!BulletSlots.ContainsKey(player.Entity.EntityId)) return false;
 
         (InventoryBase inventory, int slotId) = BulletSlots[player.Entity.EntityId];

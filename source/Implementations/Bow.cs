@@ -2,6 +2,7 @@
 using CombatOverhaul.Inputs;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
+using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -312,6 +313,8 @@ public class BowServer : RangeWeaponServer
 
     public override bool Reload(IServerPlayer player, ItemSlot slot, ItemSlot? ammoSlot, ReloadPacket packet)
     {
+        GeneralUtils.MarkItemStack(slot);
+
         if (ammoSlot?.Itemstack?.Item != null && ammoSlot.Itemstack.Item.HasBehavior<ProjectileBehavior>() && WildcardUtil.Match(Stats.ArrowWildcard, ammoSlot.Itemstack.Item.Code.ToString()))
         {
             ArrowSlots[player.Entity.EntityId] = (ammoSlot.Inventory, ammoSlot.Inventory.GetSlotId(ammoSlot));
@@ -329,6 +332,8 @@ public class BowServer : RangeWeaponServer
 
     public override bool Shoot(IServerPlayer player, ItemSlot slot, ShotPacket packet, Entity shooter)
     {
+        GeneralUtils.MarkItemStack(slot);
+
         if (!ArrowSlots.ContainsKey(player.Entity.EntityId)) return false;
 
         (InventoryBase inventory, int slotId) = ArrowSlots[player.Entity.EntityId];
