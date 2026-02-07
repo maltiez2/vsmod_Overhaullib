@@ -30,6 +30,7 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
 
     public ClothesSlot(EnumCharacterDressType type, InventoryBase inventory) : base(type, inventory)
     {
+        MaxSlotStackSize = 1;
     }
 
     public override void ActivateSlot(ItemSlot sourceSlot, ref ItemStackMoveOperation op)
@@ -123,6 +124,8 @@ public class GearSlot : ClothesSlot
     public bool Enabled { get; set; } = true;
     public ItemSlot? ParentSlot { get; set; }
     public SlotConfig? Config { get; set; }
+
+
 
     public GearSlot(string slotType, InventoryBase inventory) : base(EnumCharacterDressType.Unknown, inventory)
     {
@@ -289,6 +292,7 @@ public class ArmorSlot : ItemSlot, IClickableSlot
 
     public ArmorSlot(InventoryBase inventory, ArmorType armorType) : base(inventory)
     {
+        MaxSlotStackSize = 1;
         ArmorType = armorType;
         _inventory = inventory as ArmorInventory ?? throw new Exception();
     }

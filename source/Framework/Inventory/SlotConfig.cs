@@ -30,6 +30,9 @@ public class SlotConfigJson
     public string SlotLeatherVariant { get; set; } = "bag_slot_leather";
     public string SlotWoodVariant { get; set; } = "bag_slot_wood";
 
+    public bool HandleHotkey { get; set; } = false;
+    public bool DisplayInToolDialog { get; set; } = false;
+
     public bool SetVariants { get; set; } = false;
     public bool SetMaterialVariants { get; set; } = false;
 
@@ -61,7 +64,9 @@ public class SlotConfigJson
             SlotLeatherVariant = SlotLeatherVariant,
             SlotWoodVariant = SlotWoodVariant,
             SetVariants = SetVariants,
-            SetMaterialVariants = SetMaterialVariants
+            SetMaterialVariants = SetMaterialVariants,
+            HandleHotkey = HandleHotkey,
+            DisplayInToolDialog = DisplayInToolDialog
         };
     }
 }
@@ -76,6 +81,9 @@ public class SlotConfig : IHasSlotBackpackCategory
     public string BackpackCategoryCode { get; set; } = "";
     public float OrderPriority { get; set; } = 1f;
     public int SlotsNumber { get; set; } = 0;
+
+    public bool HandleHotkey { get; set; } = false;
+    public bool DisplayInToolDialog { get; set; } = false;
 
     public string SlotVariant { get; set; } = "bag_slot";
     public string SlotStateVariant { get; set; } = "bag_slot_state";

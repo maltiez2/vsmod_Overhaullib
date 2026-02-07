@@ -455,7 +455,7 @@ public class ToolBag : GearEquipableBag
 
             if (MainHandSlotConfig != null)
             {
-                ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
+                ItemSlotBagContentWithWildcardMatch toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
                 {
                     Config = MainHandSlotConfig
                 };
@@ -471,7 +471,7 @@ public class ToolBag : GearEquipableBag
 
             if (OffHandSlotConfig != null)
             {
-                ItemSlotToolHolder toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
+                ItemSlotBagContentWithWildcardMatch toolSlot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
                 {
                     Config = OffHandSlotConfig
                 };
@@ -558,7 +558,7 @@ public class ToolBag : GearEquipableBag
                 {
                     if (MainHandSlotConfig != null)
                     {
-                        ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
+                        ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, MainHandSlotConfig.SlotColor)
                         {
                             Config = MainHandSlotConfig
                         };
@@ -581,7 +581,7 @@ public class ToolBag : GearEquipableBag
                     }
                     else if (OffHandSlotConfig != null)
                     {
-                        ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
+                        ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
                         {
                             Config = OffHandSlotConfig
                         };
@@ -629,7 +629,7 @@ public class ToolBag : GearEquipableBag
                 }
                 else if (slotIndex == 1 && ToolSlotNumber == 2 && OffHandSlotConfig != null)
                 {
-                    ItemSlotToolHolder slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
+                    ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, OffHandSlotConfig.SlotColor)
                     {
                         Config = OffHandSlotConfig
                     };
@@ -724,7 +724,10 @@ public class ToolBag : GearEquipableBag
     {
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
 
-        dsc.AppendLine($"Uses hotkey: '{HotkeyName}'");
+        if (HotkeyName != "")
+        {
+            dsc.AppendLine($"Uses hotkey: '{HotkeyName}'");
+        }
     }
 
     protected ActionConsumable<KeyCombination>? PreviousHotkeyHandler;
@@ -744,13 +747,15 @@ public class ToolBag : GearEquipableBag
 
             for (int slotIndex = 0;  slotIndex < inventory.Count; slotIndex++)
             {
-                ItemSlotToolHolder? slot = inventory[slotIndex] as ItemSlotToolHolder;
+                ItemSlotBagContentWithWildcardMatch? slot = inventory[slotIndex] as ItemSlotBagContentWithWildcardMatch;
                 
                 if (slot == null) continue;
 
+                //if (!slot.Config.HandleHotkey) continue;
+
                 ToolBagSystemClient? system = ClientApi?.ModLoader?.GetModSystem<CombatOverhaulSystem>()?.ClientToolBagSystem;
 
-                system?.Send(toolBagId, slot.BagIndex, MainHandSlotConfig != null);
+                system?.Send(toolBagId, slot.BagIndex, MainHandSlotConfig != null, slot.SlotIndex);
 
                 HotkeyCooldownUntilMs = Api.World.ElapsedMilliseconds + HotkeyCooldown;
 

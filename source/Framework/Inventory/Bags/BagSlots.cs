@@ -12,11 +12,16 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent, IHasSlotB
     public SlotConfig Config { get; set; } = new([], []);
     public string BackpackCategoryCode => Config.BackpackCategoryCode;
     public float OrderPriority => Config.OrderPriority;
+    public string ToolBagId { get; set; }
+    public int ToolBagIndex { get; set; }
+    public bool MainHand { get; set; } = true;
 
-    public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType)
+    public ItemSlotBagContentWithWildcardMatch(InventoryBase inventory, int BagIndex, int slotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, slotIndex, storageType)
     {
         HexBackgroundColor = color;
         SourceBag = sourceBag;
+        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
+        ToolBagIndex = BagIndex;
     }
 
     public override bool CanTakeFrom(ItemSlot sourceSlot, EnumMergePriority priority = EnumMergePriority.AutoMerge)
@@ -50,19 +55,6 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent, IHasSlotB
         }
 
         return false;
-    }
-}
-
-public class ItemSlotToolHolder : ItemSlotBagContentWithWildcardMatch
-{
-    public string ToolBagId { get; set; }
-    public int ToolBagIndex { get; set; }
-    public bool MainHand { get; set; } = true;
-
-    public ItemSlotToolHolder(InventoryBase inventory, int BagIndex, int SlotIndex, EnumItemStorageFlags storageType, ItemStack sourceBag, string? color = null) : base(inventory, BagIndex, SlotIndex, storageType, sourceBag, color)
-    {
-        ToolBagId = sourceBag.Item?.Code?.ToString() ?? "";
-        ToolBagIndex = BagIndex;
     }
 }
 

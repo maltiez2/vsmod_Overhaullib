@@ -17,8 +17,9 @@ public readonly struct ToolSlotData
     public readonly bool MainHand;
     public readonly string Icon;
     public readonly string Color;
+    public readonly int SlotIndex;
 
-    public ToolSlotData(SlotConfig config, ItemStack? stack, string toolBagId, int toolBagIndex, bool mainHand, string icon, string color)
+    public ToolSlotData(SlotConfig config, ItemStack? stack, string toolBagId, int toolBagIndex, bool mainHand, string icon, string color, int slotIndex)
     {
         Config = config;
         Stack = stack;
@@ -27,6 +28,7 @@ public readonly struct ToolSlotData
         MainHand = mainHand;
         Icon = icon;
         Color = color;
+        SlotIndex = slotIndex;
     }
 }
 
@@ -65,7 +67,22 @@ public sealed class ToolBagSelectionSystemClient
 
         if (inventory == null) return [];
 
-        return inventory.OfType<ItemSlotToolHolder>().Select(slot => new ToolSlotData(slot.Config, slot.Itemstack, slot.ToolBagId, slot.ToolBagIndex, slot.MainHand, slot.BackgroundIcon, slot.HexBackgroundColor ?? ""));
+        return inventory
+            .OfType<ItemSlotBagContentWithWildcardMatch>()
+            .Where(slot => slot.Config.HandleHotkey || slot.Config.DisplayInToolDialog)
+            .Select(slot => new ToolSlotData(slot.Config, slot.Itemstack, slot.ToolBagId, slot.ToolBagIndex, slot.MainHand, slot.BackgroundIcon, slot.HexBackgroundColor ?? "", slot.SlotIndex));
+    }
+
+    public IEnumerable<ToolSlotData> GetSlotsForToolDialog()
+    {
+        IInventory? inventory = GetBackpackInventory(_api.World.Player);
+
+        if (inventory == null) return [];
+
+        return inventory
+            .OfType<ItemSlotBagContentWithWildcardMatch>()
+            .Where(slot => slot.Config.DisplayInToolDialog || slot.Config.HandleHotkey)
+            .Select(slot => new ToolSlotData(slot.Config, slot.Itemstack, slot.ToolBagId, slot.ToolBagIndex, slot.MainHand, slot.BackgroundIcon, slot.HexBackgroundColor ?? "", slot.SlotIndex));
     }
 
     public void TriggerSlots(IEnumerable<ToolSlotData> slots)
@@ -74,7 +91,7 @@ public sealed class ToolBagSelectionSystemClient
 
         foreach (ToolSlotData slotData in slots)
         {
-            _toolBagSystem.Send(slotData.ToolBagId, slotData.ToolBagIndex, slotData.MainHand);
+            _toolBagSystem.Send(slotData.ToolBagId, slotData.ToolBagIndex, slotData.MainHand, slotData.SlotIndex);
         }
 
         GuiDialogToolMode? toolModeDialog = _api.Gui.LoadedGuis.OfType<GuiDialogToolMode>().FirstOrDefault();
@@ -89,7 +106,7 @@ public sealed class ToolBagSelectionSystemClient
 
     private bool OnHotkeyPress(KeyCombination combination)
     {
-        if (!GetToolSlots().Any())
+        if (!GetSlotsForToolDialog().Any())
         {
             return false;
         }

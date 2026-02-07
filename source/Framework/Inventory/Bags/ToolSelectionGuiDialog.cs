@@ -1,10 +1,8 @@
 ﻿using Cairo;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
-using Vintagestory.Client.NoObf;
 
 namespace CombatOverhaul.Armor;
 
@@ -45,7 +43,7 @@ public class ToolSelectionGuiDialog : GuiDialog
     {
         ClearComposers();
 
-        IEnumerable<ToolSlotData> slots = System.GetToolSlots();
+        IEnumerable<ToolSlotData> slots = System.GetSlotsForToolDialog();
         List<SkillItem> skillItems = slots.Select(config => GetSkillItem(config.Stack, config.Icon, config.Color)).ToList();
 
         if (skillItems.Count == 0) return false;
@@ -90,7 +88,7 @@ public class ToolSelectionGuiDialog : GuiDialog
         {
             return GetSkillItemWithIcon(Api, icon, color);
         }
-        
+
         DummySlot temporarySlot = new(stack)
         {
             BackgroundIcon = icon

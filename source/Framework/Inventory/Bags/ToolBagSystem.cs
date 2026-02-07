@@ -13,6 +13,7 @@ public sealed class ToolBagPacket
     public string ToolBagId { get; set; } = "";
     public int ToolBagIndex { get; set; } = 0;
     public bool MainHand { get; set; } = true;
+    public int SlotIndex { get; set; } = 0;
 }
 
 public class ToolBagSystemClient
@@ -23,13 +24,14 @@ public class ToolBagSystemClient
             .RegisterMessageType<ToolBagPacket>();
     }
 
-    public void Send(string toolBagId, int toolBagIndex, bool mainHand)
+    public void Send(string toolBagId, int toolBagIndex, bool mainHand, int slotIndex)
     {
         _clientChannel.SendPacket(new ToolBagPacket
         {
             ToolBagId = toolBagId,
             ToolBagIndex = toolBagIndex,
-            MainHand = mainHand
+            MainHand = mainHand,
+            SlotIndex = slotIndex
         });
     }
 
@@ -72,28 +74,31 @@ public class ToolBagSystemServer
 
         try
         {
-            if (mainHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, mainHand: true))
+            if (mainHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, packet.SlotIndex, mainHand: true))
             {
                 _mainHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
             }
 
-            if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, mainHand: false))
+            if (offHandCooldown < currentTime && ProcessSlots(player, inventory, packet.ToolBagId, packet.ToolBagIndex, packet.SlotIndex, mainHand: false))
             {
                 _offHandCooldownUntilMs[entityId] = currentTime + _toolSwapCooldown;
             }
         }
         catch (Exception exception)
         {
-            LoggerUtil.Error(player.Entity.Api, this, $"Error when trying to use tool bag/sheath '{packet.ToolBagId}': {exception}");
+            LoggerUtil.Error(player.Entity?.Api, this, $"Error when trying to use tool bag/sheath '{packet.ToolBagId}': {exception}");
         }
     }
 
-    private ItemSlotToolHolder? GetToolSlot(IInventory inventory, string bagId, int bagIndex, bool mainHand)
+    private ItemSlotBagContentWithWildcardMatch? GetToolSlot(IInventory inventory, string bagId, int bagIndex, bool mainHand, int slotIndex)
     {
-        return inventory.OfType<ItemSlotToolHolder>().FirstOrDefault(slot => 
-            slot?.ToolBagId == bagId &&
-            slot?.MainHand == mainHand &&
-            slot.ToolBagIndex == bagIndex, null);
+        return inventory.OfType<ItemSlotBagContentWithWildcardMatch>()
+            .Where(slot => slot.Config.HandleHotkey || slot.Config.DisplayInToolDialog)
+            .FirstOrDefault(slot => 
+                slot?.ToolBagId == bagId &&
+                slot?.MainHand == mainHand &&
+                slot.ToolBagIndex == bagIndex &&
+                slot.SlotIndex == slotIndex, null);
     }
 
     private ItemSlotTakeOutOnly? GetTakeOutSlot(IInventory inventory, string bagId, int bagIndex, bool mainHand)
@@ -109,18 +114,19 @@ public class ToolBagSystemServer
         return mainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
     }
 
-    private ItemSlotToolHolder? GetAlternativeToolHolderSlot(IInventory inventory, ItemSlot activeSlot)
+    private ItemSlotBagContentWithWildcardMatch? GetAlternativeToolHolderSlot(IInventory inventory, ItemSlot activeSlot)
     {
         if (activeSlot.Empty) return null;
 
         return inventory
-            .OfType<ItemSlotToolHolder>()
+            .OfType<ItemSlotBagContentWithWildcardMatch>()
+            .Where(slot => slot.Config.HandleHotkey || slot.Config.DisplayInToolDialog)
             .FirstOrDefault(slot => slot.Empty && slot.CanTakeFrom(activeSlot));
     }
 
-    private bool ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
+    private bool ProcessSlots(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, int slotIndex, bool mainHand)
     {
-        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
+        ItemSlotBagContentWithWildcardMatch? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand, slotIndex);
         if (toolSlot == null) return false;
 
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
@@ -128,19 +134,19 @@ public class ToolBagSystemServer
 
         if (toolSlot.Empty)
         {
-            return PutBack(player, inventory, bagId, bagIndex, mainHand);
+            return PutBack(player, inventory, bagId, bagIndex, mainHand, slotIndex);
         }
         else
         {
-            return TakeOut(player, inventory, bagId, bagIndex, mainHand);
+            return TakeOut(player, inventory, bagId, bagIndex, mainHand, slotIndex);
         }
     }
 
-    private bool TakeOut(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
+    private bool TakeOut(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand, int slotIndex)
     {
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
         ItemSlotTakeOutOnly? takeOutSlot = GetTakeOutSlot(inventory, bagId, bagIndex, mainHand);
-        ItemSlotToolHolder? anotherToolSlot = GetAlternativeToolHolderSlot(inventory, activeSlot);
+        ItemSlotBagContentWithWildcardMatch? anotherToolSlot = GetAlternativeToolHolderSlot(inventory, activeSlot);
 
         if (anotherToolSlot != null)
         {
@@ -152,7 +158,7 @@ public class ToolBagSystemServer
 
             if (activeSlot.Empty)
             {
-                ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
+                ItemSlotBagContentWithWildcardMatch? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand, slotIndex);
                 if (toolSlot == null || toolSlot.Empty) return false;
 
                 movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
@@ -172,7 +178,7 @@ public class ToolBagSystemServer
 
             if (!activeSlot.Empty) return false;
 
-            ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
+            ItemSlotBagContentWithWildcardMatch? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand, slotIndex);
             if (toolSlot == null || toolSlot.Empty) return false;
 
             movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
@@ -181,13 +187,34 @@ public class ToolBagSystemServer
 
             return movedQuantity > 0;
         }
+        else
+        {
+            int movedQuantity = 0;
+            if (activeSlot.Itemstack?.StackSize > 0)
+            {
+                bool gaveAway = player.Entity.TryGiveItemStack(activeSlot.Itemstack);
+                if (!gaveAway)
+                {
+                    return false;
+                }
+            }
+
+            if (!activeSlot.Empty) return false;
+
+            ItemSlotBagContentWithWildcardMatch? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand, slotIndex);
+            if (toolSlot == null || toolSlot.Empty) return false;
+
+            movedQuantity = toolSlot.TryPutInto(_world, activeSlot, toolSlot.Itemstack?.StackSize ?? 1);
+
+            return movedQuantity > 0;
+        }
 
         return false;
     }
 
-    private bool PutBack(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand)
+    private bool PutBack(IServerPlayer player, IInventory inventory, string bagId, int bagIndex, bool mainHand, int slotIndex)
     {
-        ItemSlotToolHolder? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand);
+        ItemSlotBagContentWithWildcardMatch? toolSlot = GetToolSlot(inventory, bagId, bagIndex, mainHand, slotIndex);
         ItemSlot activeSlot = GetActiveSlot(player, mainHand);
         if (toolSlot == null || !toolSlot.Empty || activeSlot.Empty) return false;
 

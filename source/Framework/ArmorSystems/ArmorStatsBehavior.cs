@@ -76,8 +76,6 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
         if (inventory == null) return;
 
-
-
         bool anyStatsChangedItem = itemChanged;
         bool anyStatsChangedBehavior = itemChanged;
 
@@ -164,6 +162,7 @@ public sealed class WearableStatsBehavior : EntityBehavior, IDisposable
 
 
     }
+    
     private void AddStatValue(string stat, float value)
     {
         if (stat == "walkspeed" && value < 0)
