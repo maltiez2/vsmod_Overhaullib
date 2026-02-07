@@ -549,7 +549,13 @@ internal static class GuiDialogPatches
 
         for (int slotIndex = 4; slotIndex < backPackInv.Count; slotIndex++)
         {
-            ItemSlot slot = backPackInv[slotIndex];
+            ItemSlot? slot = backPackInv[slotIndex];
+
+            if (slot == null)
+            {
+                continue;
+            }
+            
             if (slot is IHasSlotBackpackCategory slotWithCategory && slotWithCategory.BackpackCategoryCode != "")
             {
                 bool categoryExists = false;

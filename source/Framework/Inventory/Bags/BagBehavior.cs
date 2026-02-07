@@ -441,8 +441,6 @@ public class ToolBag : GearEquipableBag
 
     public override List<ItemSlotBagContent?> GetOrCreateSlots(ItemStack bagstack, InventoryBase parentinv, int bagIndex, IWorldAccessor world)
     {
-        Debug.WriteLine($"GetOrCreateSlots - bagIndex: {bagIndex}");
-        
         List<ItemSlotBagContent?> bagContents = new();
 
         EnumItemStorageFlags flags = (EnumItemStorageFlags)DefaultFlags;
@@ -599,6 +597,30 @@ public class ToolBag : GearEquipableBag
                         if (OffHandSlotConfig.SlotsIcon != null)
                         {
                             slot.BackgroundIcon = OffHandSlotConfig.SlotsIcon;
+                        }
+
+                        while (bagContents.Count <= slotIndex) bagContents.Add(null);
+                        bagContents[slotIndex] = slot;
+                    }
+                    else
+                    {
+                        SlotConfig config = GetSlotConfig(slotIndex - ToolSlotNumber);
+
+                        ItemSlotBagContentWithWildcardMatch slot = new(parentinv, bagIndex, slotIndex, flags, bagstack, config.SlotColor)
+                        {
+                            Config = config
+                        };
+
+                        if (config.SlotsIcon != null)
+                        {
+                            slot.BackgroundIcon = config.SlotsIcon;
+                        }
+
+                        if (val.Value?.GetValue() != null)
+                        {
+                            ItemstackAttribute attr = (ItemstackAttribute)val.Value;
+                            slot.Itemstack = attr.value;
+                            slot.Itemstack.ResolveBlockOrItem(world);
                         }
 
                         while (bagContents.Count <= slotIndex) bagContents.Add(null);
