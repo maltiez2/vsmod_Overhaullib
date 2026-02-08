@@ -37,7 +37,7 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
     {
         if (OnSlotClicked?.Invoke(this, sourceSlot, ref op) == true) return;
         
-        if (Itemstack != null) EmptyBag(Itemstack);
+        //if (Itemstack != null) EmptyBag(Itemstack);
 
         try
         {
@@ -52,6 +52,11 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
 
     public override ItemStack? TakeOutWhole()
     {
+        if (!CanTake())
+        {
+            return null;
+        }
+        
         ItemStack itemStack = base.TakeOutWhole();
 
         if (itemStack != null) EmptyBag(itemStack);
@@ -61,6 +66,11 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
 
     public override ItemStack? TakeOut(int quantity)
     {
+        if (!CanTake())
+        {
+            return null;
+        }
+
         ItemStack stack = base.TakeOut(quantity);
 
         EmptyBag(stack);
@@ -68,8 +78,26 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
         return stack;
     }
 
+    public override bool CanTake()
+    {
+        IHeldBag? bag = itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>();
+
+        if (bag != null && !bag.IsEmpty(itemstack))
+        {
+            ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Empty its contents before removing it.");
+            return false;
+        }
+
+        return base.CanTake();
+    }
+
     protected override void FlipWith(ItemSlot itemSlot)
     {
+        if (!CanTake())
+        {
+            return;
+        }
+
         base.FlipWith(itemSlot);
 
         ItemStack stack = itemSlot.Itemstack;
@@ -205,14 +233,6 @@ public class GearSlot : ClothesSlot
             return false;
         }
 
-        IHeldBag? bag = itemstack?.Collectible?.GetCollectibleInterface<IHeldBag>();
-
-        if (bag != null && !bag.IsEmpty(itemstack))
-        {
-            ((inventory as InventoryBasePlayer)?.Player?.Entity?.Api as ICoreClientAPI)?.TriggerIngameError(this, "canttakeout", "Cannot take out item. Empty its contents before removing it.");
-            return false;
-        }
-
         return base.CanTake();
     }
 
@@ -223,7 +243,7 @@ public class GearSlot : ClothesSlot
             return false;
         }
 
-        return base.CanTakeFrom(sourceSlot, priority);
+        return base.CanTakeFrom(sourceSlot, priority) && CanTake();
     }
 
     public override bool CanHold(ItemSlot sourceSlot)
