@@ -27,6 +27,7 @@ using Vintagestory.Client.NoObf;
 using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Vintagestory.Server;
+using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul;
 
@@ -111,6 +112,8 @@ public partial class CombatOverhaulSystem : ModSystem
 
     public override void Start(ICoreAPI api)
     {
+        HarmonyPatchesManager.Patch(api);
+
         if (api.Side == EnumAppSide.Client)
         {
             HarmonyPatches.ClientSettings = Settings;
@@ -164,10 +167,7 @@ public partial class CombatOverhaulSystem : ModSystem
         AiTaskRegistry.Register<AiTaskCOTurretMode>("CombatOverhaul:TurretMode");
         AiTaskRegistry.Register<StaggerAiTask>("CombatOverhaul:Stagger");
 
-        new Harmony("CombatOverhaulAuto").PatchAll();
-
         InInventoryPlayerBehavior._reportedEntities.Clear();
-        InventorySafeguardsPatches.Patch("CombatOverhaulInventory");
 
         if (api.ModLoader.IsModEnabled("configlib"))
         {
@@ -218,10 +218,6 @@ public partial class CombatOverhaulSystem : ModSystem
 
         api.Event.RegisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         api.Event.RegisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
-
-        AimingPatches.Patch("CombatOverhaulAiming");
-        MouseWheelPatch.Patch("CombatOverhaul", api);
-        GuiDialogPatches.Patch("ovhlib", api);
 
         _clientToggleChannel = api.Network.RegisterChannel("combatOverhaulToggleItem")
             .RegisterMessageType<TogglePacket>();
@@ -329,15 +325,10 @@ public partial class CombatOverhaulSystem : ModSystem
     {
         if (Disposed) return;
 
-        new Harmony("CombatOverhaulAuto").UnpatchAll();
+        HarmonyPatchesManager.Unpatch();
 
         _clientApi?.Event.UnregisterRenderer(ReticleRenderer, EnumRenderStage.Ortho);
         _clientApi?.Event.UnregisterRenderer(DirectionCursorRenderer, EnumRenderStage.Ortho);
-
-        AimingPatches.Unpatch("CombatOverhaulAiming");
-        MouseWheelPatch.Unpatch("CombatOverhaul");
-        GuiDialogPatches.Unpatch("ovhlib");
-        InventorySafeguardsPatches.Unpatch("CombatOverhaulInventory");
 
         OnDispose?.Invoke();
 
@@ -522,9 +513,6 @@ public partial class CombatOverhaulAnimationsSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         _api = api;
-
-        HarmonyPatches.Patch("Overhaul lib", api);
-        AnimationPatches.Patch("IgnoreThisPatchItHasNothingToDoWithYourCrash", api);
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -553,9 +541,6 @@ public partial class CombatOverhaulAnimationsSystem : ModSystem
 
     public override void Dispose()
     {
-        HarmonyPatches.Unpatch("Overhaul lib", _api);
-        AnimationPatches.Unpatch("IgnoreThisPatchItHasNothingToDoWithYourCrash", _api);
-
         if (_api is ICoreClientAPI clientApi)
         {
             clientApi.Event.ReloadShader -= LoadAnimatedItemShaders;
