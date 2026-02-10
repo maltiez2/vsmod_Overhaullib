@@ -1,5 +1,6 @@
-﻿using System.Text;
+﻿using CombatOverhaul.Utils;
 using Newtonsoft.Json.Linq;
+using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -284,5 +285,13 @@ public class VanillaShield : MeleeWeapon, IContainedMeshSource
         string deco = itemstack.Attributes.GetString("deco");
 
         return Code.ToShortString() + "-" + wood + "-" + metal + "-" + color + "-" + deco;
+    }
+
+    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    {
+        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+
+        GeneralUtils.MarkItemStack(outputSlot);
+        outputSlot.MarkDirty();
     }
 }

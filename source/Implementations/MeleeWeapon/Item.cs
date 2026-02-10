@@ -3,6 +3,7 @@ using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
 using CombatOverhaul.RangedSystems;
+using CombatOverhaul.Utils;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -136,6 +137,14 @@ public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, 
         {
             ClientModes.SetToolMode(byPlayer.Entity, slot, toolMode);
         }
+    }
+
+    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    {
+        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+
+        GeneralUtils.MarkItemStack(outputSlot);
+        outputSlot.MarkDirty();
     }
 
 

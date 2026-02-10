@@ -6,7 +6,7 @@ namespace CombatOverhaul.Inputs;
 
 public sealed class DirectionCursorRenderer : IRenderer
 {
-    public bool Show { get; set; } = true;
+    public bool Show { get; set; } = false;
     public int CurrentDirection
     {
         get => _currentDirection;

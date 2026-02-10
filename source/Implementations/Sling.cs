@@ -633,6 +633,14 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveA
         }
     }
 
+    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    {
+        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+
+        GeneralUtils.MarkItemStack(outputSlot);
+        outputSlot.MarkDirty();
+    }
+
     public override void OnHeldAttackStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, ref EnumHandHandling handling)
     {
         handling = EnumHandHandling.PreventDefault;
