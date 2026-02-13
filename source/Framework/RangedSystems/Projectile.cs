@@ -98,14 +98,17 @@ public sealed class ProjectileServer
 
         string damageTierStat = DamageTierPlayerStatPrefix + _stats.DamageStats.DamageType.ToString();
         float statValue = attacker.Stats.GetBlended(damageTierStat) - 1;
+        float rangedWeaponsDamageStat = attacker.Stats.GetBlended("rangedWeaponsDamage");
 
-        float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier;
+        float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier * rangedWeaponsDamageStat;
         int damageTierBonus = _stats.DamageTierBonus + (int)statValue;
         DamageData damageData = new(
             Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType),
             Math.Max(1, _spawnStats.DamageTier + damageTierBonus),
             0
             );
+
+        
 
         if (!CheckPermissions(attacker, target) && damageData.DamageType != EnumDamageType.Heal) return false;
 

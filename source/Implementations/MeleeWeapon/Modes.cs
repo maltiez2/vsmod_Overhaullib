@@ -1,8 +1,6 @@
-﻿using OpenTK.Windowing.GraphicsLibraryFramework;
-using Vintagestory.API.Client;
+﻿using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Util;
-using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Implementations;
 
