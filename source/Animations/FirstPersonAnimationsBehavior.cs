@@ -278,6 +278,7 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
     private float _eyeHeight = 0;
     private bool _immersiveFpModeSetting = false;
     private long _ownerEntityId = 0;
+    private bool _restIfpSetting = false;
 
     private void OnBeforeFrame(Entity targetEntity, float dt)
     {
@@ -309,6 +310,20 @@ public sealed class FirstPersonAnimationsBehavior : EntityBehavior, IDisposable
                 {
                     renderer.HeldItemPitchFollowOverride = null;
                 }
+            }
+
+            if (_settings.SwitchFromImmersiveFirstPerson && entity.Api is ICoreClientAPI clientApi && clientApi.Settings.Bool["immersiveFpMode"])
+            {
+                clientApi.Settings.Bool["immersiveFpMode"] = false;
+                _restIfpSetting = true;
+            }
+        }
+        else
+        {
+            if (entity.Api is ICoreClientAPI clientApi && _restIfpSetting)
+            {
+                clientApi.Settings.Bool["immersiveFpMode"] = true;
+                _restIfpSetting = false;
             }
         }
 

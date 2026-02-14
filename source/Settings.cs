@@ -60,4 +60,8 @@ public sealed class Settings
     public bool DebugBlockAnglesParticles { get; set; } = false;
 
     public float EntityProtectionMultiplier { get; set; } = 0.5f;
+
+    public bool RangedWeaponsDamageSupport { get; set; } = true;
+
+    public bool SwitchFromImmersiveFirstPerson { get; set; } = true;
 }
