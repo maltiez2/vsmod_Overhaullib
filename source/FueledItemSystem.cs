@@ -29,6 +29,12 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
     public double RenderOrder => 0;
     public int RenderRange => 1;
 
+    public override void Start(ICoreAPI api)
+    {
+        CombatOverhaulSystem system = api.ModLoader.GetModSystem<CombatOverhaulSystem>();
+        _settings = system.Settings;
+    }
+
     public override void StartClientSide(ICoreClientAPI api)
     {
         _clientApi = api;
@@ -65,7 +71,7 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
     private ICoreClientAPI? _clientApi;
     private ICoreServerAPI? _serverApi;
     private EntityBehaviorPlayerInventory? _playerInventoryBehavior;
-    private const double _updatePeriodHours = 0.1;
+    private Settings _settings = new();
 
     private void OnServerTick(float dt)
     {
@@ -74,7 +80,7 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
         double totalHours = _serverApi.World.Calendar.TotalHours;
         double hoursPassed = totalHours - _lastCheckTotalHours;
 
-        if (hoursPassed < _updatePeriodHours) return;
+        if (hoursPassed < _settings.FueledItemUpdateInGameHours) return;
 
         foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
@@ -95,7 +101,7 @@ public sealed class FueledItemSystem : ModSystem, IRenderer
         foreach (IPlayer? player in _serverApi.World.AllOnlinePlayers)
         {
             if (player.Entity == null) continue;
-            
+
             IInventory? inventory = player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName);
             if (inventory == null) continue;
 

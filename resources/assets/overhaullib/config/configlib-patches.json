@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "patches": {},
+  "constants": {},
+  "settings": [
+    {
+      "code": "fueled_item_update_in_game_hours",
+      "type": "float",
+      "ingui": "combatoverhaul:setting-fueled_item_update_in_game_hours",
+      "default": 0.1
+    }
+  ]
+}

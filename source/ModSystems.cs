@@ -13,10 +13,8 @@ using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
 using CombatOverhaul.Vanity;
 using ConfigLib;
-using HarmonyLib;
 using OpenTK.Mathematics;
 using ProtoBuf;
-using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -24,10 +22,8 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.Client.NoObf;
-using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Vintagestory.Server;
-using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul;
 
@@ -414,7 +410,7 @@ public partial class CombatOverhaulSystem : ModSystem
             {
                 value = ColorUtil.ColorFromRgba(75, 75, 75, 190);
             }
-            
+
             AssetLocation location = new(path);
             IAsset svgAsset = api.Assets.TryGet(location);
             Surface target = ctx.GetTarget();
@@ -434,7 +430,7 @@ public partial class CombatOverhaulSystem : ModSystem
 
         system.SettingChanged += (domain, config, setting) =>
         {
-            if (domain != "combatoverhaul" && domain != "bullseyecontinued") return;
+            if (domain != "combatoverhaul" && domain != "bullseyecontinued" && domain != "overhaullib") return;
 
             setting.AssignSettingValue(Settings);
             SettingsChanged?.Invoke(Settings);
@@ -446,6 +442,7 @@ public partial class CombatOverhaulSystem : ModSystem
         {
             system.GetConfig("combatoverhaul")?.AssignSettingsValues(Settings);
             system.GetConfig("bullseyecontinued")?.AssignSettingsValues(Settings);
+            system.GetConfig("overhaullib")?.AssignSettingsValues(Settings);
             SettingsLoaded?.Invoke(Settings);
 
             DamageResistData.EntityProtectionFactor = Settings.EntityProtectionMultiplier;

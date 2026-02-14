@@ -176,5 +176,7 @@
   "interaction-hold-alt": "Hold 'Alt' to interact with objects or place on tool-rack/ground",
   "interaction-grip-change": "Hold 'Right mouse button' and rotate 'mouse wheel' to change grip length",
   "interaction-toggle-light-source": "Toggle wearable light source",
-  "interaction-toggle-light-source-hotkey": "Toggle wearable light source"
+  "interaction-toggle-light-source-hotkey": "Toggle wearable light source",
+
+  "setting-fueled_item_update_in_game_hours": "Fueled items update period (in game hours)"
 }

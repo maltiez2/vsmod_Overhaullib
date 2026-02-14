@@ -64,4 +64,6 @@ public sealed class Settings
     public bool RangedWeaponsDamageSupport { get; set; } = true;
 
     public bool SwitchFromImmersiveFirstPerson { get; set; } = true;
+
+    public float FueledItemUpdateInGameHours { get; set; } = 0.1f;
 }
