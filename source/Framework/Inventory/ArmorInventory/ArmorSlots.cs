@@ -254,7 +254,7 @@ public class GearSlot : ClothesSlot
     public virtual bool CanHoldConfig(ItemSlot? sourceSlot)
     {
         if (Config == null || sourceSlot == null) return true;
-        if (!base.CanHold(sourceSlot) || sourceSlot.Itemstack?.Collectible?.Code == null) return false;
+        if (sourceSlot.Itemstack?.Collectible?.Code == null) return false;
 
         bool matchWithoutDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.Path);
         bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
