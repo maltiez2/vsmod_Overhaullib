@@ -44,6 +44,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
     public EntityDamageModelBehavior(Entity entity) : base(entity)
     {
         _animationsSystem = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>();
+        _system = entity.Api.ModLoader.GetModSystem<CombatOverhaulSystem>();
     }
 
     public event OnEntityReceiveDamageDelegate? OnReceiveDamage;
@@ -94,13 +95,35 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
     {
         if (!Resists.Resists.Values.Any(x => x > 0)) return;
 
-        infotext.AppendLine(Lang.Get($"combatoverhaul:damage-protection-info"));
-        foreach ((EnumDamageType type, float value) in Resists.Resists)
+        if (_system.Settings.ShortEntityInfo)
         {
-            if (value <= 0) continue;
+            int piercing = 0;
+            int slashing = 0;
+            int blunt = 0;
+            if (Resists.Resists.TryGetValue(EnumDamageType.PiercingAttack, out float piercingValue))
+            {
+                piercing = (int)piercingValue;
+            }
+            if (Resists.Resists.TryGetValue(EnumDamageType.SlashingAttack, out float slashingValue))
+            {
+                slashing = (int)slashingValue;
+            }
+            if (Resists.Resists.TryGetValue(EnumDamageType.BluntAttack, out float bluntValue))
+            {
+                blunt = (int)bluntValue;
+            }
+            infotext.AppendLine(Lang.Get($"combatoverhaul:damage-short-protection-info", piercing, slashing, blunt));
+        }
+        else
+        {
+            infotext.AppendLine(Lang.Get($"combatoverhaul:damage-protection-info"));
+            foreach ((EnumDamageType type, float value) in Resists.Resists)
+            {
+                if (value <= 0) continue;
 
-            string damageType = Lang.Get($"combatoverhaul:damage-type-{type}");
-            infotext.AppendLine($"  {damageType}: {value}");
+                string damageType = Lang.Get($"combatoverhaul:damage-type-{type}");
+                infotext.AppendLine($"  {damageType}: {value}");
+            }
         }
     }
     public override void AfterInitialized(bool onFirstSpawn)
@@ -117,6 +140,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 
     private CollidersEntityBehavior? _colliders;
     private readonly CombatOverhaulAnimationsSystem _animationsSystem;
+    private readonly CombatOverhaulSystem _system;
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {

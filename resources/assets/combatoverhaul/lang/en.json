@@ -105,6 +105,7 @@
   "damage-type-Heat": "Heat",
   "damage-type-Injury": "Injury",
 
+  "damage-short-protection-info": "Resists (P-S-B): {0}-{1}-{2}",
   "damage-protection-info": "Protection levels:",
   "armor-layers-info": "Layers: {0}",
   "armor-zones-info": "Body parts: {0}",
