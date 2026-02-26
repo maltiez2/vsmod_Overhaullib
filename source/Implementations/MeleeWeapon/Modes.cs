@@ -45,6 +45,7 @@ public class MeleeWeaponClientModesCollection
         CurrentMode.Active = true;
         CurrentMode.OnSelected(slot, player, mainHand, ref fakeState);
         CurrentMode.PlayReadyAnimation(mainHand);
+        MeleeWeaponClient.SetGlobalCooldown(Api, 0); // Will it be a problem with canceling attacks?
     }
 
     public virtual int GetToolMode(EntityPlayer player, ItemSlot slot)

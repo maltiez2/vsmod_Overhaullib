@@ -1,5 +1,6 @@
 ﻿using CombatOverhaul.Colliders;
 using CombatOverhaul.Utils;
+using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -13,17 +14,14 @@ public sealed class EntityDamageModelJson
 {
     public float TorsoDamageMultiplier { get; set; } = 1.0f;
     public float LimbsDamageMultiplier { get; set; } = 0.5f;
-    public float HeadDamageMultiplier { get; set; } = 1.25f;
+    public float HeadDamageMultiplier { get; set; } = 1.5f;
     public float CriticalDamageMultiplier { get; set; } = 2.0f;
     public float ResistantDamageMultiplier { get; set; } = 0.0f;
-    public Dictionary<string, float> DefaultResists { get; set; } = new();
-    public Dictionary<string, Dictionary<string, float>> ResistsForColliders { get; set; } = new();
-    public Dictionary<string, SoundEffectData> HitSounds { get; set; } = new()
-    {
-        //{"Head", new() { Code = "game:sounds/player/projectilehit"}  },
-        //{"Critical", new() { Code = "game:sounds/player/projectilehit"}  },
-        //{"Resistant", new() { Code = "game:sounds/held/shieldblock-wood-light"}  }
-    };
+    public Dictionary<string, float> DefaultResists { get; set; } = [];
+    public Dictionary<string, Dictionary<string, float>> ResistsForColliders { get; set; } = [];
+    public Dictionary<string, SoundEffectData> HitSounds { get; set; } = [];
+    public Dictionary<string, string> HitParticles { get; set; } = [];
+    public bool ScaleParticlesCountWithDamage { get; set; } = true;
 }
 
 public sealed class SoundEffectData
@@ -45,6 +43,7 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
 {
     public EntityDamageModelBehavior(Entity entity) : base(entity)
     {
+        _animationsSystem = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>();
     }
 
     public event OnEntityReceiveDamageDelegate? OnReceiveDamage;
@@ -60,8 +59,10 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         { ColliderTypes.Resistant, 0.0f }
     };
     public DamageResistData Resists { get; set; } = new();
-    public Dictionary<ColliderTypes, DamageResistData> ResistsForColliders { get; private set; } = new Dictionary<ColliderTypes, DamageResistData>();
-    public Dictionary<ColliderTypes, SoundEffectData> HitSounds { get; private set; } = new Dictionary<ColliderTypes, SoundEffectData>();
+    public Dictionary<ColliderTypes, DamageResistData> ResistsForColliders { get; private set; } = [];
+    public Dictionary<ColliderTypes, SoundEffectData> HitSounds { get; private set; } = [];
+    public Dictionary<ColliderTypes, string> HitParticles { get; private set; } = [];
+    public bool ScaleParticlesCountWithDamage { get; private set; } = true;
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
@@ -85,13 +86,9 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
             };
 
             HitSounds = stats.HitSounds.ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => entry.Value);
+            HitParticles = stats.HitParticles.ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => entry.Value);
+            ScaleParticlesCountWithDamage = stats.ScaleParticlesCountWithDamage;
         }
-
-        /*if (entity.Api.Side == EnumAppSide.Client)
-        {
-            DebugWidgets.Button("test", "test", "effect-1", () => SpawnSecondChanceParticles());
-            DebugWidgets.Button("test", "test", "effect-2", () => SpawnGracePeriodPArticles());
-        }*/
     }
     public override void GetInfoText(StringBuilder infotext)
     {
@@ -119,18 +116,24 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
     }
 
     private CollidersEntityBehavior? _colliders;
+    private readonly CombatOverhaulAnimationsSystem _animationsSystem;
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
         ColliderTypes colliderType = ColliderTypes.Torso;
         string? collider = null;
+        Vector3d position = new();
 
         if (_colliders != null && damageSource is ILocationalDamage locationalDamageSource)
         {
-            if (_colliders.CollidersTypes.ContainsKey(locationalDamageSource.Collider)) colliderType = _colliders.CollidersTypes[locationalDamageSource.Collider];
+            if (_colliders.CollidersTypes.ContainsKey(locationalDamageSource.Collider))
+            {
+                colliderType = _colliders.CollidersTypes[locationalDamageSource.Collider];
+            }
             collider = locationalDamageSource.Collider;
             float multiplier = DamageMultipliers[colliderType];
             damage *= multiplier;
+            position = locationalDamageSource.Position;
         }
 
         if (damageSource is ITypedDamage typedDamage)
@@ -153,6 +156,16 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         if (HitSounds.TryGetValue(colliderType, out SoundEffectData? value))
         {
             entity.Api.World.PlaySoundAt(new AssetLocation(value.Code), entity, randomizePitch: value.RandomizePitch, range: value.Range, volume: value.Volume);
+        }
+
+        if (HitParticles.TryGetValue(colliderType, out string? particlesEffect))
+        {
+            float intensity = ScaleParticlesCountWithDamage ? MathF.Sqrt(damage) : 1;
+            if (damage <= 0)
+            {
+                intensity = 1;
+            }
+            _animationsSystem.ParticleEffectsManager?.Spawn(particlesEffect, position, Vector3.Zero, intensity);
         }
 
         OnReceiveDamage?.Invoke(ref damage, damageSource, colliderType, collider);

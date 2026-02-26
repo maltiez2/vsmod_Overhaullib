@@ -40,6 +40,7 @@ public sealed class BowStats : WeaponStats
     public float[] DispersionMOA { get; set; } = [0, 0];
     public float ScreenShakeStrength { get; set; } = 0.2f;
     public bool TwoHanded { get; set; } = true;
+    public float ReloadAnimationSpeed { get; set; } = 1.0f;
 }
 
 public class BowClient : RangeWeaponClient
@@ -111,8 +112,8 @@ public class BowClient : RangeWeaponClient
         AttachmentSystem.SendAttachPacket(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
         RangedWeaponSystem.Reload(slot, arrowSlot, 1, mainHand, ReloadCallback);
 
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, callback: LoadAnimationCallback);
-        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed);
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed, callback: LoadAnimationCallback);
+        TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed);
 
         AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.BowsAimingCursorType);
         AimingStats.VerticalLimit = Settings.BowsAimingVerticalLimit * Stats.Aiming.VerticalLimit;
@@ -177,7 +178,7 @@ public class BowClient : RangeWeaponClient
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
-        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
+        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
         AnimationBehavior?.Play(request, mainHand);
         TpAnimationBehavior?.Play(request, mainHand);
 

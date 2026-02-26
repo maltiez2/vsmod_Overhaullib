@@ -87,8 +87,6 @@ public sealed class ToolBagSelectionSystemClient
 
     public void TriggerSlots(IEnumerable<ToolSlotData> slots)
     {
-        Debug.WriteLine(slots.FirstOrDefault().ToolBagId);
-
         foreach (ToolSlotData slotData in slots)
         {
             _toolBagSystem.Send(slotData.ToolBagId, slotData.ToolBagIndex, slotData.MainHand, slotData.SlotIndex);

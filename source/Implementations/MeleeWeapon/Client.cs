@@ -6,6 +6,7 @@ using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
+using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -409,7 +410,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         EnsureStance(player, mainHand);
         if (!CheckState(mainHand, MeleeWeaponState.BlockBashAttacking, MeleeWeaponState.Attacking)) return;
 
-        MeleeAttack? attack = GetStanceAttack(player, mainHand, mainHand ? CurrentMainHandDirection : CurrentOffHandDirection);
+        MeleeAttack? attack = GetStanceAttack(player, mainHand, mainHand ? CurrentMainHandDirection : CurrentOffHandDirection, mainHand ? CurrentMainHandAttackIsRiposte : CurrentOffHandAttackIsRiposte);
         MeleeAttack? bash = GetStanceBlockBash(player, mainHand, mainHand ? CurrentMainHandDirection : CurrentOffHandDirection);
         StanceStats? stats = GetStanceStats(player, mainHand);
         MeleeAttack? handle = GetStanceHandleAttack(player, mainHand);
@@ -649,6 +650,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         TpAnimationBehavior?.PlayReadyAnimation(mainHand);
     }
 
+    public static void SetGlobalCooldown(ICoreAPI api, long cooldownMs = GlobalCooldownMs)
+    {
+        GlobalCooldownUntilMs = api.World.ElapsedMilliseconds + cooldownMs;
+    }
+
     protected readonly Item Item;
     protected readonly ICoreClientAPI Api;
     protected readonly MeleeBlockSystemClient MeleeBlockSystem;
@@ -679,12 +685,17 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected const bool EditColliders = false;
     protected AttackDirection CurrentMainHandDirection = AttackDirection.Top;
     protected AttackDirection CurrentOffHandDirection = AttackDirection.Top;
-    protected bool CanRiposteMainHand = false;
-    protected bool CanRiposteOffHand = false;
+    protected static bool CanRiposteMainHand = false;
+    protected static bool CanRiposteOffHand = false;
+    protected static long RiposteTimerMainHand = 0;
+    protected static long RiposteTimerOffHand = 0;
     protected bool RiposteMainHand = false;
     protected bool RiposteOffHand = false;
+    protected bool CurrentMainHandAttackIsRiposte = false;
+    protected bool CurrentOffHandAttackIsRiposte = false;
 
     protected const long GlobalCooldownMs = 1000;
+    protected const int RiposteGracePeriodMs = 300;
 
     protected readonly AimingStats? AimingStats;
 
@@ -723,29 +734,28 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         EnsureStance(player, mainHand);
 
+        bool canRiposte = CanRiposteMainHand || CanRiposteOffHand;
+
         if (IsAttackOnCooldown(mainHand)) return false;
         if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!CanAttack(player, mainHand)) return false;
-        if (ItemInOtherHandBlocksAttack(player, mainHand)) return false;
+        if (ItemInOtherHandBlocksAttack(player, mainHand) && !canRiposte) return false;
         if (ActionRestricted(player, mainHand)) return false;
 
-        MeleeAttack? attack = GetStanceAttack(player, mainHand, direction);
         StanceStats? stats = GetStanceStats(player, mainHand);
         MeleeAttack? handle = GetStanceHandleAttack(player, mainHand);
 
-        if (attack == null || stats == null) return false;
+        if (stats == null) return false;
+
+        MeleeAttack? attack = GetStanceAttack(player, mainHand, direction, riposte: stats.CanRiposte && canRiposte);
+
+        if (attack == null) return false;
 
         switch (GetState<MeleeWeaponState>(mainHand))
         {
             case MeleeWeaponState.Parrying:
                 {
-                    bool canRiposte = mainHand ? CanRiposteMainHand : CanRiposteOffHand;
-
                     if (!stats.CanRiposte || !canRiposte) return false;
-
-                    attack = GetStanceAttack(player, mainHand, direction, riposte: true);
-
-                    if (attack == null) return false;
 
                     TurnOnRiposte(mainHand);
                     StartAttack(slot, player, mainHand, direction, attack, handle, stats, riposte: true);
@@ -756,7 +766,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             case MeleeWeaponState.Idle:
                 {
                     TurnOffRiposte(mainHand);
-                    StartAttack(slot, player, mainHand, direction, attack, handle, stats);
+                    StartAttack(slot, player, mainHand, direction, attack, handle, stats, riposte: stats.CanRiposte && canRiposte);
                     ResetRiposte(mainHand);
                 }
                 break;
@@ -777,10 +787,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (mainHand)
         {
             CurrentMainHandDirection = direction;
+            CurrentMainHandAttackIsRiposte = riposte;
         }
         else
         {
             CurrentOffHandDirection = direction;
+            CurrentOffHandAttackIsRiposte = riposte;
         }
 
         int counter = mainHand ? MainHandAttackCounter : OffHandAttackCounter;
@@ -1112,7 +1124,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                     if (CanParry(player, mainHand) && parryStats != null)
                     {
                         SetState(MeleeWeaponState.Parrying, mainHand);
-                        MeleeBlockSystem.StartBlock(parryStats, mainHand);
+                        MeleeBlockSystem.StartBlock(parryStats, mainHand, () => RiposteCallback(mainHand, player));
                     }
                 }
                 break;
@@ -1154,24 +1166,33 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         if (!CheckState(mainHand, MeleeWeaponState.Parrying, MeleeWeaponState.Blocking)) return;
 
+        SetRiposte(mainHand, true);
+    }
+    
+    protected virtual void SetRiposte(bool mainHand, bool value)
+    {
         if (mainHand)
         {
-            CanRiposteMainHand = true;
+            CanRiposteMainHand = value;
+            Api.World.UnregisterCallback(RiposteTimerMainHand);
         }
         else
         {
-            CanRiposteOffHand = true;
+            CanRiposteOffHand = value;
+            Api.World.UnregisterCallback(RiposteTimerOffHand);
         }
     }
     protected virtual void ResetRiposte(bool mainHand)
     {
         if (mainHand)
         {
-            CanRiposteMainHand = false;
+            Api.World.UnregisterCallback(RiposteTimerMainHand);
+            RiposteTimerMainHand = Api.World.RegisterCallback(_ => SetRiposte(mainHand, false), RiposteGracePeriodMs);
         }
         else
         {
-            CanRiposteOffHand = false;
+            Api.World.UnregisterCallback(RiposteTimerOffHand);
+            RiposteTimerOffHand = Api.World.RegisterCallback(_ => SetRiposte(mainHand, false), RiposteGracePeriodMs);
         }
     }
     protected virtual void TurnOnRiposte(bool mainHand)
@@ -1503,6 +1524,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         if (!Active) return false;
 
+        if (!eventData.Modifiers.Contains(EnumEntityAction.RightMouseDown)) return false;
         if (InteractionsTester.PlayerTriesToInteract(player, mainHand, eventData)) return false;
         if (!CanThrow(player, mainHand) || Stats.ThrowAttack == null || AimingStats == null) return false;
         if (!CheckState(mainHand, MeleeWeaponState.Idle)) return false;
@@ -2015,10 +2037,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             DebugWindowManager.RegisterCollider(item, $"{type}{typeIndex++}-{modeIndex}", damageType);
         }
 #endif
-    }
-    protected static void SetGlobalCooldown(ICoreAPI api, long cooldownMs = GlobalCooldownMs)
-    {
-        GlobalCooldownUntilMs = api.World.ElapsedMilliseconds + cooldownMs;
     }
     protected static bool CheckGlobalCooldown(ICoreAPI api)
     {

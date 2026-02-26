@@ -1,8 +1,8 @@
 ﻿using ImGuiNET;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using ProtoBuf;
 using OpenTK.Mathematics;
+using ProtoBuf;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -16,7 +16,7 @@ namespace CombatOverhaul.Utils;
 public struct ParticleEffectsPacket
 {
     public string Code { get; set; }
-    public float[] Position { get; set; }
+    public double[] Position { get; set; }
     public float[] Velocity { get; set; }
     public float Intensity { get; set; }
 }
@@ -95,23 +95,41 @@ public class ParticleEffectsManager
         ParticleEffectsPacket packet = PreparePacket(code, position, velocity, intensity);
         SpawnParticleEffect(packet, null);
     }
+    public void Spawn(string code, Vector3d position, Vector3 velocity, float intensity)
+    {
+        ParticleEffectsPacket packet = PreparePacket(code, position, velocity, intensity);
+        SpawnParticleEffect(packet, null);
+    }
 
     public void Draw(string id)
     {
 #if DEBUG
         string[] keys = _particleProperties.Keys.ToArray();
         ImGui.ListBox($"Effects##{id}", ref _selected, keys, _particleProperties.Count);
+        if (ImGui.Button($"Spawn##{id}"))
+        {
+            SpawnDebugParticles(keys[_selected], _debugParticlesOffset);
+        }
+        ImGui.SameLine();
+        ImGui.SliderFloat($"Offset##{id}", ref _debugParticlesOffset, 0, 10);
         ImGui.Separator();
         ParticleEditor.Draw(id, _particleProperties[keys[_selected]]);
 #endif
     }
 
     private int _selected = 0;
+    private float _debugParticlesOffset = 1;
     private readonly ICoreAPI _api;
     private readonly Dictionary<string, AdvancedParticleProperties> _particleProperties = new();
     private readonly IClientNetworkChannel? _clientChannel;
     private const string _networkChannelId = "CombatOverhaul:particle-effects";
 
+    private void SpawnDebugParticles(string code, float offset)
+    {
+        Vec3d pos = (_api as ICoreClientAPI)?.World.Player.Entity.Pos.AheadCopy(offset).XYZ + (_api as ICoreClientAPI)?.World.Player.Entity.LocalEyePos;
+        Vector3d position = pos.ToOpenTK();
+        Spawn(code, position, Vector3.Zero, 1);
+    }
     private static ParticleEffectsPacket PreparePacket(string code, Entity player, Vector3 position, Vector3 velocity, float intensity)
     {
         Vector3 worldPosition = FromCameraReferenceFrame(player, position);
@@ -124,8 +142,8 @@ public class ParticleEffectsManager
         return new ParticleEffectsPacket()
         {
             Code = code,
-            Position = new float[] { effectPosition.X, effectPosition.Y, effectPosition.Z },
-            Velocity = new float[] { worldVelocity.X, worldVelocity.Y, worldVelocity.Z },
+            Position = [effectPosition.X, effectPosition.Y, effectPosition.Z],
+            Velocity = [worldVelocity.X, worldVelocity.Y, worldVelocity.Z],
             Intensity = intensity
         };
     }
@@ -134,8 +152,18 @@ public class ParticleEffectsManager
         return new ParticleEffectsPacket()
         {
             Code = code,
-            Position = new float[] { position.X, position.Y, position.Z },
-            Velocity = new float[] { velocity.X, velocity.Y, velocity.Z },
+            Position = [position.X, position.Y, position.Z],
+            Velocity = [velocity.X, velocity.Y, velocity.Z],
+            Intensity = intensity
+        };
+    }
+    private static ParticleEffectsPacket PreparePacket(string code, Vector3d position, Vector3 velocity, float intensity)
+    {
+        return new ParticleEffectsPacket()
+        {
+            Code = code,
+            Position = [position.X, position.Y, position.Z],
+            Velocity = [velocity.X, velocity.Y, velocity.Z],
             Intensity = intensity
         };
     }

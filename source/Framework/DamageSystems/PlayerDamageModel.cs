@@ -135,12 +135,18 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         {
             ApplyDamageFromHotClothes();
             _nextTemperatureDamageCheck = currentTime + _temperatureDamageCheckCooldownMs;
+        }
 
-            float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
+        float secondChanceCooldown = entity.WatchedAttributes.GetFloat("secondChanceCooldown", 0);
+        if (secondChanceCooldown > 0)
+        {
             secondChanceCooldown = Math.Clamp(secondChanceCooldown - deltaTime, 0, secondChanceCooldown);
             entity.WatchedAttributes.SetFloat("secondChanceCooldown", secondChanceCooldown);
+        }
 
-            float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
+        float secondChanceGracePeriod = entity.WatchedAttributes.GetFloat("secondChanceGracePeriod", 0);
+        if (secondChanceGracePeriod > 0)
+        {
             secondChanceGracePeriod = Math.Clamp(secondChanceGracePeriod - deltaTime, 0, secondChanceGracePeriod);
             entity.WatchedAttributes.SetFloat("secondChanceGracePeriod", secondChanceGracePeriod);
         }
