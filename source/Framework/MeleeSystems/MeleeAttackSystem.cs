@@ -1,4 +1,5 @@
-﻿using CombatOverhaul.Colliders;
+﻿using Cairo;
+using CombatOverhaul.Colliders;
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
@@ -56,10 +57,9 @@ public readonly struct AttackId
 
 public sealed class MeleeSystemClient : MeleeSystem
 {
-    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot? slot);
+    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot slot, MeleeAttackStatus status);
 
-    public event MeleeAttackDelegate? OnMeleeAttackStart;
-    public event MeleeAttackDelegate? OnMeleeAttackEnd;
+    public event MeleeAttackDelegate? OnMeleeAttackStatusChange;
 
     public MeleeSystemClient(ICoreClientAPI api)
     {
@@ -96,15 +96,7 @@ public sealed class MeleeSystemClient : MeleeSystem
         });
 
         ItemSlot weaponSlot = mainHand ? attacker.ActiveHandItemSlot : attacker.LeftHandItemSlot;
-        switch (status)
-        {
-            case MeleeAttackStatus.Start:
-                OnMeleeAttackStart?.Invoke(attacker, weaponSlot);
-                break;
-            case MeleeAttackStatus.End:
-                OnMeleeAttackEnd?.Invoke(attacker, weaponSlot);
-                break;
-        }
+        OnMeleeAttackStatusChange?.Invoke(attacker, weaponSlot, status);
     }
 
     private readonly IClientNetworkChannel _clientChannel;
@@ -113,11 +105,10 @@ public sealed class MeleeSystemClient : MeleeSystem
 public sealed class MeleeSystemServer : MeleeSystem
 {
     public delegate void MeleeDamageDelegate(Entity target, DamageSource damageSource, ItemSlot? slot, ref float damage);
-    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot weaponSlot);
+    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot slot, MeleeAttackStatus status);
 
     public event MeleeDamageDelegate? OnDealMeleeDamage;
-    public event MeleeAttackDelegate? OnMeleeAttackStart;
-    public event MeleeAttackDelegate? OnMeleeAttackEnd;
+    public event MeleeAttackDelegate? OnMeleeAttackStatusChange;
 
     public MeleeSystemServer(ICoreServerAPI api)
     {
@@ -152,15 +143,7 @@ public sealed class MeleeSystemServer : MeleeSystem
     private void HandlePacket(IServerPlayer player, MeleeAttackStatusPacket packet)
     {
         ItemSlot weaponSlot = packet.MainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
-        switch (packet.Status)
-        {
-            case MeleeAttackStatus.Start:
-                OnMeleeAttackStart?.Invoke(player.Entity, weaponSlot);
-                break;
-            case MeleeAttackStatus.End:
-                OnMeleeAttackEnd?.Invoke(player.Entity, weaponSlot);
-                break;
-        }
+        OnMeleeAttackStatusChange?.Invoke(player.Entity, weaponSlot, packet.Status);
     }
 
     private void Attack(MeleeDamagePacket packet)
