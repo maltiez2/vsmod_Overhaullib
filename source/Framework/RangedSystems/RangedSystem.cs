@@ -1,5 +1,7 @@
-﻿using OpenTK.Mathematics;
+﻿using CombatOverhaul.MeleeSystems;
+using OpenTK.Mathematics;
 using ProtoBuf;
+using System.Diagnostics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -39,6 +41,23 @@ public class ShotPacket
     public byte[] Data { get; set; } = Array.Empty<byte>();
 }
 
+public enum RangedWeaponStatus
+{
+    StartLoading,
+    EndLoading,
+    StartAiming,
+    EndAiming,
+    TriggeredShot,
+    SpawnedProjectile
+}
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public class RangedWeaponStatusPacket
+{
+    public RangedWeaponStatus Status { get; set; }
+    public bool MainHand { get; set; }
+}
+
 [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
 public class ShotConfirmPacket
 {
@@ -50,6 +69,10 @@ public class RangedWeaponSystemClient
 {
     public const string NetworkChannelId = "CombatOverhaul:rangeWeapon";
 
+    public delegate void RangedWeaponStatusChangedDelegate(Entity attacker, ItemSlot weaponSlot, RangedWeaponStatus status);
+
+    public event RangedWeaponStatusChangedDelegate? RangedWeaponStatusChanged;
+
     public RangedWeaponSystemClient(ICoreClientAPI api)
     {
         _api = api;
@@ -58,10 +81,25 @@ public class RangedWeaponSystemClient
             .RegisterMessageType<ReloadConfirmPacket>()
             .RegisterMessageType<ShotPacket>()
             .RegisterMessageType<ShotConfirmPacket>()
+            .RegisterMessageType<RangedWeaponStatusPacket>()
             .SetMessageHandler<ReloadConfirmPacket>(HandleReloadPacket)
             .SetMessageHandler<ShotConfirmPacket>(HandleShotPacket);
     }
 
+    public void SendStatusChange(EntityPlayer attacker, RangedWeaponStatus status, bool mainHand)
+    {
+        Debug.WriteLine(status);
+        
+        ItemSlot weaponSlot = mainHand ? attacker.ActiveHandItemSlot : attacker.LeftHandItemSlot;
+
+        RangedWeaponStatusChanged?.Invoke(attacker, weaponSlot, status);
+
+        _clientChannel.SendPacket(new RangedWeaponStatusPacket
+        {
+            Status = status,
+            MainHand = mainHand
+        });
+    }
     public void Reload(ItemSlot weapon, ItemSlot ammo, int amount, bool rightHand, Action<bool> reloadCallback, byte[]? data = null)
     {
         if (_nextId > int.MaxValue / 2) _nextId = 0;
@@ -175,6 +213,10 @@ public class RangedWeaponSystemServer
 {
     public const string NetworkChannelId = "CombatOverhaul:rangeWeapon";
 
+    public delegate void RangedWeaponStatusChangedDelegate(Entity attacker, ItemSlot weaponSlot, RangedWeaponStatus status);
+
+    public event RangedWeaponStatusChangedDelegate? RangedWeaponStatusChanged;
+
     public RangedWeaponSystemServer(ICoreServerAPI api)
     {
         _serverChannel = api.Network.RegisterChannel(NetworkChannelId)
@@ -182,11 +224,20 @@ public class RangedWeaponSystemServer
             .RegisterMessageType<ReloadConfirmPacket>()
             .RegisterMessageType<ShotPacket>()
             .RegisterMessageType<ShotConfirmPacket>()
+            .RegisterMessageType<RangedWeaponStatusPacket>()
             .SetMessageHandler<ReloadPacket>(HandleReloadPacket)
-            .SetMessageHandler<ShotPacket>(HandleShotPacket);
+            .SetMessageHandler<ShotPacket>(HandleShotPacket)
+            .SetMessageHandler<RangedWeaponStatusPacket>(HandleWeaponStatusPacket);
     }
 
     private readonly IServerNetworkChannel _serverChannel;
+
+    private void HandleWeaponStatusPacket(IServerPlayer player, RangedWeaponStatusPacket packet)
+    {
+        ItemSlot weaponSlot = packet.MainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
+
+        RangedWeaponStatusChanged?.Invoke(player.Entity, weaponSlot, packet.Status);
+    }
 
     private void HandleReloadPacket(IServerPlayer player, ReloadPacket packet)
     {

@@ -6,7 +6,6 @@ using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
-using System.Diagnostics;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -51,6 +50,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         Api = api;
 
         CombatOverhaulSystem system = api.ModLoader.GetModSystem<CombatOverhaulSystem>();
+        MeleeAttackSystem = system.ClientMeleeSystem ?? throw new Exception();
         MeleeBlockSystem = system.ClientBlockSystem ?? throw new Exception();
         SoundsSystem = system.ClientSoundsSynchronizer ?? throw new Exception();
         RangedWeaponSystem = system.ClientRangedWeaponSystem ?? throw new Exception();
@@ -330,10 +330,27 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             SetGlobalCooldown(Api, Settings.GlobalAttackCooldownMs);
         }
 
+        if (CheckState(mainHand,
+            MeleeWeaponState.WindingUp,
+            MeleeWeaponState.Attacking,
+            MeleeWeaponState.Cooldown,
+            MeleeWeaponState.BlockBashAttacking,
+            MeleeWeaponState.BlockBashWindingUp,
+            MeleeWeaponState.BlockBashCooldown))
+        {
+            MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
+        }
+
+        if (CheckState(mainHand,
+            MeleeWeaponState.Aiming,
+            MeleeWeaponState.StartingAim))
+        {
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
+        }
+
         MeleeBlockSystem.StopBlock(mainHand);
         StopAttackCooldown(mainHand);
         StopBlockCooldown(mainHand);
-        //GripController?.ResetGrip(mainHand);
         GripController?.StopAnimation(mainHand);
         AnimationBehavior?.StopSpeedModifier();
         PlayerActionsBehavior?.SetStat("walkspeed", mainHand ? PlayerStatsMainHandCategory : PlayerStatsOffHandCategory);
@@ -441,6 +458,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                             AnimationBehavior?.PlayReadyAnimation(mainHand);
                             TpAnimationBehavior?.PlayReadyAnimation(mainHand);
                             StartAttackCooldown(mainHand, TimeSpan.FromSeconds(0.5));
+                            MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
                         }
                     }
                 }
@@ -658,6 +676,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     protected readonly Item Item;
     protected readonly ICoreClientAPI Api;
     protected readonly MeleeBlockSystemClient MeleeBlockSystem;
+    protected readonly MeleeSystemClient MeleeAttackSystem;
     protected readonly RangedWeaponSystemClient RangedWeaponSystem;
     protected readonly ClientAimingSystem AimingSystem;
     protected readonly Settings Settings;
@@ -809,6 +828,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         SetState(MeleeWeaponState.WindingUp, mainHand);
 
+        MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.Start, mainHand);
+
         attack.Start(player.Player);
         handle?.Start(player.Player);
         AnimationBehavior?.Play(
@@ -816,8 +837,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
             attackAnimation,
             animationSpeed: animationSpeed,
             category: AnimationCategory(mainHand),
-            callback: () => AttackAnimationCallback(mainHand),
-            callbackHandler: code => AttackAnimationCallbackHandler(code, mainHand));
+            callback: () => AttackAnimationCallback(player, mainHand),
+            callbackHandler: code => AttackAnimationCallbackHandler(player, code, mainHand));
         TpAnimationBehavior?.Play(
             mainHand,
             attackAnimation,
@@ -982,7 +1003,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return duration < totalDuration;
     }
-    protected virtual bool AttackAnimationCallback(bool mainHand)
+    protected virtual bool AttackAnimationCallback(EntityPlayer player, bool mainHand)
     {
         AnimationBehavior?.PlayReadyAnimation(mainHand);
         TpAnimationBehavior?.PlayReadyAnimation(mainHand);
@@ -990,6 +1011,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         if (CheckState(mainHand, MeleeWeaponState.Cooldown, MeleeWeaponState.Attacking, MeleeWeaponState.WindingUp))
         {
             SetState(MeleeWeaponState.Idle, mainHand);
+        }
+
+        if (!CheckState(mainHand, MeleeWeaponState.Idle))
+        {
+            MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
         }
 
         if (mainHand)
@@ -1003,7 +1029,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return true;
     }
-    protected virtual void AttackAnimationCallbackHandler(string callbackCode, bool mainHand)
+    protected virtual void AttackAnimationCallbackHandler(EntityPlayer player, string callbackCode, bool mainHand)
     {
         switch (callbackCode)
         {
@@ -1015,6 +1041,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 SetState(MeleeWeaponState.Cooldown, mainHand);
                 break;
             case "ready":
+                MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
                 SetState(MeleeWeaponState.Idle, mainHand);
                 break;
         }
@@ -1297,6 +1324,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                     float animationSpeed = GetAnimationSpeed(player, Stats) * ItemStackMeleeWeaponStats.GetAttackSpeed(slot.Itemstack) * stats.AttackSpeedMultiplier;
                     SetState(MeleeWeaponState.BlockBashWindingUp, mainHand);
                     ParryButtonReleased = true;
+
+                    MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.Start, mainHand);
                     attack.Start(player.Player);
                     handle?.Start(player.Player);
                     AnimationBehavior?.Play(
@@ -1305,7 +1334,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                         animationSpeed: animationSpeed,
                         category: AnimationCategory(mainHand),
                         callback: () => BashAnimationCallback(slot, player, mainHand),
-                        callbackHandler: code => BashAnimationCallbackHandler(code, mainHand));
+                        callbackHandler: code => BashAnimationCallbackHandler(player, code, mainHand));
                     TpAnimationBehavior?.Play(
                         mainHand,
                         attackAnimation,
@@ -1385,6 +1414,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
     {
         bool rightMouseDown = PlayerActionsBehavior?.ActionListener.IsActive(EnumEntityAction.RightMouseDown) == true;
 
+        MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
+
         if (!rightMouseDown)
         {
             if (CheckState(mainHand, MeleeWeaponState.BlockBashCooldown, MeleeWeaponState.BlockBashAttacking, MeleeWeaponState.BlockBashWindingUp))
@@ -1421,7 +1452,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
 
         return true;
     }
-    protected virtual void BashAnimationCallbackHandler(string callbackCode, bool mainHand)
+    protected virtual void BashAnimationCallbackHandler(EntityPlayer player, string callbackCode, bool mainHand)
     {
         bool rightMouseDown = PlayerActionsBehavior?.ActionListener.IsActive(EnumEntityAction.RightMouseDown) == true;
 
@@ -1434,6 +1465,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
                 SetState(MeleeWeaponState.BlockBashCooldown, mainHand);
                 break;
             case "ready":
+                MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.End, mainHand);
                 SetState(rightMouseDown ? MeleeWeaponState.BlockBashCooldown : MeleeWeaponState.Idle, mainHand);
                 break;
         }
@@ -1495,6 +1527,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         SetState(MeleeWeaponState.StartingAim, mainHand);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
         AimingAnimationController?.Play(mainHand);
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartAiming, mainHand);
 
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
         AimingStats stats = AimingStats.Clone();
@@ -1533,6 +1566,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         SetState(MeleeWeaponState.StartingAim, mainHand);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
         AimingAnimationController?.Play(mainHand);
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartAiming, mainHand);
 
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
         AimingStats stats = AimingStats.Clone();
@@ -1564,6 +1598,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         AnimationBehavior?.StopVanillaAnimation(Stats.ThrowAttack.TpAimAnimation, mainHand);
         if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.ThrowAttack.TpThrowAnimation, mainHand);
 
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.TriggeredShot, mainHand);
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
+
         return true;
     }
     protected virtual bool ThrowAnimationCallback(ItemSlot slot, EntityPlayer player, bool mainHand)
@@ -1579,6 +1616,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         targetDirection = ClientAimingSystem.Zeroing(targetDirection, Stats.ThrowAttack.Zeroing);
 
         RangedWeaponSystem.Shoot(slot, 1, new Vector3((float)position.X, (float)position.Y, (float)position.Z), new Vector3(targetDirection.X, targetDirection.Y, targetDirection.Z), mainHand, _ => { });
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.SpawnedProjectile, mainHand);
 
         slot.TakeOut(1);
 
@@ -1600,6 +1638,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, 
         AimingAnimationController?.Stop(mainHand);
         AimingSystem.StopAiming();
         AnimationBehavior?.StopVanillaAnimation(Stats.ThrowAttack?.TpAimAnimation ?? "", mainHand);
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
 
         return true;
     }

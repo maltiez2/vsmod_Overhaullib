@@ -71,6 +71,17 @@ public class BowClient : RangeWeaponClient
 
     public override void OnDeselected(EntityPlayer player, bool mainHand, ref int state)
     {
+        switch ((BowState)state)
+        {
+            case BowState.Load:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
+                break;
+            case BowState.Draw:
+            case BowState.Drawn:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
+                break;
+        }
+
         Attachable.ClearAttachments(player.EntityId);
         AttachmentSystem.SendClearPacket(player.EntityId);
         PlayerBehavior?.SetState((int)BowState.Unloaded);
@@ -108,11 +119,13 @@ public class BowClient : RangeWeaponClient
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartLoading, mainHand);
+
         Attachable.SetAttachment(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
         AttachmentSystem.SendAttachPacket(player.EntityId, "Arrow", arrowSlot.Itemstack, ArrowTransform);
-        RangedWeaponSystem.Reload(slot, arrowSlot, 1, mainHand, ReloadCallback);
+        RangedWeaponSystem.Reload(slot, arrowSlot, 1, mainHand, success => ReloadCallback(success, player, mainHand));
 
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed, callback: LoadAnimationCallback);
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed, callback: () => LoadAnimationCallback(player, mainHand));
         TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed);
 
         AimingStats.CursorType = Enum.Parse<AimingCursorType>(Settings.BowsAimingCursorType);
@@ -130,7 +143,7 @@ public class BowClient : RangeWeaponClient
 
         return true;
     }
-    protected virtual void ReloadCallback(bool success)
+    protected virtual void ReloadCallback(bool success, EntityPlayer player, bool mainHand)
     {
         BowState state = GetState<BowState>(mainHand: true);
 
@@ -153,16 +166,18 @@ public class BowClient : RangeWeaponClient
             SetState(BowState.Unloaded, mainHand: true);
         }
     }
-    protected virtual bool LoadAnimationCallback()
+    protected virtual bool LoadAnimationCallback(EntityPlayer player, bool mainHand)
     {
         BowState state = GetState<BowState>(mainHand: true);
 
         switch (state)
         {
             case BowState.PreLoaded:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
                 SetState(BowState.Loaded, mainHand: true);
                 break;
             case BowState.Load:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
                 SetState(BowState.PreLoaded, mainHand: true);
                 break;
         }
@@ -178,13 +193,24 @@ public class BowClient : RangeWeaponClient
 
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
 
-        AnimationRequestByCode request = new(AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation, GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed, 1, "main", TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.2), true, FullLoadCallback);
+        AnimationRequestByCode request = new(
+            AfterLoad ? Stats.DrawAfterLoadAnimation : Stats.DrawAnimation,
+            GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed * Stats.ReloadAnimationSpeed,
+            1,
+            "main",
+            TimeSpan.FromSeconds(0.2),
+            TimeSpan.FromSeconds(0.2),
+            true,
+            () => FullLoadCallback(player, mainHand));
         AnimationBehavior?.Play(request, mainHand);
         TpAnimationBehavior?.Play(request, mainHand);
 
         AfterLoad = false;
 
         state = (int)BowState.Draw;
+
+
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartAiming, mainHand);
 
         if (!AimingSystem.Aiming)
         {
@@ -219,6 +245,7 @@ public class BowClient : RangeWeaponClient
             Attachable.ClearAttachments(player.EntityId);
             AttachmentSystem.SendClearPacket(player.EntityId);
             state = (int)BowState.Unloaded;
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
             return true;
         }
 
@@ -228,6 +255,7 @@ public class BowClient : RangeWeaponClient
             TpAnimationBehavior?.PlayReadyAnimation(mainHand);
             state = (int)BowState.Loaded;
             AfterLoad = false;
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
             return true;
         }
 
@@ -236,11 +264,16 @@ public class BowClient : RangeWeaponClient
         AnimationBehavior?.Play(mainHand, Stats.ReleaseAnimation, callback: () => ShootCallback(slot, player, mainHand));
         TpAnimationBehavior?.Play(mainHand, Stats.ReleaseAnimation);
 
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.TriggeredShot, mainHand);
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
+
         return true;
     }
 
     protected virtual bool ShootCallback(ItemSlot slot, EntityPlayer player, bool mainHand)
     {
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.SpawnedProjectile, mainHand);
+
         PlayerBehavior?.SetState(0, mainHand);
 
         Vintagestory.API.MathTools.Vec3d position = player.LocalEyePos + player.Pos.XYZ;
@@ -260,7 +293,7 @@ public class BowClient : RangeWeaponClient
         return true;
     }
 
-    protected virtual bool FullLoadCallback()
+    protected virtual bool FullLoadCallback(EntityPlayer player, bool mainHand)
     {
         PlayerBehavior?.SetState((int)BowState.Drawn);
         AimingSystem.AimingState = WeaponAimingState.FullCharge;

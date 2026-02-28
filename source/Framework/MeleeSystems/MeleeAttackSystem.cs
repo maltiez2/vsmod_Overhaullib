@@ -2,6 +2,8 @@
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
+using System.Diagnostics;
+using System.Net.Sockets;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -20,6 +22,19 @@ public struct MeleeAttackPacket
 public struct MeleePushPacket
 {
     public MeleeCollisionPacket[] MeleeAttackDamagePackets { get; set; }
+}
+
+public enum MeleeAttackStatus
+{
+    Start,
+    End
+}
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public struct MeleeAttackStatusPacket
+{
+    public MeleeAttackStatus Status { get; set; }
+    public bool MainHand { get; set; }
 }
 
 public abstract class MeleeSystem
@@ -41,11 +56,17 @@ public readonly struct AttackId
 
 public sealed class MeleeSystemClient : MeleeSystem
 {
+    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot? slot);
+
+    public event MeleeAttackDelegate? OnMeleeAttackStart;
+    public event MeleeAttackDelegate? OnMeleeAttackEnd;
+
     public MeleeSystemClient(ICoreClientAPI api)
     {
         _clientChannel = api.Network.RegisterChannel(NetworkChannelId)
             .RegisterMessageType<MeleeAttackPacket>()
-            .RegisterMessageType<MeleePushPacket>();
+            .RegisterMessageType<MeleePushPacket>()
+            .RegisterMessageType<MeleeAttackStatusPacket>();
     }
 
     public void SendPackets(IEnumerable<MeleeDamagePacket> packets)
@@ -64,14 +85,39 @@ public sealed class MeleeSystemClient : MeleeSystem
         });
     }
 
+    public void UpdateAttackStatus(EntityPlayer attacker, MeleeAttackStatus status, bool mainHand)
+    {
+        Debug.WriteLine(status);
+        
+        _clientChannel.SendPacket(new MeleeAttackStatusPacket
+        {
+            Status = status,
+            MainHand = mainHand
+        });
+
+        ItemSlot weaponSlot = mainHand ? attacker.ActiveHandItemSlot : attacker.LeftHandItemSlot;
+        switch (status)
+        {
+            case MeleeAttackStatus.Start:
+                OnMeleeAttackStart?.Invoke(attacker, weaponSlot);
+                break;
+            case MeleeAttackStatus.End:
+                OnMeleeAttackEnd?.Invoke(attacker, weaponSlot);
+                break;
+        }
+    }
+
     private readonly IClientNetworkChannel _clientChannel;
 }
 
 public sealed class MeleeSystemServer : MeleeSystem
 {
     public delegate void MeleeDamageDelegate(Entity target, DamageSource damageSource, ItemSlot? slot, ref float damage);
+    public delegate void MeleeAttackDelegate(Entity attacker, ItemSlot weaponSlot);
 
     public event MeleeDamageDelegate? OnDealMeleeDamage;
+    public event MeleeAttackDelegate? OnMeleeAttackStart;
+    public event MeleeAttackDelegate? OnMeleeAttackEnd;
 
     public MeleeSystemServer(ICoreServerAPI api)
     {
@@ -79,8 +125,10 @@ public sealed class MeleeSystemServer : MeleeSystem
         api.Network.RegisterChannel(NetworkChannelId)
             .RegisterMessageType<MeleeAttackPacket>()
             .RegisterMessageType<MeleePushPacket>()
+            .RegisterMessageType<MeleeAttackStatusPacket>()
             .SetMessageHandler<MeleeAttackPacket>(HandlePacket)
-            .SetMessageHandler<MeleePushPacket>(HandlePacket);
+            .SetMessageHandler<MeleePushPacket>(HandlePacket)
+            .SetMessageHandler<MeleeAttackStatusPacket>(HandlePacket);
     }
 
     private readonly ICoreServerAPI _api;
@@ -98,6 +146,20 @@ public sealed class MeleeSystemServer : MeleeSystem
         foreach (MeleeCollisionPacket collisionPacket in packet.MeleeAttackDamagePackets)
         {
             Push(collisionPacket);
+        }
+    }
+
+    private void HandlePacket(IServerPlayer player, MeleeAttackStatusPacket packet)
+    {
+        ItemSlot weaponSlot = packet.MainHand ? player.Entity.ActiveHandItemSlot : player.Entity.LeftHandItemSlot;
+        switch (packet.Status)
+        {
+            case MeleeAttackStatus.Start:
+                OnMeleeAttackStart?.Invoke(player.Entity, weaponSlot);
+                break;
+            case MeleeAttackStatus.End:
+                OnMeleeAttackEnd?.Invoke(player.Entity, weaponSlot);
+                break;
         }
     }
 

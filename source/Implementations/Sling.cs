@@ -85,6 +85,18 @@ public class SlingClient : RangeWeaponClient
 
     public override void OnDeselected(EntityPlayer player, bool mainHand, ref int state)
     {
+        switch ((SlingState)state)
+        {
+            case SlingState.Load:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
+                break;
+            case SlingState.WindUp:
+            case SlingState.Swinging:
+            case SlingState.Releasing:
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
+                break;
+        }
+
         Attachable.ClearAttachments(player.EntityId);
         AttachmentSystem.SendClearPacket(player.EntityId);
         PlayerBehavior?.SetState((int)BowState.Unloaded);
@@ -125,12 +137,14 @@ public class SlingClient : RangeWeaponClient
         ItemStackRangedStats stackStats = ItemStackRangedStats.FromItemStack(slot.Itemstack);
         
         RangedWeaponSystem.Reload(slot, bulletSlot, 1, mainHand, ReloadCallback);
-        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, weight: 1000, callback: LoadAnimationCallback, callbackHandler: code => LoadAnimationCallback(code, bulletSlot.Itemstack, player));
+        AnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, weight: 1000, callback: () => LoadAnimationCallback(player, mainHand), callbackHandler: code => LoadAnimationCallback(code, bulletSlot.Itemstack, player));
         TpAnimationBehavior?.Play(mainHand, Stats.LoadAnimation, animationSpeed: GetAnimationSpeed(player, Stats) * stackStats.ReloadSpeed, weight: 1000);
 
         AimingAnimationController?.Play(mainHand);
 
         state = (int)SlingState.Load;
+
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartLoading, mainHand);
 
         AfterLoad = true;
 
@@ -171,17 +185,19 @@ public class SlingClient : RangeWeaponClient
         }
     }
 
-    protected virtual bool LoadAnimationCallback()
+    protected virtual bool LoadAnimationCallback(EntityPlayer player, bool mainHand)
     {
-        SlingState state = GetState<SlingState>(mainHand: true);
+        SlingState state = GetState<SlingState>(mainHand);
 
         switch (state)
         {
             case SlingState.PreLoaded:
-                SetState(SlingState.Loaded, mainHand: true);
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
+                SetState(SlingState.Loaded, mainHand);
                 break;
             case SlingState.Load:
-                SetState(SlingState.PreLoaded, mainHand: true);
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
+                SetState(SlingState.PreLoaded, mainHand);
                 break;
         }
 
@@ -214,6 +230,8 @@ public class SlingClient : RangeWeaponClient
         AimingSystem.ResetAim();
         AimingSystem.StartAiming(AimingStats);
         AimingSystem.AimingState = WeaponAimingState.Blocked;
+
+        RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.StartAiming, mainHand);
 
         AfterLoad = false;
 
@@ -320,6 +338,7 @@ public class SlingClient : RangeWeaponClient
             state = (int)SlingState.Unloaded;
             ReleaseWhenReady = false;
             AimingSystem.StopAiming();
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndLoading, mainHand);
             return true;
         }
 
@@ -331,11 +350,14 @@ public class SlingClient : RangeWeaponClient
             AfterLoad = false;
             ReleaseWhenReady = false;
             AimingSystem.StopAiming();
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
             return true;
         }
 
         if (state == (int)SlingState.Swinging)
         {
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.TriggeredShot, mainHand);
+            RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.EndAiming, mainHand);
             ReleaseWhenReady = true;
             return true;
         }
@@ -360,6 +382,7 @@ public class SlingClient : RangeWeaponClient
                 targetDirection = ClientAimingSystem.Zeroing(targetDirection, Stats.Zeroing);
                 RangedWeaponSystem.Shoot(slot, 1, new((float)position.X, (float)position.Y, (float)position.Z), new(targetDirection.X, targetDirection.Y, targetDirection.Z), mainHand, _ => { }, GetAdditionalData(slot, player, mainHand));
                 Api.World.AddCameraShake(Stats.ScreenShakeStrength * CurrentSwingSpeed / Stats.MaxSwingSpeed);
+                RangedWeaponSystem.SendStatusChange(player, RangedWeaponStatus.SpawnedProjectile, mainHand);
                 break;
         }
     }
