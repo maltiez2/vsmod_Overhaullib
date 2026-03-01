@@ -611,7 +611,7 @@ public readonly struct PlayerFrame
                 {
                     if (LowerTorso != null)
                     {
-                        AnimationElement torso = new(LowerTorso.Value.OffsetX, (eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier, LowerTorso.Value.OffsetZ, LowerTorso.Value.RotationX, LowerTorso.Value.RotationY, LowerTorso.Value.RotationZ);
+                        AnimationElement torso = new(LowerTorso.Value.OffsetX, new AnimationElementValue((eyePosition.Y - eyeHeight) * EyeHeightToAnimationDistanceMultiplier), LowerTorso.Value.OffsetZ, LowerTorso.Value.Rotation);
                         torso.Apply(pose);
                     }
                     else
@@ -1016,52 +1016,64 @@ public readonly struct OtherPartsFrame
 
 public readonly struct AnimationElement
 {
-    public readonly float? OffsetX;
-    public readonly float? OffsetY;
-    public readonly float? OffsetZ;
-    public readonly float? RotationX;
-    public readonly float? RotationY;
-    public readonly float? RotationZ;
+    public readonly AnimationElementValue OffsetX;
+    public readonly AnimationElementValue OffsetY;
+    public readonly AnimationElementValue OffsetZ;
+    public readonly AnimationElementRotation Rotation;
 
-    public AnimationElement(float?[] values)
+    public static readonly AnimationElement Empty = new();
+    public static readonly AnimationElement Zero = new(0, 0, 0, 0, 0, 0);
+    public const float OffsetFactor = 1 / 16f;
+
+    public AnimationElement()
+    {
+        OffsetX = AnimationElementValue.Empty;
+        OffsetY = AnimationElementValue.Empty;
+        OffsetZ = AnimationElementValue.Empty;
+        Rotation = AnimationElementRotation.Empty;
+    }
+    public AnimationElement(params AnimationElementValue[] values)
     {
         OffsetX = values[0];
         OffsetY = values[1];
         OffsetZ = values[2];
-        RotationX = values[3];
-        RotationY = values[4];
-        RotationZ = values[5];
+        Rotation = new(values[3].Value, values[4].Value, values[5].Value, values[3].HasValue || values[4].HasValue || values[5].HasValue);
     }
-    public AnimationElement(float? offsetX, float? offsetY, float? offsetZ, float? rotationX, float? rotationY, float? rotationZ)
+    public AnimationElement(AnimationElementValue x, AnimationElementValue y, AnimationElementValue z, AnimationElementRotation rotation)
     {
-        OffsetX = offsetX;
-        OffsetY = offsetY;
-        OffsetZ = offsetZ;
-        RotationX = rotationX;
-        RotationY = rotationY;
-        RotationZ = rotationZ;
+        OffsetX = x;
+        OffsetY = y;
+        OffsetZ = z;
+        Rotation = rotation;
+    }
+    public AnimationElement(params float?[] values)
+    {
+        OffsetX = new(values[0] ?? 0, values[0].HasValue);
+        OffsetY = new(values[1] ?? 0, values[1].HasValue);
+        OffsetZ = new(values[2] ?? 0, values[2].HasValue);
+        Rotation = new(values[3] ?? 0, values[4] ?? 0, values[5] ?? 0);
     }
 
     public void Apply(ElementPose pose)
     {
-        pose.translateX = OffsetX / 16 ?? 0;
-        pose.translateY = OffsetY / 16 ?? 0;
-        pose.translateZ = OffsetZ / 16 ?? 0;
-        pose.degX = RotationX ?? 0;
-        pose.degY = RotationY ?? 0;
-        pose.degZ = RotationZ ?? 0;
-    }
+        if (OffsetX.HasValue) pose.translateX = OffsetX.Value * OffsetFactor;
+        if (OffsetY.HasValue) pose.translateY = OffsetY.Value * OffsetFactor;
+        if (OffsetZ.HasValue) pose.translateZ = OffsetZ.Value * OffsetFactor;
 
-    public static readonly AnimationElement Zero = new(0, 0, 0, 0, 0, 0);
+        if (Rotation.HasValue)
+        {
+            Rotation.Apply(pose);
+        }
+    }
 
 #if DEBUG
     public AnimationElement Edit(string title, float multiplier = 10)
     {
         float speed = ImGui.GetIO().KeysDown[(int)ImGuiKey.LeftShift] ? 0.1f : 1;
 
-        float? offsetX = EditValue(OffsetX, multiplier, speed, $"X##translation{title}"); ImGui.SameLine();
-        float? offsetY = EditValue(OffsetY, multiplier, speed, $"Y##translation{title}"); ImGui.SameLine();
-        float? offsetZ = EditValue(OffsetZ, multiplier, speed, $"Z##translation{title}"); ImGui.SameLine();
+        AnimationElementValue offsetX = EditValue(OffsetX, multiplier, speed, $"X##translation{title}"); ImGui.SameLine();
+        AnimationElementValue offsetY = EditValue(OffsetY, multiplier, speed, $"Y##translation{title}"); ImGui.SameLine();
+        AnimationElementValue offsetZ = EditValue(OffsetZ, multiplier, speed, $"Z##translation{title}"); ImGui.SameLine();
         ImGui.Text("Translation"); ImGui.SameLine();
 
         ImGui.SameLine();
@@ -1070,10 +1082,24 @@ public readonly struct AnimationElement
             _buffer = this;
         }
 
-        float? rotationX = EditValue(RotationX, 1, speed, $"X##rotation{title}"); ImGui.SameLine();
-        float? rotationY = EditValue(RotationY, 1, speed, $"Y##rotation{title}"); ImGui.SameLine();
-        float? rotationZ = EditValue(RotationZ, 1, speed, $"Z##rotation{title}"); ImGui.SameLine();
+        Vector3 angles = Rotation.Value.ToEulerAngles();
+
+        AnimationElementValue rotationX = EditValue(new(angles.X * GameMath.RAD2DEG, Rotation.HasValue), 1, speed, $"X##rotation{title}"); ImGui.SameLine();
+        AnimationElementValue rotationY = EditValue(new(angles.Y * GameMath.RAD2DEG, Rotation.HasValue), 1, speed, $"Y##rotation{title}"); ImGui.SameLine();
+        AnimationElementValue rotationZ = EditValue(new(angles.Z * GameMath.RAD2DEG, Rotation.HasValue), 1, speed, $"Z##rotation{title}"); ImGui.SameLine();
         ImGui.Text("Rotation     "); ImGui.SameLine();
+        Quaternion rotation = Quaternion.FromEulerAngles(rotationX.Value * GameMath.DEG2RAD, rotationY.Value * GameMath.DEG2RAD, rotationZ.Value * GameMath.DEG2RAD);
+
+        /*Rotation.Value.ToAxisAngle(out Vector3 axis, out float angle);
+        angle = GameMath.RAD2DEG * angle;
+        AnimationElementValue rotationX = EditValue(new(axis.X, Rotation.HasValue), 1, speed, $"X##rotation{title}"); ImGui.SameLine();
+        AnimationElementValue rotationY = EditValue(new(axis.Y, Rotation.HasValue), 1, speed, $"Y##rotation{title}"); ImGui.SameLine();
+        AnimationElementValue rotationZ = EditValue(new(axis.Z, Rotation.HasValue), 1, speed, $"Z##rotation{title}"); ImGui.SameLine();
+        AnimationElementValue rotationW = EditValue(new(angle, Rotation.HasValue), 1, speed, $"Deg##rotation{title}"); ImGui.SameLine();
+        angle = GameMath.DEG2RAD * rotationW.Value;
+        axis = new(rotationX.Value, rotationY.Value, rotationZ.Value);
+        Quaternion rotation = Quaternion.FromAxisAngle(axis, angle);*/
+
 
         ImGui.SameLine();
         if (ImGui.Button($"Paste##{title}"))
@@ -1085,110 +1111,215 @@ public readonly struct AnimationElement
             offsetX,
             offsetY,
             offsetZ,
-            rotationX,
-            rotationY,
-            rotationZ
+            new AnimationElementRotation(rotation)
             );
     }
 #endif
 
-    public float?[] ToArray() => new float?[]
-            {
-                OffsetX,
-                OffsetY,
-                OffsetZ,
-                RotationX,
-                RotationY,
-                RotationZ
-            };
+    public float?[] ToArray() =>
+    [
+        OffsetX.HasValue ? OffsetX.Value : null,
+        OffsetY.HasValue ? OffsetY.Value : null,
+        OffsetZ.HasValue ? OffsetZ.Value : null,
+        Rotation.HasValue ? Rotation.Value.ToEulerAngles().X : null,
+        Rotation.HasValue ? Rotation.Value.ToEulerAngles().Y : null,
+        Rotation.HasValue ? Rotation.Value.ToEulerAngles().Z : null
+    ];
 
     public static AnimationElement Interpolate(AnimationElement from, AnimationElement to, float progress)
     {
         return new(
-            from.OffsetX + (to.OffsetX - from.OffsetX) * progress,
-            from.OffsetY + (to.OffsetY - from.OffsetY) * progress,
-            from.OffsetZ + (to.OffsetZ - from.OffsetZ) * progress,
-            from.RotationX + (to.RotationX - from.RotationX) * progress,
-            from.RotationY + (to.RotationY - from.RotationY) * progress,
-            from.RotationZ + (to.RotationZ - from.RotationZ) * progress
+            new(from.OffsetX.Value + (to.OffsetX.Value - from.OffsetX.Value) * progress, from.OffsetX.HasValue || to.OffsetX.HasValue),
+            new(from.OffsetY.Value + (to.OffsetY.Value - from.OffsetY.Value) * progress, from.OffsetY.HasValue || to.OffsetY.HasValue),
+            new(from.OffsetZ.Value + (to.OffsetZ.Value - from.OffsetZ.Value) * progress, from.OffsetZ.HasValue || to.OffsetZ.HasValue),
+            AnimationElementRotation.Interpolate(from.Rotation, to.Rotation, progress)
             );
     }
     public static AnimationElement Compose(IEnumerable<(AnimationElement element, float weight)> elements)
     {
-        float offsetX = 0;
-        float offsetY = 0;
-        float offsetZ = 0;
-        float rotationX = 0;
-        float rotationY = 0;
-        float rotationZ = 0;
+        AnimationElementValue offsetX = AnimationElementValue.Empty;
+        AnimationElementValue offsetY = AnimationElementValue.Empty;
+        AnimationElementValue offsetZ = AnimationElementValue.Empty;
+        AnimationElementRotation rotation = AnimationElementRotation.Empty;
 
         float offsetXMaxWeight = 0;
         float offsetYMaxWeight = 0;
         float offsetZMaxWeight = 0;
-        float rotationXMaxWeight = 0;
-        float rotationYMaxWeight = 0;
-        float rotationZMaxWeight = 0;
+        float rotationMaxWeight = 0;
 
         foreach ((AnimationElement element, float weight) in elements.Where(entry => entry.weight > 0))
         {
-            if (weight >= offsetXMaxWeight && element.OffsetX.HasValue) { offsetXMaxWeight = weight; offsetX = element.OffsetX.Value; }
-            if (weight >= offsetYMaxWeight && element.OffsetY.HasValue) { offsetYMaxWeight = weight; offsetY = element.OffsetY.Value; }
-            if (weight >= offsetZMaxWeight && element.OffsetZ.HasValue) { offsetZMaxWeight = weight; offsetZ = element.OffsetZ.Value; }
-            if (weight >= rotationXMaxWeight && element.RotationX.HasValue) { rotationXMaxWeight = weight; rotationX = element.RotationX.Value; }
-            if (weight >= rotationYMaxWeight && element.RotationY.HasValue) { rotationYMaxWeight = weight; rotationY = element.RotationY.Value; }
-            if (weight >= rotationZMaxWeight && element.RotationZ.HasValue) { rotationZMaxWeight = weight; rotationZ = element.RotationZ.Value; }
+            if (weight >= offsetXMaxWeight && element.OffsetX.HasValue) { offsetXMaxWeight = weight; offsetX = element.OffsetX; }
+            if (weight >= offsetYMaxWeight && element.OffsetY.HasValue) { offsetYMaxWeight = weight; offsetY = element.OffsetY; }
+            if (weight >= offsetZMaxWeight && element.OffsetZ.HasValue) { offsetZMaxWeight = weight; offsetZ = element.OffsetZ; }
+            if (weight >= rotationMaxWeight && element.Rotation.HasValue) { rotationMaxWeight = weight; rotation = element.Rotation; }
         }
 
         foreach ((AnimationElement element, float weight) in elements.Where(entry => entry.weight <= 0))
         {
-            if (element.OffsetX.HasValue) offsetX += element.OffsetX.Value;
-            if (element.OffsetY.HasValue) offsetY += element.OffsetY.Value;
-            if (element.OffsetZ.HasValue) offsetZ += element.OffsetZ.Value;
-            if (element.RotationX.HasValue) rotationX += element.RotationX.Value;
-            if (element.RotationY.HasValue) rotationY += element.RotationY.Value;
-            if (element.RotationZ.HasValue) rotationZ += element.RotationZ.Value;
+            if (element.OffsetX.HasValue) offsetX += element.OffsetX;
+            if (element.OffsetY.HasValue) offsetY += element.OffsetY;
+            if (element.OffsetZ.HasValue) offsetZ += element.OffsetZ;
+            if (element.Rotation.HasValue) rotation += element.Rotation;
         }
 
         return new(
             offsetX,
             offsetY,
             offsetZ,
-            rotationX,
-            rotationY,
-            rotationZ
+            rotation
             );
     }
     public static AnimationElement FromVanilla(AnimationKeyFrameElement frame)
     {
         return new(
-            (float?)frame.OffsetX ?? 0,
-            (float?)frame.OffsetY ?? 0,
-            (float?)frame.OffsetZ ?? 0,
-            (float?)frame.RotationX ?? 0,
-            (float?)frame.RotationY ?? 0,
-            (float?)frame.RotationZ ?? 0);
+            new((float)(frame.OffsetX ?? 0), frame.OffsetX != null),
+            new((float)(frame.OffsetY ?? 0), frame.OffsetY != null),
+            new((float)(frame.OffsetZ ?? 0), frame.OffsetZ != null),
+            new AnimationElementRotation((float)(frame.RotationX ?? 0), (float)(frame.RotationY ?? 0), (float)(frame.RotationZ ?? 0)));
     }
 
+    public override string ToString() => $"[{OffsetX}, {OffsetY}, {OffsetZ}, {Rotation.Value.ToEulerAngles()}]";
+
 #if DEBUG
-    private static float? EditValue(float? value, float multiplier, float speed, string title)
+    private static AnimationElementValue EditValue(AnimationElementValue value, float multiplier, float speed, string title)
     {
-        bool enabled = value != null;
+        bool enabled = value.HasValue;
+        float newValue = value.Value;
         if (enabled)
         {
             float valueValue = value.Value * multiplier;
             ImGui.SetNextItemWidth(90);
             ImGui.DragFloat($"##{title}value", ref valueValue, speed); ImGui.SameLine();
-
             ImGui.Checkbox($"##{title}checkbox", ref enabled);
-            value = enabled ? valueValue / multiplier : null;
+
+            newValue = valueValue / multiplier;
         }
         else
         {
             ImGui.Checkbox($"{title}##checkbox", ref enabled);
-            value = enabled ? 0 : value;
         }
-        return value;
+        return new(newValue, enabled);
     }
     private static AnimationElement _buffer = AnimationElement.Zero;
 #endif
+}
+
+public readonly struct AnimationElementRotation
+{
+    public readonly Quaternion Value;
+    public readonly bool HasValue;
+
+    public static readonly AnimationElementRotation Empty = new();
+    public static readonly AnimationElementRotation Zero = new(Quaternion.Identity);
+
+    public AnimationElementRotation()
+    {
+        Value = Quaternion.Identity;
+        HasValue = false;
+    }
+    public AnimationElementRotation(float x, float y, float z)
+    {
+        Value = Quaternion.FromEulerAngles(x * GameMath.DEG2RAD, y * GameMath.DEG2RAD, z * GameMath.DEG2RAD);
+        HasValue = true;
+    }
+    public AnimationElementRotation(float x, float y, float z, bool hasValue)
+    {
+        Value = Quaternion.FromEulerAngles(x * GameMath.DEG2RAD, y * GameMath.DEG2RAD, z * GameMath.DEG2RAD);
+        HasValue = hasValue;
+    }
+    public AnimationElementRotation(Quaternion value)
+    {
+        Value = value;
+        HasValue = true;
+    }
+    public AnimationElementRotation(Quaternion value, bool hasValue)
+    {
+        Value = value;
+        HasValue = hasValue;
+    }
+
+    public void Apply(ElementPose pose)
+    {
+        if (!HasValue) return;
+        Vector3 angles = Value.ToEulerAngles();
+        pose.degX = angles.X * GameMath.RAD2DEG;
+        pose.degY = angles.Y * GameMath.RAD2DEG;
+        pose.degZ = angles.Z * GameMath.RAD2DEG;
+    }
+
+    public AnimationElementRotation Add(AnimationElementRotation element)
+    {
+        if (HasValue)
+        {
+            if (element.HasValue)
+            {
+                return new AnimationElementRotation(Value * element.Value);
+            }
+            else
+            {
+                return this;
+            }
+        }
+        else
+        {
+            return element;
+        }
+    }
+
+    public static AnimationElementRotation operator +(AnimationElementRotation first, AnimationElementRotation second) => first.Add(second);
+
+    public static AnimationElementRotation Interpolate(AnimationElementRotation from, AnimationElementRotation to, float progress)
+    {
+        return new(Quaternion.Slerp(from.Value, to.Value, progress), from.HasValue || to.HasValue);
+    }
+
+    public override string ToString() => HasValue ? $"{Value:F3}" : "-";
+}
+
+public readonly struct AnimationElementValue
+{
+    public readonly float Value;
+    public readonly bool HasValue;
+
+    public static readonly AnimationElementValue Empty = new();
+    public static readonly AnimationElementValue Zero = new(0);
+
+    public AnimationElementValue()
+    {
+        HasValue = false;
+    }
+    public AnimationElementValue(float value)
+    {
+        Value = value;
+        HasValue = true;
+    }
+    public AnimationElementValue(float value, bool hasValue)
+    {
+        Value = value;
+        HasValue = hasValue;
+    }
+
+    public AnimationElementValue Add(AnimationElementValue element)
+    {
+        if (HasValue)
+        {
+            if (element.HasValue)
+            {
+                return new AnimationElementValue(Value + element.Value);
+            }
+            else
+            {
+                return this;
+            }
+        }
+        else
+        {
+            return element;
+        }
+    }
+
+    public static AnimationElementValue operator +(AnimationElementValue first, AnimationElementValue second) => first.Add(second);
+
+    public override string ToString() => HasValue ? $"{Value:F3}" : "-";
 }
