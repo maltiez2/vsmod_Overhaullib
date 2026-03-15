@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
@@ -540,7 +540,7 @@ public class SlingServer : RangeWeaponServer
     protected readonly SlingStats Stats;
 }
 
-public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAnimations
+public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAnimations
 {
     public SlingClient? ClientLogic { get; private set; }
     public SlingServer? ServerLogic { get; private set; }
@@ -656,9 +656,9 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveA
         }
     }
 
-    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
-        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+        base.OnCreatedByCrafting(allInputSlots, outputSlot, byRecipe);
 
         GeneralUtils.MarkItemStack(outputSlot);
         outputSlot.MarkDirty();
@@ -667,6 +667,20 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveA
     public override void OnHeldAttackStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, ref EnumHandHandling handling)
     {
         handling = EnumHandHandling.PreventDefault;
+    }
+
+    public AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, ItemSlotType slotType, IdleAnimationType animationType)
+    {
+        return animationType switch
+        {
+            IdleAnimationType.Idle => IdleAnimation,
+            IdleAnimationType.Ready => ReadyAnimation,
+            IdleAnimationType.Walk => WalkAnimation,
+            IdleAnimationType.Run => RunAnimation,
+            IdleAnimationType.Swim => SwimAnimation,
+            IdleAnimationType.SwimIdle => SwimIdleAnimation,
+            _ => null,
+        };
     }
 
     private SlingStats? _stats;

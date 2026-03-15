@@ -73,8 +73,7 @@ public class SlotConfigJson
 
 public class SlotConfig : IHasSlotBackpackCategory
 {
-    public ItemTagRule[] CanHoldItemTags { get; set; } = [];
-    public BlockTagRule[] CanHoldBlockTags { get; set; } = [];
+    public ComplexTagCondition<TagSet>[] CanHoldTags { get; set; } = [];
     public string[] CanHoldWildcards { get; set; } = [];
     public string? SlotColor { get; set; } = null;
     public string? SlotsIcon { get; set; } = null;
@@ -111,14 +110,15 @@ public class SlotConfig : IHasSlotBackpackCategory
         if (Resolved) return;
         Resolved = true;
 
-        CanHoldItemTags = CanHoldItemTagsNames
+        // @TODO @FIX Fix
+       /* CanHoldItemTags = CanHoldItemTagsNames
             .Select(tags => new ItemTagRule(api, tags))
             .Where(tags => tags != ItemTagRule.Empty)
             .ToArray();
         CanHoldBlockTags = CanHoldBlockTagsNames
             .Select(tags => new BlockTagRule(api, tags))
             .Where(tags => tags != BlockTagRule.Empty)
-            .ToArray();
+            .ToArray();*/
 
         CanHoldItemTagsNames = [];
         CanHoldBlockTagsNames = [];

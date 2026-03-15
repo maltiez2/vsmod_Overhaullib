@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Colliders;
+﻿using CollidersLib;
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
@@ -507,7 +507,7 @@ public sealed class ProjectileSystemServer
             vanillaProjectile.DamageStackOnImpact = stats.DurabilityDamage > 0;
             vanillaProjectile.Weight = entity.Properties.Weight;
             vanillaProjectile.IgnoreInvFrames = true;
-            vanillaProjectile.NonCollectible = !stats.CanBeCollected;
+            vanillaProjectile.Collectible = stats.CanBeCollected;
 
             vanillaProjectile.PreInitialize();
         }

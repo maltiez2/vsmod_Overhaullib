@@ -175,7 +175,7 @@ public abstract class GenericDisplayProto : BlockEntityContainer, ITexPositionSo
         IContainedMeshSource? meshSource = stack.Collectible as IContainedMeshSource;
         if (meshSource != null)
         {
-            return meshSource.GetMeshCacheKey(stack);
+            return meshSource.GetMeshCacheKey(new DummySlot(stack));
         }
 
         int renderVariant = stack.Attributes?.GetInt("renderVariant", 0) ?? 0;
@@ -201,7 +201,7 @@ public abstract class GenericDisplayProto : BlockEntityContainer, ITexPositionSo
 
         if (meshSource != null)
         {
-            mesh = meshSource.GenMesh(stack, ClientApi.BlockTextureAtlas, Pos);
+            mesh = meshSource.GenMesh(new DummySlot(stack), ClientApi.BlockTextureAtlas, Pos);
         }
 
         if (mesh == null)

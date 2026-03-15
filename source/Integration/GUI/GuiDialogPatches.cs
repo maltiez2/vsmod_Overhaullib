@@ -104,7 +104,7 @@ internal static class GuiDialogPatches
     // GuiDialogInventory
     private static FieldInfo? GuiDialogInventory_survivalInvDialog = typeof(GuiDialogInventory).GetField("survivalInvDialog", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? GuiDialogInventory_prevRows = typeof(GuiDialogInventory).GetField("prevRows", BindingFlags.NonPublic | BindingFlags.Instance);
-    private static FieldInfo? GuiDialogInventory_backPackInv = typeof(GuiDialogInventory).GetField("backPackInv", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static FieldInfo? GuiDialogInventory_backPackInv = typeof(GuiDialogInventory).GetField("backpackInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static FieldInfo? GuiDialogInventory_craftingInv = typeof(GuiDialogInventory).GetField("craftingInv", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogInventory_CloseIconPressed = typeof(GuiDialogInventory).GetMethod("CloseIconPressed", BindingFlags.NonPublic | BindingFlags.Instance);
     private static MethodInfo? GuiDialogInventory_SendInvPacket = typeof(GuiDialogInventory).GetMethod("SendInvPacket", BindingFlags.NonPublic | BindingFlags.Instance);

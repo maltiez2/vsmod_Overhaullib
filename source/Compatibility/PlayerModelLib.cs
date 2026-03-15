@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Colliders;
+﻿using CollidersLib;
 using CombatOverhaul.DamageSystems;
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;

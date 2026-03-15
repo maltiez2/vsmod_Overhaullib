@@ -268,20 +268,20 @@ public static class ParticleEditor
         if (!ImGui.CollapsingHeader($"Color evolve:##{id}")) return;
         ImGui.Indent();
 
-        EvolvingNatFloat? opacity = particleProperties.OpacityEvolve;
-        EvolvingNatFloatEditorNullable(id, "Opacity", ref opacity);
+        EvolvingNatFloat opacity = particleProperties.OpacityEvolve;
+        EvolvingNatFloatEditorNullableNoLonger(id, "Opacity", ref opacity);
         particleProperties.OpacityEvolve = opacity;
 
-        EvolvingNatFloat? red = particleProperties.RedEvolve;
-        EvolvingNatFloatEditorNullable(id, "Red", ref red);
+        EvolvingNatFloat red = particleProperties.RedEvolve;
+        EvolvingNatFloatEditorNullableNoLonger(id, "Red", ref red);
         particleProperties.RedEvolve = red;
 
-        EvolvingNatFloat? green = particleProperties.GreenEvolve;
-        EvolvingNatFloatEditorNullable(id, "Green", ref green);
+        EvolvingNatFloat green = particleProperties.GreenEvolve;
+        EvolvingNatFloatEditorNullableNoLonger(id, "Green", ref green);
         particleProperties.GreenEvolve = green;
 
-        EvolvingNatFloat? blue = particleProperties.BlueEvolve;
-        EvolvingNatFloatEditorNullable(id, "Blue", ref blue);
+        EvolvingNatFloat blue = particleProperties.BlueEvolve;
+        EvolvingNatFloatEditorNullableNoLonger(id, "Blue", ref blue);
         particleProperties.BlueEvolve = blue;
 
         ImGui.Unindent();
@@ -342,8 +342,8 @@ public static class ParticleEditor
         NatFloatEditor(id, "Size", ref size);
         particleProperties.Size = size;
 
-        EvolvingNatFloat? sizeEvolve = particleProperties.SizeEvolve;
-        EvolvingNatFloatEditorNullable(id, "Size evolve", ref sizeEvolve);
+        EvolvingNatFloat sizeEvolve = particleProperties.SizeEvolve;
+        EvolvingNatFloatEditorNullableNoLonger(id, "Size evolve", ref sizeEvolve);
         particleProperties.SizeEvolve = sizeEvolve;
 
         ImGui.Unindent();
@@ -533,20 +533,8 @@ public static class ParticleEditor
         "COSINUS",
         "SMOOTHSTEP"
     };
-    private static void EvolvingNatFloatEditorNullable(string id, string label, ref EvolvingNatFloat? value)
+    private static void EvolvingNatFloatEditorNullableNoLonger(string id, string label, ref EvolvingNatFloat value)
     {
-        bool enabled = value != null;
-
-        ImGui.Checkbox($"{label}##{id}", ref enabled);
-
-        if (!enabled)
-        {
-            value = null;
-            return;
-        }
-
-        value ??= new(EnumTransformFunction.LINEAR, 0);
-
         int currentModel = (int)value.Transform;
         float currentFactor = value.Factor;
         ImGui.Combo($"##combo{label}{id}", ref currentModel, _transformFunction, 12, 12);

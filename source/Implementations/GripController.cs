@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using Vintagestory.API.MathTools;
 
 namespace CombatOverhaul.Implementations;
@@ -58,7 +58,7 @@ public sealed class GripController
     }
 
     private float _grip = 0;
-    private readonly Animations.Animation _gripAnimation = Animations.Animation.Zero.Clone();
+    private readonly AnimationsLib.Animation _gripAnimation = AnimationsLib.Animation.Zero.Clone();
     private readonly FirstPersonAnimationsBehavior? _animationBehavior;
 
     private PLayerKeyFrame GetAimingFrame()

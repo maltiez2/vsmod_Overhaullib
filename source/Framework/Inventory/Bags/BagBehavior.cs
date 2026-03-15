@@ -346,6 +346,8 @@ public class GearEquipableBag : CollectibleBehavior, IHeldBag, IAttachedInteract
 
         return DefaultSlotConfig;
     }
+
+    public TagSet GetStorageTags(ItemStack bagStack) => TagSet.Empty;
 }
 
 public class SlotHotkeyConfig
@@ -737,7 +739,7 @@ public class ToolBag : GearEquipableBag
 
     protected virtual bool OnHotkeyPressed(KeyCombination keyCombination)
     {
-        InventoryPlayerBackPacks? inventory = GetBackpackInventory();
+        InventoryPlayerBackpacks? inventory = GetBackpackInventory();
 
         bool handled = false;
 
@@ -766,8 +768,8 @@ public class ToolBag : GearEquipableBag
         return PreviousHotkeyHandler?.Invoke(keyCombination) ?? handled;
     }
 
-    protected InventoryPlayerBackPacks? GetBackpackInventory()
+    protected InventoryPlayerBackpacks? GetBackpackInventory()
     {
-        return ClientApi?.World?.Player?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
+        return ClientApi?.World?.Player?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackpacks;
     }
 }

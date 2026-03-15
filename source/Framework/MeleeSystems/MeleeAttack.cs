@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Colliders;
+﻿using CollidersLib;
 using CombatOverhaul.Implementations;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;

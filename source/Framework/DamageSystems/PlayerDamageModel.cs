@@ -1,5 +1,5 @@
 ﻿using CombatOverhaul.Armor;
-using CombatOverhaul.Colliders;
+using CollidersLib;
 using CombatOverhaul.Compatibility;
 using CombatOverhaul.Integration;
 using CombatOverhaul.Utils;
@@ -175,7 +175,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         if (calculationType == DamageReceivedCalculationType.HitChance)
         {
-            DirectionOffset direction = new(Angle.FromDegrees(-1), Angle.FromDegrees(1));
+            CombatOverhaul.Utils.DirectionOffset direction = new(CombatOverhaul.Utils.Angle.FromDegrees(-1), CombatOverhaul.Utils.Angle.FromDegrees(1));
 
             float totalWeight = damageModelBehavior.DamageModel.DamageZones
                 .Where(value => value.Directions.Check(direction))
@@ -199,7 +199,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         if (calculationType == DamageReceivedCalculationType.Average)
         {
-            DirectionOffset direction = new(Angle.Zero, Angle.FromDegrees(1));
+            CombatOverhaul.Utils.DirectionOffset direction = new(CombatOverhaul.Utils.Angle.Zero, CombatOverhaul.Utils.Angle.FromDegrees(1));
 
             float totalWeight = damageModelBehavior.DamageModel.DamageZones
                 .Where(value => value.Directions.Check(direction))
@@ -310,7 +310,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         }
         else if (damageSource.SourceEntity != null && damageSource.SourceEntity.EntityId != entity.EntityId)
         {
-            DirectionOffset direction = DirectionOffset.GetDirection(entity, damageSource.SourceEntity);
+            CombatOverhaul.Utils.DirectionOffset direction = CombatOverhaul.Utils.DirectionOffset.GetDirection(entity, damageSource.SourceEntity);
 
             (damageZone, multiplier) = DamageModel.GetZone(direction);
         }
@@ -339,7 +339,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             return;
         }
 
-        if (GetAttackDirection(damageSource, out DirectionOffset direction) && !CurrentDamageBlock.Directions.Check(direction))
+        if (GetAttackDirection(damageSource, out CombatOverhaul.Utils.DirectionOffset direction) && !CurrentDamageBlock.Directions.Check(direction))
         {
             damageLogMessage = Lang.Get("combatoverhaul:damagelog-missed-block-direction", direction);
             return;
@@ -383,7 +383,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         CurrentDamageBlock.Callback.Invoke(initialDamage - damage, damageTier, blockTier);
 
-        if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new(CurrentDamageBlock.Sound), entity);
+        if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new AssetLocation(CurrentDamageBlock.Sound), entity);
     }
     private void ApplyArmorResists(DamageSource damageSource, DamageZone zone, ref float damage, out string damageLogMessage, out EnumDamageType damageType)
     {
@@ -403,7 +403,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             .Where(slot => slot?.Itemstack?.Item.GetRemainingDurability(slot.Itemstack) > 0 || slot?.Itemstack?.Item.GetMaxDurability(slot.Itemstack) == 0)
             .Select(slot => slot.GetResists(zone));
 
-        if (GetAttackDirection(damageSource, out DirectionOffset direction))
+        if (GetAttackDirection(damageSource, out CombatOverhaul.Utils.DirectionOffset direction))
         {
             resistsFromSlots = resistsFromSlots.Where(resist => resist.CheckDirection(direction));
         }
@@ -592,7 +592,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             entity.ReceiveDamage(heatDamageSource, damage);
         }
     }
-    private bool GetAttackDirection(DamageSource damageSource, out DirectionOffset direction)
+    private bool GetAttackDirection(DamageSource damageSource, out CombatOverhaul.Utils.DirectionOffset direction)
     {
         if (damageSource is IDirectionalDamage directionalDamage)
         {
@@ -601,7 +601,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
         }
         else if (damageSource.SourceEntity != null)
         {
-            direction = DirectionOffset.GetDirectionWithRespectToCamera(entity, damageSource.SourceEntity);
+            direction = CombatOverhaul.Utils.DirectionOffset.GetDirectionWithRespectToCamera(entity, damageSource.SourceEntity);
             return true;
         }
         else
@@ -628,7 +628,7 @@ public sealed class PlayerDamageModel
         }
     }
 
-    public (PlayerBodyPart zone, float damageMultiplier) GetZone(DirectionOffset? direction = null, PlayerBodyPart target = PlayerBodyPart.None, float multiplier = 1f)
+    public (PlayerBodyPart zone, float damageMultiplier) GetZone(CombatOverhaul.Utils.DirectionOffset? direction = null, PlayerBodyPart target = PlayerBodyPart.None, float multiplier = 1f)
     {
         IEnumerable<DamageZoneStats> zones = direction == null ? DamageZones : DamageZones.Where(zone => zone.Directions.Check(direction.Value));
 
@@ -681,7 +681,7 @@ public sealed class PlayerDamageModelJson
 
 public interface IDirectionalDamage
 {
-    DirectionOffset Direction { get; }
+    CombatOverhaul.Utils.DirectionOffset Direction { get; }
     PlayerBodyPart Target { get; }
     float WeightMultiplier { get; }
 }

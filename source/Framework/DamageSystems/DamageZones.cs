@@ -1,5 +1,5 @@
 ﻿using CombatOverhaul.Armor;
-using CombatOverhaul.Colliders;
+using CollidersLib;
 using CombatOverhaul.Compatibility;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Integration;
@@ -60,17 +60,17 @@ public sealed class DamageZoneStatsJson
     public float Right { get; set; } = 0;
     public float DamageMultiplier { get; set; } = 1;
 
-    public DamageZoneStats ToStats() => new(Enum.Parse<PlayerBodyPart>(Zone), Coverage, DirectionConstrain.FromDegrees(Top, Bottom, Right, Left), DamageMultiplier);
+    public DamageZoneStats ToStats() => new(Enum.Parse<PlayerBodyPart>(Zone), Coverage, CombatOverhaul.Utils.DirectionConstrain.FromDegrees(Top, Bottom, Right, Left), DamageMultiplier);
 }
 
 public readonly struct DamageZoneStats
 {
     public readonly PlayerBodyPart ZoneType;
     public readonly float Coverage;
-    public readonly DirectionConstrain Directions;
+    public readonly CombatOverhaul.Utils.DirectionConstrain Directions;
     public readonly float DamageMultiplier;
 
-    public DamageZoneStats(PlayerBodyPart type, float coverage, DirectionConstrain directions, float damageMultiplier)
+    public DamageZoneStats(PlayerBodyPart type, float coverage, CombatOverhaul.Utils.DirectionConstrain directions, float damageMultiplier)
     {
         ZoneType = type;
         Coverage = coverage;

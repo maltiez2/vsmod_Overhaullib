@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
@@ -13,7 +13,7 @@ using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Implementations;
 
-public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDynamicMoveAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
+public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
 {
     public MeleeWeaponClient? ClientLogic => ClientModes?.CurrentMode;
     public MeleeWeaponServer? ServerLogic { get; private set; }
@@ -57,6 +57,19 @@ public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, 
     public AnimationRequestByCode? GetRunAnimation(EntityPlayer player, ItemSlot slot, bool mainHand) => ClientLogic?.GetRunAnimation(player, slot, mainHand);
     public AnimationRequestByCode? GetSwimAnimation(EntityPlayer player, ItemSlot slot, bool mainHand) => ClientLogic?.GetSwimAnimation(player, slot, mainHand);
     public AnimationRequestByCode? GetSwimIdleAnimation(EntityPlayer player, ItemSlot slot, bool mainHand) => ClientLogic?.GetSwimIdleAnimation(player, slot, mainHand);
+    public AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, ItemSlotType slotType, IdleAnimationType animationType)
+    {
+        return animationType switch
+        {
+            IdleAnimationType.Idle => GetIdleAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            IdleAnimationType.Ready => GetReadyAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            IdleAnimationType.Walk => GetWalkAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            IdleAnimationType.Run => GetRunAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            IdleAnimationType.Swim => GetSwimAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            IdleAnimationType.SwimIdle => GetSwimIdleAnimation(player, slot, slotType == ItemSlotType.MainHand),
+            _ => null,
+        };
+    }
 
     public override void OnHeldRenderOpaque(ItemSlot inSlot, IClientPlayer byPlayer)
     {
@@ -139,9 +152,9 @@ public class MeleeWeapon : Item, IHasMultipleWeaponLogicModes, IHasWeaponLogic, 
         }
     }
 
-    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
-        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+        base.OnCreatedByCrafting(allInputSlots, outputSlot, byRecipe);
 
         GeneralUtils.MarkItemStack(outputSlot);
         outputSlot.MarkDirty();

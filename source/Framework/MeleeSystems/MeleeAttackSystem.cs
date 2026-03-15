@@ -1,5 +1,5 @@
 ﻿using Cairo;
-using CombatOverhaul.Colliders;
+using CollidersLib;
 using CombatOverhaul.DamageSystems;
 using OpenTK.Mathematics;
 using ProtoBuf;
@@ -87,8 +87,6 @@ public sealed class MeleeSystemClient : MeleeSystem
 
     public void UpdateAttackStatus(EntityPlayer attacker, MeleeAttackStatus status, bool mainHand)
     {
-        Debug.WriteLine(status);
-        
         _clientChannel.SendPacket(new MeleeAttackStatusPacket
         {
             Status = status,

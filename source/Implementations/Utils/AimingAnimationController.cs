@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.RangedSystems.Aiming;
 using OpenTK.Mathematics;
 using Vintagestory.API.MathTools;
@@ -33,8 +33,8 @@ public sealed class AimingAnimationController
         _aimingSystem.OnAimPointChange -= UpdateCursorFollowAnimation;
     }
 
-    private readonly Animations.Animation _cursorFollowAnimation = Animations.Animation.Zero.Clone();
-    private readonly Animations.Animation _cursorStopFollowAnimation = Animations.Animation.Zero.Clone();
+    private readonly AnimationsLib.Animation _cursorFollowAnimation = AnimationsLib.Animation.Zero.Clone();
+    private readonly AnimationsLib.Animation _cursorStopFollowAnimation = AnimationsLib.Animation.Zero.Clone();
     private const float _animationFollowMultiplier = 0.01f;
     private readonly ClientAimingSystem _aimingSystem;
     private readonly FirstPersonAnimationsBehavior? _animationBehavior;

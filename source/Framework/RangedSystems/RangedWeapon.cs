@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Utils;

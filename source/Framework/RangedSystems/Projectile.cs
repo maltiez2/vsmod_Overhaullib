@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Colliders;
+﻿using CollidersLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
@@ -589,7 +589,7 @@ public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
                 (entity as ProjectileEntity)?.SetRotation();
                 pos.Motion *= Config.RicochetSpeedFactor;
 
-                entity.Api.World.PlaySoundAt(block?.Sounds?.Hit ?? block?.Sounds?.ByTool?.Values?.FirstOrDefault()?.Hit ?? block?.Sounds?.Break ?? new AssetLocation("game:sounds/player/destruct"), intersection.X, intersection.Y, intersection.Z);
+                entity.Api.World.PlaySoundAt(block?.Sounds?.Hit.Location ?? block?.Sounds?.ByTool?.Values?.FirstOrDefault()?.Hit.Location ?? block?.Sounds?.Break.Location ?? new AssetLocation("game:sounds/player/destruct"), intersection.X, intersection.Y, intersection.Z);
 
                 return;
             }

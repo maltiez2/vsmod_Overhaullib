@@ -1,11 +1,8 @@
 ﻿using CombatOverhaul.Utils;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Datastructures;
-using Vintagestory.API.MathTools;
-using Vintagestory.API.Util;
 using Vintagestory.GameContent;
+using static OpenTK.Graphics.OpenGL.GL;
 
 namespace CombatOverhaul.Armor;
 
@@ -60,7 +57,7 @@ public class ItemWearableArmor : ItemWearable
             LoggerUtil.Error(api, this, $"Error on equipping '{code}' that occupies {armorType}:\n{exception}");
         }
     }
-    public override void OnCreatedByCrafting(ItemSlot[] inSlots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
         int newDurability = 0;
 
@@ -71,7 +68,7 @@ public class ItemWearableArmor : ItemWearable
 
             if (byRecipe.Name.Path.Contains("repair"))
             {
-                CalculateRepairValueProperly(inSlots, outputSlot, out float repairValue, out int matCostPerMatType);
+                CalculateRepairValueProperly(allInputSlots, outputSlot, out float repairValue, out int matCostPerMatType);
 
                 int curDur = outputSlot.Itemstack.Collectible.GetRemainingDurability(outputSlot.Itemstack);
                 int maxDur = GetMaxDurability(outputSlot.Itemstack);
@@ -80,7 +77,7 @@ public class ItemWearableArmor : ItemWearable
             }
         }
 
-        base.OnCreatedByCrafting(inSlots, outputSlot, byRecipe);
+        base.OnCreatedByCrafting(allInputSlots, outputSlot, byRecipe);
 
         // Prevent derp in the handbook
         if (outputSlot is DummySlot) return;
@@ -90,10 +87,10 @@ public class ItemWearableArmor : ItemWearable
             outputSlot.Itemstack.Attributes.SetInt("durability", newDurability);
         }
     }
-    public override bool ConsumeCraftingIngredients(ItemSlot[] inSlots, ItemSlot outputSlot, GridRecipe recipe)
+    public override bool ConsumeCraftingIngredients(ItemSlot[] inSlots, ItemSlot outputSlot, IRecipeBase matchingRecipe)
     {
         // Consume as much materials in the input grid as needed
-        if (recipe.Name.Path.Contains("repair"))
+        if (matchingRecipe.Name.Path.Contains("repair"))
         {
             CalculateRepairValueProperly(inSlots, outputSlot, out float repairValue, out int matCostPerMatType);
 
@@ -140,11 +137,7 @@ public class ItemWearableArmor : ItemWearable
     }
     protected virtual void CalculateRepairValueProperly(ItemSlot[] inSlots, ItemSlot outputSlot, out float repairValue, out int matCostPerMatType)
     {
-        int origMatCount = GetOrigMatCount(inSlots, outputSlot);
-        if (origMatCount == 0)
-        {
-            origMatCount = Attributes["materialCount"].AsInt(1);
-        }
+        int origMatCount = Attributes["materialCount"].AsInt(1);
 
         ItemSlot? armorSlot = inSlots.FirstOrDefault(slot => slot.Itemstack?.Collectible is ItemWearable);
         int curDur = outputSlot.Itemstack.Collectible.GetRemainingDurability(armorSlot.Itemstack);
@@ -193,133 +186,16 @@ public class ItemWearableArmor : ItemWearable
 
         return stackTypes.Count;
     }
-}
-
-public class ItemHelmetWithVisor : ItemWearableArmor
-{
-    public override void OnLoaded(ICoreAPI api)
+    protected virtual int GetInputRepairCount(ItemSlot[] inputSlots)
     {
-        AttachableToEntity = IAttachableToEntity.FromCollectible(this) != null;
-        base.OnLoaded(api);
+        OrderedDictionary<int, int> matcounts = new();
+        foreach (var slot in inputSlots)
+        {
+            if (slot.Empty || slot.Itemstack.Collectible.GetCollectibleInterface<IWearable>() != null) continue;
+            var hash = slot.Itemstack.GetHashCode();
+            matcounts.TryGetValue(hash, out int cnt);
+            matcounts[hash] = cnt + slot.StackSize;
+        }
+        return matcounts.Values.Min();
     }
-    public override void OnBeforeRender(ICoreClientAPI capi, ItemStack itemstack, EnumItemRenderTarget target, ref ItemRenderInfo renderinfo)
-    {
-        if (!AttachableToEntity) return;
-
-        Dictionary<string, MultiTextureMeshRef> meshrefs = ObjectCacheUtil.GetOrCreate(capi, "wearableAttachmentMeshRefs", () => new Dictionary<string, MultiTextureMeshRef>());
-        string key = GetMeshCacheKey(itemstack);
-
-        if (!meshrefs.TryGetValue(key, out renderinfo.ModelRef))
-        {
-            ITexPositionSource texSource = capi.Tesselator.GetTextureSource(itemstack.Item);
-            MeshData? mesh = GenMesh(capi, itemstack, texSource);
-            renderinfo.ModelRef = meshrefs[key] = mesh == null ? renderinfo.ModelRef : capi.Render.UploadMultiTextureMesh(mesh);
-        }
-
-        if (Attributes["visibleDamageEffect"].AsBool())
-        {
-            renderinfo.DamageEffect = Math.Max(0, 1 - (float)GetRemainingDurability(itemstack) / GetMaxDurability(itemstack) * 1.1f);
-        }
-    }
-    public override string GetMeshCacheKey(ItemStack itemstack)
-    {
-        if (Opened(itemstack))
-        {
-            return "wearableModelRef-" + itemstack.Collectible.Code.ToString() + "-opened";
-        }
-        else
-        {
-            return "wearableModelRef-" + itemstack.Collectible.Code.ToString() + "-closed";
-        }
-    }
-
-    public void Open(ItemSlot slot) => slot?.Itemstack?.Attributes.SetBool(VisorStateAttribute, true);
-    public void Close(ItemSlot slot) => slot?.Itemstack?.Attributes.SetBool(VisorStateAttribute, false);
-    public void Switch(ItemSlot slot) => slot?.Itemstack?.Attributes.SetBool(VisorStateAttribute, !Opened(slot.Itemstack));
-
-    protected bool AttachableToEntity;
-    protected Shape? NowTesselatingShape;
-    protected string VisorStateAttribute = "visorOpened";
-
-    protected virtual MeshData? GenMesh(ICoreClientAPI capi, ItemStack itemstack, ITexPositionSource texSource)
-    {
-        JsonObject attrObj = itemstack.Collectible.Attributes;
-        EntityProperties props = capi.World.GetEntityType(new AssetLocation(attrObj?["wearerEntityCode"].ToString() ?? "player"));
-        Shape entityShape = props.Client.LoadedShape;
-        AssetLocation shapePathForLogging = props.Client.Shape.Base;
-        Shape newShape;
-
-
-        if (!AttachableToEntity)
-        {
-            // No need to step parent anything if its just a texture on the seraph
-            newShape = entityShape;
-        }
-        else
-        {
-            newShape = new Shape()
-            {
-                Elements = entityShape.CloneElements(),
-                Animations = entityShape.CloneAnimations(),
-                AnimationsByCrc32 = entityShape.AnimationsByCrc32,
-                JointsById = entityShape.JointsById,
-                TextureWidth = entityShape.TextureWidth,
-                TextureHeight = entityShape.TextureHeight,
-                Textures = null,
-            };
-        }
-
-        MeshData meshdata;
-        if (attrObj["wearableInvShape"].Exists)
-        {
-            AssetLocation shapePath = new("shapes/" + attrObj["wearableInvShape"] + ".json");
-            Shape shape = Vintagestory.API.Common.Shape.TryGet(capi, shapePath);
-            capi.Tesselator.TesselateShape(itemstack.Collectible, shape, out meshdata);
-        }
-        else
-        {
-            CompositeShape compArmorShape = !attrObj[ShapeAttribute(itemstack)].Exists ? (itemstack.Class == EnumItemClass.Item ? itemstack.Item.Shape : itemstack.Block.Shape) : attrObj[ShapeAttribute(itemstack)].AsObject<CompositeShape>(null, itemstack.Collectible.Code.Domain);
-
-            if (compArmorShape == null)
-            {
-                capi.World.Logger.Warning("Wearable shape {0} {1} does not define a shape through either the shape property or the attachShape Attribute. Item will be invisible.", itemstack.Class, itemstack.Collectible.Code);
-                return null;
-            }
-
-            AssetLocation shapePath = compArmorShape.Base.CopyWithPath("shapes/" + compArmorShape.Base.Path + ".json");
-
-            Shape armorShape = Vintagestory.API.Common.Shape.TryGet(capi, shapePath);
-            if (armorShape == null)
-            {
-                capi.World.Logger.Warning("Wearable shape {0} defined in {1} {2} not found or errored, was supposed to be at {3}. Item will be invisible.", compArmorShape.Base, itemstack.Class, itemstack.Collectible.Code, shapePath);
-                return null;
-            }
-
-            newShape.StepParentShape(armorShape, shapePath.ToShortString(), shapePathForLogging.ToShortString(), capi.Logger, (key, code) => { });
-
-            if (compArmorShape.Overlays != null)
-            {
-                foreach (CompositeShape? overlay in compArmorShape.Overlays)
-                {
-                    Shape oshape = Vintagestory.API.Common.Shape.TryGet(capi, overlay.Base.CopyWithPath("shapes/" + overlay.Base.Path + ".json"));
-                    if (oshape == null)
-                    {
-                        capi.World.Logger.Warning("Wearable shape {0} overlay {4} defined in {1} {2} not found or errored, was supposed to be at {3}. Item will be invisible.", compArmorShape.Base, itemstack.Class, itemstack.Collectible.Code, shapePath, overlay.Base);
-                        continue;
-                    }
-
-                    newShape.StepParentShape(oshape, overlay.Base.ToShortString(), shapePathForLogging.ToShortString(), capi.Logger, (key, Code) => { });
-                }
-            }
-
-            NowTesselatingShape = newShape;
-            capi.Tesselator.TesselateShapeWithJointIds("entity", newShape, out meshdata, texSource, new Vec3f());
-            NowTesselatingShape = null;
-        }
-
-        return meshdata;
-    }
-
-    protected virtual bool Opened(ItemStack? stack) => stack?.Attributes.GetBool(VisorStateAttribute, false) ?? false;
-    protected virtual string ShapeAttribute(ItemStack stack) => Opened(stack) ? "attachShapeOpened" : "attachShapeClosed";
 }

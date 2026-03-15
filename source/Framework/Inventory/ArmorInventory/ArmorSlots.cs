@@ -133,16 +133,16 @@ public class ClothesSlot : ItemSlotCharacter, IClickableSlot
 
     protected void ModifyBackpackSlot()
     {
-        InventoryPlayerBackPacks? backpack = GetBackpackInventory();
+        InventoryPlayerBackpacks? backpack = GetBackpackInventory();
         if (backpack != null)
         {
             backpack[0].MarkDirty();
         }
     }
 
-    protected InventoryPlayerBackPacks? GetBackpackInventory()
+    protected InventoryPlayerBackpacks? GetBackpackInventory()
     {
-        return World?.PlayerByUid(OwnerUUID)?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
+        return World?.PlayerByUid(OwnerUUID)?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackpacks;
     }
 }
 
@@ -260,14 +260,15 @@ public class GearSlot : ClothesSlot
         bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
 
         bool matchWithTags = false;
-        if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
+        // @TODO @FIX
+        /*if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
         {
             matchWithTags = ItemTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Item.Tags, Config.CanHoldItemTags);
         }
         if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags.Length != 0 && !matchWithTags)
         {
             matchWithTags = BlockTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Block.Tags, Config.CanHoldBlockTags);
-        }
+        }*/
 
         return matchWithoutDomain || matchWithDomain || matchWithTags;
     }
@@ -395,15 +396,15 @@ public class ArmorSlot : ItemSlot, IClickableSlot
     }
     protected void ModifyBackpackSlot()
     {
-        InventoryPlayerBackPacks? backpack = GetBackpackInventory();
+        InventoryPlayerBackpacks? backpack = GetBackpackInventory();
         if (backpack != null)
         {
             backpack[0].MarkDirty();
         }
     }
-    protected InventoryPlayerBackPacks? GetBackpackInventory()
+    protected InventoryPlayerBackpacks? GetBackpackInventory()
     {
-        return World?.PlayerByUid(OwnerUUID)?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
+        return World?.PlayerByUid(OwnerUUID)?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackpacks;
     }
 
     private readonly ArmorInventory _inventory;

@@ -88,8 +88,6 @@ public class RangedWeaponSystemClient
 
     public void SendStatusChange(EntityPlayer attacker, RangedWeaponStatus status, bool mainHand)
     {
-        Debug.WriteLine(status);
-        
         ItemSlot weaponSlot = mainHand ? attacker.ActiveHandItemSlot : attacker.LeftHandItemSlot;
 
         RangedWeaponStatusChanged?.Invoke(attacker, weaponSlot, status);

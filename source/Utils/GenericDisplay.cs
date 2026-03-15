@@ -80,7 +80,7 @@ public class GenericDisplayBlockEntity : GenericDisplayProto
         IContainedMeshSource containedMeshSource = stack.Collectible as IContainedMeshSource;
         if (containedMeshSource != null)
         {
-            return containedMeshSource.GetMeshCacheKey(stack);
+            return containedMeshSource.GetMeshCacheKey(new DummySlot(stack));
         }
 
         int renderVariant = stack.Attributes?.GetInt("renderVariant", 0) ?? 0;
@@ -111,7 +111,7 @@ public class GenericDisplayBlockEntity : GenericDisplayProto
         CollectibleObject colObj = slot.Itemstack.Collectible;
         if (colObj.Attributes != null && colObj.Attributes.KeyExists(AttributeTransformCode))
         {
-            AssetLocation? sound = slot.Itemstack?.Block?.Sounds?.Place;
+            AssetLocation? sound = slot.Itemstack?.Block?.Sounds?.Place.Location;
             if (TryPut(slot, blockSel, byPlayer))
             {
                 Api.World.PlaySoundAt(sound ?? new AssetLocation("sounds/player/build"), byPlayer.Entity, byPlayer, randomizePitch: true, 16f);
@@ -148,7 +148,7 @@ public class GenericDisplayBlockEntity : GenericDisplayProto
             ItemStack stack = _inventory[index].TakeOut(1);
             if (byPlayer.InventoryManager.TryGiveItemstack(stack))
             {
-                AssetLocation? sound = stack.Block?.Sounds?.Place;
+                AssetLocation? sound = stack.Block?.Sounds?.Place.Location;
                 Api.World.PlaySoundAt((sound != null) ? sound : new AssetLocation("sounds/player/build"), byPlayer.Entity, byPlayer, randomizePitch: true, 16f);
             }
             if (stack.StackSize > 0)

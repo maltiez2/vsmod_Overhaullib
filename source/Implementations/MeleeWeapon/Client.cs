@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
@@ -42,7 +42,7 @@ public enum MeleeWeaponStance
     OffHandDualWield
 }
 
-public class MeleeWeaponClient : IClientWeaponLogic, IHasDynamicMoveAnimations, IOnGameTick, IRestrictAction
+public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictAction
 {
     public MeleeWeaponClient(ICoreClientAPI api, Item item, MeleeWeaponStats stats)
     {

@@ -1,6 +1,5 @@
-﻿using CombatOverhaul.Colliders;
-using CombatOverhaul.Integration;
-using CombatOverhaul.Integration.Transpilers;
+﻿using AnimationsLib.Integration.Transpilers;
+using CollidersLib;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.Utils;
 using ImGuiNET;
@@ -8,12 +7,11 @@ using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Util;
 using Vintagestory.Client.NoObf;
 using VSImGui;
 using VSImGui.API;
 
-namespace CombatOverhaul.Animations;
+namespace AnimationsLib;
 
 public sealed class DebugWindowManager
 {
@@ -213,7 +211,7 @@ public sealed class DebugWindowManager
 
     private void AnimationsTab()
     {
-        string[] codes = AnimationsManager._instance.Animations.Keys.ToArray();
+        /*string[] codes = AnimationsManager._instance.Animations.Keys.ToArray();
 
         if (ImGui.Button("Save to buffer"))
         {
@@ -274,12 +272,12 @@ public sealed class DebugWindowManager
 
         _selectedAnimationIndex = AnimationsManager._instance.Animations.Keys.ToArray().IndexOf(filtered.ToArray()[_selectedAnimationIndexFiltered]);
 
-        /*if (ImGui.Button("Remove##animations"))
+        *//*if (ImGui.Button("Remove##animations"))
         {
             Animations.Remove(Animations.Keys.ToArray()[_selectedAnimationIndex]);
             _selectedAnimationIndex--;
             if (_selectedAnimationIndex < 0) _selectedAnimationIndex = 0;
-        }*/
+        }*//*
 
         codes = AnimationsManager._instance.Animations.Keys.ToArray();
 
@@ -333,7 +331,7 @@ public sealed class DebugWindowManager
             {
                 _behavior.FrameOverride = null;
             }
-        }
+        }*/
     }
 
     private void TransformEditorTab()
@@ -465,7 +463,7 @@ public sealed class DebugWindowManager
 
     private void CreateAnimationGui()
     {
-        ImGui.Indent();
+        /*ImGui.Indent();
         ImGui.SeparatorText("Just player");
 
         ImGui.InputText("Animation code##playeranimation", ref _playerAnimationKey, 300);
@@ -480,11 +478,11 @@ public sealed class DebugWindowManager
 
         ImGui.SeparatorText("Item + Player");
         CreateFromItemAnimation();
-        ImGui.Unindent();
+        ImGui.Unindent();*/
     }
     private void CreateFromItemAnimation()
     {
-        Item? item = _api.World.Player.Entity.RightHandItemSlot.Itemstack?.Item;
+        /*Item? item = _api.World.Player.Entity.RightHandItemSlot.Itemstack?.Item;
         if (item == null)
         {
             ImGui.Text("Take item in right hand");
@@ -522,7 +520,7 @@ public sealed class DebugWindowManager
                 LoggerUtil.Warn(_api, this, $"Error on creating animation: {exception}");
             }
         }
-        if (!canCreate) ImGui.EndDisabled();
+        if (!canCreate) ImGui.EndDisabled();*/
     }
 #endif
 }

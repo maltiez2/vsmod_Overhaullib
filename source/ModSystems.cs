@@ -1,7 +1,7 @@
 ﻿using Cairo;
-using CombatOverhaul.Animations;
+using AnimationsLib;
 using CombatOverhaul.Armor;
-using CombatOverhaul.Colliders;
+using CollidersLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
@@ -103,7 +103,7 @@ public partial class CombatOverhaulSystem : ModSystem
         (api as ServerCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
         (api as ClientCoreAPI)?.ClassRegistryNative.RegisterInventoryClass(GlobalConstants.characterInvClassName, typeof(ArmorInventory));
 
-        ExtendedElementPose.NameHashCache = new(api, "element pose name hash cache", 500000, 11 * 60 * 1000, threadSafe: true);
+        //ExtendedElementPose.NameHashCache = new(api, "element pose name hash cache", 500000, 11 * 60 * 1000, threadSafe: true);
     }
 
     public override void Start(ICoreAPI api)
@@ -113,30 +113,23 @@ public partial class CombatOverhaulSystem : ModSystem
         if (api.Side == EnumAppSide.Client)
         {
             HarmonyPatches.ClientSettings = Settings;
-            AnimationPatches.ClientSettings = Settings;
         }
         else
         {
             HarmonyPatches.ServerSettings = Settings;
-            AnimationPatches.ServerSettings = Settings;
         }
 
-        api.RegisterEntityBehaviorClass("CombatOverhaul:FirstPersonAnimations", typeof(FirstPersonAnimationsBehavior));
-        api.RegisterEntityBehaviorClass("CombatOverhaul:ThirdPersonAnimations", typeof(ThirdPersonAnimationsBehavior));
-        api.RegisterEntityBehaviorClass("CombatOverhaul:EntityColliders", typeof(CollidersEntityBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:EntityDamageModel", typeof(EntityDamageModelBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:PlayerDamageModel", typeof(PlayerDamageModelBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ActionsManager", typeof(ActionsManagerPlayerBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:AimingAccuracy", typeof(AimingAccuracyBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:WearableStats", typeof(WearableStatsBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:InInventory", typeof(InInventoryPlayerBehavior));
-        api.RegisterEntityBehaviorClass("CombatOverhaul:ArmorStandInventory", typeof(EntityBehaviorCOArmorStandInventory));
+       // api.RegisterEntityBehaviorClass("CombatOverhaul:ArmorStandInventory", typeof(EntityBehaviorCOArmorStandInventory));
         api.RegisterEntityBehaviorClass("CombatOverhaul:ProjectilePhysics", typeof(ProjectilePhysicsBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:Stagger", typeof(StaggerBehavior));
         api.RegisterEntityBehaviorClass("CombatOverhaul:PositionBeforeFalling", typeof(PositionBeforeFallingBehavior));
 
-        api.RegisterCollectibleBehaviorClass("CombatOverhaul:Animatable", typeof(Animatable));
-        api.RegisterCollectibleBehaviorClass("CombatOverhaul:AnimatableAttachable", typeof(AnimatableAttachable));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:Projectile", typeof(ProjectileBehavior));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:Armor", typeof(ArmorBehavior));
         api.RegisterCollectibleBehaviorClass("CombatOverhaul:WearableWithStats", typeof(WearableWithStatsBehavior));
@@ -332,7 +325,7 @@ public partial class CombatOverhaulSystem : ModSystem
 
         Disposed = true;
 
-        ExtendedElementPose.NameHashCache?.Dispose();
+        //ExtendedElementPose.NameHashCache?.Dispose();
 
         ServerVanitySystem?.Dispose();
     }
@@ -496,13 +489,8 @@ public partial class CombatOverhaulSystem : ModSystem
 
 public partial class CombatOverhaulAnimationsSystem : ModSystem
 {
-    public AnimationsManager? PlayerAnimationsManager { get; private set; }
     public DebugWindowManager? DebugManager { get; private set; }
     public ParticleEffectsManager? ParticleEffectsManager { get; private set; }
-    public VanillaAnimationsSystemClient? ClientVanillaAnimations { get; private set; }
-    public VanillaAnimationsSystemServer? ServerVanillaAnimations { get; private set; }
-    public AnimationSystemClient? ClientTpAnimationSystem { get; private set; }
-    public AnimationSystemServer? ServerTpAnimationSystem { get; private set; }
 
     public IShaderProgram? AnimatedItemShaderProgram => _shaderProgram;
     public IShaderProgram? AnimatedItemShaderProgramFirstPerson => _shaderProgramFirstPerson;
@@ -517,22 +505,16 @@ public partial class CombatOverhaulAnimationsSystem : ModSystem
         api.Event.ReloadShader += LoadAnimatedItemShaders;
         _ = LoadAnimatedItemShaders();
         ParticleEffectsManager = new(api);
-        PlayerAnimationsManager = new(api, ParticleEffectsManager);
         DebugManager = new(api, ParticleEffectsManager);
-        ClientVanillaAnimations = new(api);
-        ClientTpAnimationSystem = new(api);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
     {
         ParticleEffectsManager = new(api);
-        ServerVanillaAnimations = new(api);
-        ServerTpAnimationSystem = new(api);
     }
 
     public override void AssetsFinalize(ICoreAPI api)
     {
-        PlayerAnimationsManager?.Load();
         if (api is ICoreClientAPI) DebugManager?.Load(api as ICoreClientAPI);
     }
 

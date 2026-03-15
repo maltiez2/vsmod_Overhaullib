@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
@@ -197,7 +197,7 @@ public class GripSpecificStats
     }
 }
 
-public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleAnimations, IOnGameTick, IRestrictAction
+public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictAction
 {
     public StanceBasedMeleeWeaponClient(ICoreClientAPI api, Item item)
     {
@@ -688,7 +688,7 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IHasDynamicIdleA
     }
 }
 
-public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasDynamicIdleAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
+public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
 {
     public StanceBasedMeleeWeaponClient? ClientLogic { get; private set; }
 

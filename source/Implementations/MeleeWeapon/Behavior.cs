@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.Integration;
@@ -12,7 +12,7 @@ using Vintagestory.API.Util;
 
 namespace CombatOverhaul.Implementations;
 
-public class MeleeWeaponBehavior : CollectibleBehavior, IHasMultipleWeaponLogicModes, IHasWeaponLogic, IHasRangedWeaponLogic, IHasDynamicMoveAnimations, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
+public class MeleeWeaponBehavior : CollectibleBehavior, IHasMultipleWeaponLogicModes, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMeleeWeaponActions, IHasServerBlockCallback, ISetsRenderingOffset, IMouseWheelInput, IOnGameTick, IRestrictAction
 {
     public MeleeWeaponClient? ClientLogic => ClientModes?.CurrentMode;
     public MeleeWeaponServer? ServerLogic { get; private set; }

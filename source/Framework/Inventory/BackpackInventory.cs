@@ -10,17 +10,17 @@ using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Armor;
 
-public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
+public class InventoryPlayerBackpacksCombatOverhaul : InventoryPlayerBackpacks
 {
     public BagInventory BagInventory => bagInv;
     public ItemSlot[] BackpackSlots => bagSlots;
 
-    public InventoryPlayerBackPacksCombatOverhaul(string className, string playerUID, ICoreAPI api) : base(className, playerUID, api)
+    public InventoryPlayerBackpacksCombatOverhaul(string className, string playerUID, ICoreAPI api) : base(className, playerUID, api)
     {
         _api = api;
     }
 
-    public InventoryPlayerBackPacksCombatOverhaul(string inventoryId, ICoreAPI api) : base(inventoryId, api)
+    public InventoryPlayerBackpacksCombatOverhaul(string inventoryId, ICoreAPI api) : base(inventoryId, api)
     {
         _api = api;
     }

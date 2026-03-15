@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.Integration;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;

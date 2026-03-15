@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Colliders;
+﻿using CollidersLib;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;

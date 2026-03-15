@@ -1,4 +1,4 @@
-﻿using CombatOverhaul.Animations;
+﻿using AnimationsLib;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
@@ -226,8 +226,6 @@ public class BowClient : RangeWeaponClient
             AimingAnimationController?.Play(mainHand);
         }
 
-        if (TpAnimationBehavior == null) AnimationBehavior?.PlayVanillaAnimation(Stats.TpAimAnimation, mainHand);
-
         return true;
     }
 
@@ -413,7 +411,7 @@ public class BowServer : RangeWeaponServer
     protected readonly BowStats Stats;
 }
 
-public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAnimations
+public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasIdleAnimations
 {
     public BowClient? ClientLogic { get; private set; }
     public BowServer? ServerLogic { get; private set; }
@@ -529,9 +527,9 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAni
         }
     }
 
-    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
-        base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
+        base.OnCreatedByCrafting(allInputSlots, outputSlot, byRecipe);
 
         GeneralUtils.MarkItemStack(outputSlot);
         outputSlot.MarkDirty();
@@ -540,6 +538,20 @@ public class BowItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveAni
     public override void OnHeldAttackStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, ref EnumHandHandling handling)
     {
         handling = EnumHandHandling.PreventDefault;
+    }
+
+    public AnimationRequestByCode? GetIdleAnimation(EntityPlayer player, ItemSlot slot, ItemSlotType slotType, IdleAnimationType animationType)
+    {
+        return animationType switch
+        {
+            IdleAnimationType.Idle => IdleAnimation,
+            IdleAnimationType.Ready => ReadyAnimation,
+            IdleAnimationType.Walk => WalkAnimation,
+            IdleAnimationType.Run => RunAnimation,
+            IdleAnimationType.Swim => SwimAnimation,
+            IdleAnimationType.SwimIdle => SwimIdleAnimation,
+            _ => null,
+        };
     }
 
     private BowStats? _stats;
