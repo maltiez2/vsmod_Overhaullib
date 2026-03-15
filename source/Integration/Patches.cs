@@ -210,20 +210,16 @@ internal static class HarmonyPatches
 
         if (bagSlots.Length == 4)
         {
-            bagSlots = Enumerable.Range(0, ArmorInventory._totalSlotsNumber).Select(_ => new DummySlot() as ItemSlot).Concat(bagSlots).ToArray();
+            bagSlots = [..bagSlots, ..Enumerable.Range(0, ArmorInventory._totalSlotsNumber).Select(_ => new DummySlot() as ItemSlot)];
         }
     }
     private static ItemSlot[] AppendGearInventorySlots(ItemSlot[] backpackSlots, Entity owner)
     {
-        IInventory? inventory = GetGearInventory(owner);
-
-        if (inventory == null) return backpackSlots;
+        if (GetGearInventory(owner) is not IInventory inventory) return backpackSlots;
 
         if (backpackSlots.Any(slot => slot.Inventory == inventory)) return backpackSlots;
 
-        ItemSlot[] gearSlots = inventory?.ToArray() ?? Array.Empty<ItemSlot>();
-
-        return gearSlots.Concat(backpackSlots).ToArray();
+        return [..backpackSlots, ..inventory];
     }
     private static IInventory? GetGearInventory(Entity entity)
     {

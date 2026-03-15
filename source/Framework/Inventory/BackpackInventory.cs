@@ -112,9 +112,9 @@ public class InventoryPlayerBackPacksCombatOverhaul : InventoryPlayerBackPacks
 
     private ItemSlot[] AppendGearInventorySlots(ItemSlot[] backpackSlots)
     {
-        ItemSlot[] gearSlots = GetGearInventory(Owner)?.ToArray() ?? Array.Empty<ItemSlot>();
+        if (GetGearInventory(Owner) is not IInventory inventory) return backpackSlots;
 
-        return gearSlots.Concat(backpackSlots).ToArray();
+        return [..backpackSlots, ..inventory];
     }
 
     private static InventoryBase? GetGearInventory(Entity entity)
