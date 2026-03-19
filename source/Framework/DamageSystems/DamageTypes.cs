@@ -17,11 +17,9 @@ public interface ITypedDamage
 
 public class DamageDataJson
 {
-    public string DamageType { get; set; } = "PiercingAttack";
-    [Obsolete]
-    public float Strength { get => Tier; set => Tier = (int)value; } // Tier, left for compatibility reasons
-    public int Tier { get; set; }
     public float Damage { get; set; }
+    public string DamageType { get; set; } = "PiercingAttack";
+    public int Tier { get; set; }
     public int ArmorPiercingTier { get; set; }
 
     public DamageDataJson() { }

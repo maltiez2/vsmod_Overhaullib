@@ -1,4 +1,5 @@
 ﻿using AnimationsLib;
+using CollidersLib.Items;
 using CombatOverhaul.DamageSystems;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
@@ -56,6 +57,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         RangedWeaponSystem = system.ClientRangedWeaponSystem ?? throw new Exception();
         AimingSystem = system.AimingSystem ?? throw new Exception();
         Settings = system.Settings;
+
+        CollidersBehavior = item.GetCollectibleBehavior<ItemCollidersBehaviorClient>(withInheritance: true) ?? throw new Exception("Melee weapon has to have 'ItemCollidersBehaviorClient' behavior");
 
         Stats = stats;
         AimingStats = Stats.ThrowAttack?.Aiming.ToStats();
@@ -679,6 +682,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
     protected readonly MeleeSystemClient MeleeAttackSystem;
     protected readonly RangedWeaponSystemClient RangedWeaponSystem;
     protected readonly ClientAimingSystem AimingSystem;
+    protected readonly ItemCollidersBehaviorClient CollidersBehavior;
     protected readonly Settings Settings;
     protected readonly float DefaultVerticalLimit;
     protected readonly float DefaultHorizontalLimit;
