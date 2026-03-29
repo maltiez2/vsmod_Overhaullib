@@ -28,11 +28,9 @@ public class StanceStats
     public Dictionary<string, MeleeAttackStats>? DirectionalBlockBashes { get; set; }
     public DamageBlockJson? Block { get; set; }
     public DamageBlockJson? Parry { get; set; }
-    public MeleeAttackStats? HandleAttack { get; set; }
 
-    public string? AttackHitSound { get; set; } = null;
-    public string? BashHitSound { get; set; } = null;
-    public string? HandleHitSound { get; set; } = null;
+    public List<string?> AttackHitSounds { get; set; } = [];
+    public List<string?> BashHitSounds { get; set; } = [];
 
     public float AttackCooldownMs { get; set; } = 0;
     public float BlockCooldownMs { get; set; } = 0;

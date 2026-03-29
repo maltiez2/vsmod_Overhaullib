@@ -269,13 +269,13 @@ public sealed class MeleeSystemServer : MeleeSystem
     {
         bool printIntoChat = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings.PrintMeleeHits;
 
-        if (printIntoChat)
+        /*if (printIntoChat)
         {
             float damage = damageReceived ? target.WatchedAttributes.GetFloat("onHurt") : 0;
 
             string damageLogMessage = Lang.Get("combatoverhaul:damagelog-dealt-damage", Lang.Get($"combatoverhaul:entity-damage-zone-{(ColliderTypes)packet.ColliderType}"), targetName, $"{damage:F2}");
 
             ((attacker as EntityPlayer)?.Player as IServerPlayer)?.SendMessage(GlobalConstants.DamageLogChatGroup, damageLogMessage, EnumChatType.Notification);
-        }
+        }*/
     }
 }

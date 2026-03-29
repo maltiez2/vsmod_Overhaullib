@@ -28,56 +28,38 @@ public class MeleeDamagePacket
     public int StaggerTier { get; set; }
 }
 
-[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-public class MeleeCollisionPacket
+public class MeleeDamageStatsJson
 {
-    public int PushTier { get; set; }
-    public string Collider { get; set; } = "";
-    public int ColliderType { get; set; }
-    public long AttackerEntityId { get; set; }
-    public long TargetEntityId { get; set; }
-    public bool MainHand { get; set; }
-}
-
-public class MeleeDamageTypeJson
-{
-    public DamageDataJson Damage { get; set; } = new();
+    public float Damage { get; set; }
+    public string DamageType { get; set; } = "PiercingAttack";
+    public int Tier { get; set; }
+    public int ArmorPiercingTier { get; set; }
     public float Knockback { get; set; } = 0;
     public int DurabilityDamage { get; set; } = 1;
     public int Collider { get; set; } = 0;
+    public double ColliderPriority { get; set; } = 0;
     public int StaggerTimeMs { get; set; } = 0;
     public int StaggerTier { get; set; } = 1;
     public int PushTier { get; set; } = 0;
 
-    public MeleeDamageType ToDamageType() => new(this);
+    public MeleeDamageStats ToDamageType() => new(this);
 }
 
-public class MeleeDamageType
+public readonly struct MeleeDamageStats(MeleeDamageStatsJson stats)
 {
-    public readonly float Damage;
-    public readonly DamageData DamageTypeData;
-    public readonly float Knockback;
-    public readonly int DurabilityDamage;
-    public readonly int StaggerTimeMs;
-    public readonly int StaggerTier;
-    public readonly int PushTier;
-    public readonly int Collider;
+    public readonly float Damage = stats.Damage;
+    public readonly DamageData DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.DamageType), stats.Tier, stats.ArmorPiercingTier);
+    public readonly float Knockback = stats.Knockback;
+    public readonly int DurabilityDamage = stats.DurabilityDamage;
+    public readonly int StaggerTimeMs = stats.StaggerTimeMs;
+    public readonly int StaggerTier = stats.StaggerTier;
+    public readonly int PushTier = stats.PushTier;
+    public readonly int Collider = stats.Collider;
+    public readonly double ColliderPriority = stats.ColliderPriority;
 
     public const string DamageTierPlayerStatPrefix = "meleeDamageTierBonus";
 
-    public MeleeDamageType(MeleeDamageTypeJson stats)
-    {
-        Damage = stats.Damage.Damage;
-        DamageTypeData = new(Enum.Parse<EnumDamageType>(stats.Damage.DamageType), stats.Damage.Tier, stats.Damage.ArmorPiercingTier);
-        Knockback = stats.Knockback;
-        DurabilityDamage = stats.DurabilityDamage;
-        StaggerTimeMs = stats.StaggerTimeMs;
-        StaggerTier = stats.StaggerTier;
-        PushTier = stats.PushTier;
-        Collider = stats.Collider;
-    }
-
-    public bool Attack(Entity attacker, Entity target, Vector3d position, string collider, out MeleeDamagePacket packet, bool mainHand, ItemStackMeleeWeaponStats stats)
+    public bool TryAttack(Entity attacker, Entity target, Vector3d position, string collider, out MeleeDamagePacket packet, bool mainHand, ItemStackMeleeWeaponStats stats)
     {
         packet = new();
 

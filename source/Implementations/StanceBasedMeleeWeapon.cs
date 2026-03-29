@@ -189,7 +189,7 @@ public class GripSpecificStats
     {
 #if DEBUG
         int typeIndex = 0;
-        foreach (MeleeDamageType damageType in attack.DamageTypes)
+        foreach (MeleeDamageStats damageType in attack.DamageStats)
         {
             DebugWindowManager.RegisterCollider(item, type + typeIndex++, damageType);
         }
@@ -603,7 +603,7 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRe
     {
 #if DEBUG
         int typeIndex = 0;
-        foreach (MeleeDamageType damageType in attack.DamageTypes)
+        foreach (MeleeDamageStats damageType in attack.DamageStats)
         {
             DebugWindowManager.RegisterCollider(item, type + typeIndex++, damageType);
         }

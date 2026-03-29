@@ -46,7 +46,7 @@ public sealed class DebugWindowManager
         _transforms[code] = transform;
     }
 
-    public static void RegisterCollider(string item, string type, MeleeDamageType collider)
+    public static void RegisterCollider(string item, string type, MeleeDamageStats collider)
     {
         if (!_colliders.ContainsKey(item))
         {

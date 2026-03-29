@@ -5,7 +5,6 @@ using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
 using CombatOverhaul.RangedSystems;
 using CombatOverhaul.RangedSystems.Aiming;
-using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Text;
 using Vintagestory.API.Client;
@@ -70,12 +69,12 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 
         if (Stats.OneHandedStance?.Attack != null)
         {
-            OneHandedAttack = new(api, Stats.OneHandedStance.Attack);
+            OneHandedAttack = new(api, Stats.OneHandedStance.Attack, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "onehanded-", OneHandedAttack);
         }
         if (Stats.OneHandedStance?.Riposte != null)
         {
-            OneHandedRiposte = new(api, Stats.OneHandedStance.Riposte);
+            OneHandedRiposte = new(api, Stats.OneHandedStance.Riposte, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "onehanded-riposte-", OneHandedRiposte);
         }
         else if (Stats.OneHandedStance?.DirectionalAttacks != null)
@@ -83,19 +82,19 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalOneHandedAttacks = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.OneHandedStance.DirectionalAttacks)
             {
-                DirectionalOneHandedAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalOneHandedAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"onehanded-{direction}-", DirectionalOneHandedAttacks[Enum.Parse<AttackDirection>(direction)]);
             }
         }
 
         if (Stats.TwoHandedStance?.Attack != null)
         {
-            TwoHandedAttack = new(api, Stats.TwoHandedStance.Attack);
+            TwoHandedAttack = new(api, Stats.TwoHandedStance.Attack, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "twohanded-", TwoHandedAttack);
         }
         if (Stats.TwoHandedStance?.Riposte != null)
         {
-            TwoHandedRiposte = new(api, Stats.TwoHandedStance.Riposte);
+            TwoHandedRiposte = new(api, Stats.TwoHandedStance.Riposte, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "onehanded-riposte-", TwoHandedRiposte);
         }
         else if (Stats.TwoHandedStance?.DirectionalAttacks != null)
@@ -103,19 +102,19 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalTwoHandedAttacks = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.TwoHandedStance.DirectionalAttacks)
             {
-                DirectionalTwoHandedAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalTwoHandedAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"twohanded-{direction}-", DirectionalTwoHandedAttacks[Enum.Parse<AttackDirection>(direction)]);
             }
         }
 
         if (Stats.OffHandStance?.Attack != null)
         {
-            OffHandAttack = new(api, Stats.OffHandStance.Attack);
+            OffHandAttack = new(api, Stats.OffHandStance.Attack, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "offhand-", OffHandAttack);
         }
         if (Stats.OffHandStance?.Riposte != null)
         {
-            OffHandRiposte = new(api, Stats.OffHandStance.Riposte);
+            OffHandRiposte = new(api, Stats.OffHandStance.Riposte, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "onehanded-riposte-", OffHandRiposte);
         }
         else if (Stats.OffHandStance?.DirectionalAttacks != null)
@@ -123,7 +122,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalOffHandAttacks = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.OffHandStance.DirectionalAttacks)
             {
-                DirectionalOffHandAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalOffHandAttacks.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"offhand-{direction}-", DirectionalOffHandAttacks[Enum.Parse<AttackDirection>(direction)]);
             }
         }
@@ -132,14 +131,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         {
             foreach ((string wildcard, StanceStats stance) in Stats.MainHandDualWieldStances)
             {
-                if (stance.Attack != null) MainHandDualWieldAttacks.Add(wildcard, new(api, stance.Attack));
+                if (stance.Attack != null) MainHandDualWieldAttacks.Add(wildcard, new(api, stance.Attack, CollidersBehavior));
 
                 if (stance.DirectionalAttacks != null)
                 {
                     DirectionalMainHandDualWieldAttacks[wildcard] = [];
                     foreach ((string direction, MeleeAttackStats attack) in stance.DirectionalAttacks)
                     {
-                        DirectionalMainHandDualWieldAttacks[wildcard].Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                        DirectionalMainHandDualWieldAttacks[wildcard].Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                     }
                 }
             }
@@ -149,52 +148,22 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         {
             foreach ((string wildcard, StanceStats stance) in Stats.OffHandDualWieldStances)
             {
-                if (stance.Attack != null) OffHandDualWieldAttacks.Add(wildcard, new(api, stance.Attack));
+                if (stance.Attack != null) OffHandDualWieldAttacks.Add(wildcard, new(api, stance.Attack, CollidersBehavior));
 
                 if (stance.DirectionalAttacks != null)
                 {
                     DirectionalOffHandDualWieldAttacks[wildcard] = [];
                     foreach ((string direction, MeleeAttackStats attack) in stance.DirectionalAttacks)
                     {
-                        DirectionalOffHandDualWieldAttacks[wildcard].Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                        DirectionalOffHandDualWieldAttacks[wildcard].Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                     }
                 }
             }
         }
 
-        if (Stats.OneHandedStance?.HandleAttack != null)
-        {
-            OneHandedHandleAttack = new(api, Stats.OneHandedStance.HandleAttack);
-            RegisterCollider(item.Code.ToString(), "onehanded-handle-", OneHandedHandleAttack);
-        }
-        if (Stats.TwoHandedStance?.HandleAttack != null)
-        {
-            TwoHandedHandleAttack = new(api, Stats.TwoHandedStance.HandleAttack);
-            RegisterCollider(item.Code.ToString(), "twohanded-handle-", TwoHandedHandleAttack);
-        }
-        if (Stats.OffHandStance?.HandleAttack != null)
-        {
-            OffHandHandleAttack = new(api, Stats.OffHandStance.HandleAttack);
-            RegisterCollider(item.Code.ToString(), "offhand-handle-", OffHandHandleAttack);
-        }
-        if (Stats.MainHandDualWieldStances.Any())
-        {
-            foreach ((string wildcard, StanceStats stance) in Stats.MainHandDualWieldStances)
-            {
-                if (stance.HandleAttack != null) MainHandDualWieldHandleAttacks.Add(wildcard, new(api, stance.HandleAttack));
-            }
-        }
-        if (Stats.OffHandDualWieldStances.Any())
-        {
-            foreach ((string wildcard, StanceStats stance) in Stats.OffHandDualWieldStances)
-            {
-                if (stance.HandleAttack != null) OffHandDualWieldHandleAttacks.Add(wildcard, new(api, stance.HandleAttack));
-            }
-        }
-
         if (Stats.OneHandedStance?.BlockBash != null)
         {
-            OneHandedBlockBash = new(api, Stats.OneHandedStance.BlockBash);
+            OneHandedBlockBash = new(api, Stats.OneHandedStance.BlockBash, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "onehanded-blockbash-", OneHandedBlockBash);
         }
         else if (Stats.OneHandedStance?.DirectionalBlockBashes != null)
@@ -202,14 +171,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalOneHandedBlockBashes = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.OneHandedStance.DirectionalBlockBashes)
             {
-                DirectionalOneHandedBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalOneHandedBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"onehanded-blockbash-{direction}-", DirectionalOneHandedBlockBashes[Enum.Parse<AttackDirection>(direction)]);
             }
         }
 
         if (Stats.TwoHandedStance?.BlockBash != null)
         {
-            TwoHandedBlockBash = new(api, Stats.TwoHandedStance.BlockBash);
+            TwoHandedBlockBash = new(api, Stats.TwoHandedStance.BlockBash, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "twohanded-blockbash-", TwoHandedBlockBash);
         }
         else if (Stats.TwoHandedStance?.DirectionalBlockBashes != null)
@@ -217,14 +186,14 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalTwoHandedBlockBashes = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.TwoHandedStance.DirectionalBlockBashes)
             {
-                DirectionalTwoHandedBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalTwoHandedBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"twohanded-blockbash-{direction}-", DirectionalTwoHandedBlockBashes[Enum.Parse<AttackDirection>(direction)]);
             }
         }
 
         if (Stats.OffHandStance?.BlockBash != null)
         {
-            OffHandBlockBash = new(api, Stats.OffHandStance.BlockBash);
+            OffHandBlockBash = new(api, Stats.OffHandStance.BlockBash, CollidersBehavior);
             RegisterCollider(item.Code.ToString(), "offhand-blockbash-", OffHandBlockBash);
         }
         else if (Stats.OffHandStance?.DirectionalBlockBashes != null)
@@ -232,7 +201,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             DirectionalOffHandBlockBashes = new();
             foreach ((string direction, MeleeAttackStats attack) in Stats.OffHandStance.DirectionalBlockBashes)
             {
-                DirectionalOffHandBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack));
+                DirectionalOffHandBlockBashes.Add(Enum.Parse<AttackDirection>(direction), new(api, attack, CollidersBehavior));
                 RegisterCollider(item.Code.ToString(), $"offhand-blockbash-{direction}-", DirectionalOffHandBlockBashes[Enum.Parse<AttackDirection>(direction)]);
             }
         }
@@ -373,29 +342,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 
     public virtual void RenderDebugCollider(ItemSlot inSlot, IClientPlayer byPlayer)
     {
-        if (DebugWindowManager._currentCollider != null)
-        {
-            DebugWindowManager._currentCollider.Value.Transform(byPlayer.Entity.Pos, byPlayer.Entity, inSlot, Api, right: true)?.Render(Api, byPlayer.Entity, ColorUtil.ColorFromRgba(255, 125, 125, 255));
-            return;
-        }
-
-        MeleeAttack? attack = GetStanceAttack(byPlayer.Entity, true, CurrentMainHandDirection);
-        if (attack != null)
-        {
-            foreach (MeleeDamageType damageType in attack.DamageTypes)
-            {
-                damageType.RelativeCollider.Transform(byPlayer.Entity.Pos, byPlayer.Entity, inSlot, Api, right: true)?.Render(Api, byPlayer.Entity);
-            }
-        }
-
-        MeleeAttack? handle = GetStanceHandleAttack(byPlayer.Entity, mainHand: true);
-        if (handle != null)
-        {
-            foreach (MeleeDamageType damageType in handle.DamageTypes)
-            {
-                damageType.RelativeCollider.Transform(byPlayer.Entity.Pos, byPlayer.Entity, inSlot, Api, right: true)?.Render(Api, byPlayer.Entity, ColorUtil.ColorFromRgba(150, 150, 150, 255));
-            }
-        }
+        // @TODO
     }
 
     public virtual bool OnMouseWheel(ItemSlot slot, IClientPlayer byPlayer, float delta)
@@ -433,7 +380,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         MeleeAttack? attack = GetStanceAttack(player, mainHand, mainHand ? CurrentMainHandDirection : CurrentOffHandDirection, mainHand ? CurrentMainHandAttackIsRiposte : CurrentOffHandAttackIsRiposte);
         MeleeAttack? bash = GetStanceBlockBash(player, mainHand, mainHand ? CurrentMainHandDirection : CurrentOffHandDirection);
         StanceStats? stats = GetStanceStats(player, mainHand);
-        MeleeAttack? handle = GetStanceHandleAttack(player, mainHand);
 
         if (stats == null) return;
 
@@ -441,22 +387,20 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         {
             case MeleeWeaponState.BlockBashAttacking:
                 {
-                    if (bash != null) TryBash(bash, handle, stats, slot, player, mainHand);
+                    if (bash != null)
+                    {
+                        //TryBash(bash, handle, stats, slot, player, mainHand);
+                    }
                 }
                 break;
             case MeleeWeaponState.Attacking:
                 {
                     if (attack != null)
                     {
-                        TryAttack(attack, handle, stats, slot, player, mainHand, out bool hitTerrain, Settings.MeleeWeaponIgnoreTerrainBehind);
+                        TryAttack(attack, stats, slot, player, mainHand, out bool stopAttack, Settings.MeleeWeaponIgnoreTerrainBehind);
 
-                        if (hitTerrain && Settings.MeleeWeaponStopOnTerrainHit)
+                        if (stopAttack)
                         {
-                            Api.World.AddCameraShake(Stats.ScreenShakeStrength);
-                            if (stats.AttackHitSound != null)
-                            {
-                                SoundsSystem.Play(stats.AttackHitSound);
-                            }
                             SetState(MeleeWeaponState.Idle, mainHand);
                             AnimationBehavior?.PlayReadyAnimation(mainHand);
                             TpAnimationBehavior?.PlayReadyAnimation(mainHand);
@@ -477,7 +421,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         {
             return;
         }
-        
+
         string[] stats = Stats.ProficiencyStats;
         if (Stats.ProficiencyStat != "")
         {
@@ -490,11 +434,11 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             string description = Lang.Get("combatoverhaul:iteminfo-proficiency", statsList);
             dsc.AppendLine(description);
         }
-        
 
-        if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageTypes.Length > 0)
+
+        /*if (Stats.OneHandedStance?.Attack != null && Stats.OneHandedStance.Attack.DamageStats.Length > 0)
         {
-            string description = GetAttackStatsDescription(inSlot, Stats.OneHandedStance.Attack.DamageTypes.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-onehanded");
+            string description = GetAttackStatsDescription(inSlot, Stats.OneHandedStance.Attack.DamageStats.Select(element => element.Damage), "combatoverhaul:iteminfo-melee-weapon-onehanded");
             dsc.AppendLine(description);
         }
         else if (Stats.OneHandedStance?.DirectionalAttacks != null && Stats.OneHandedStance.DirectionalAttacks.Count > 0)
@@ -562,7 +506,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             IEnumerable<DamageDataJson> damageTypes = Stats.OffHandStance.DirectionalBlockBashes.Values.SelectMany(element => element.DamageTypes).Select(element => element.Damage);
             string description = GetAttackStatsDescription(inSlot, damageTypes, "combatoverhaul:iteminfo-melee-weapon-offhanded-bash");
             dsc.AppendLine(description);
-        }
+        }*/
 
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
 
@@ -704,7 +648,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
     protected long OffHandAttackCooldownUntilMs = 0;
     protected int MainHandAttackCounter = 0;
     protected int OffHandAttackCounter = 0;
-    protected bool HandleHitTerrain = false;
     protected const bool EditColliders = false;
     protected AttackDirection CurrentMainHandDirection = AttackDirection.Top;
     protected AttackDirection CurrentOffHandDirection = AttackDirection.Top;
@@ -744,11 +687,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
     protected Dictionary<AttackDirection, MeleeAttack>? DirectionalTwoHandedBlockBashes = [];
     protected Dictionary<AttackDirection, MeleeAttack>? DirectionalOffHandBlockBashes = [];
 
-    protected MeleeAttack? OneHandedHandleAttack;
-    protected MeleeAttack? TwoHandedHandleAttack;
-    protected MeleeAttack? OffHandHandleAttack;
-    protected Dictionary<string, MeleeAttack> MainHandDualWieldHandleAttacks = [];
-    protected Dictionary<string, MeleeAttack> OffHandDualWieldHandleAttacks = [];
 
     [ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
     protected virtual bool Attack(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
@@ -766,7 +704,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         if (ActionRestricted(player, mainHand)) return false;
 
         StanceStats? stats = GetStanceStats(player, mainHand);
-        MeleeAttack? handle = GetStanceHandleAttack(player, mainHand);
 
         if (stats == null) return false;
 
@@ -781,7 +718,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
                     if (!stats.CanRiposte || !canRiposte) return false;
 
                     TurnOnRiposte(mainHand);
-                    StartAttack(slot, player, mainHand, direction, attack, handle, stats, riposte: true);
+                    StartAttack(slot, player, mainHand, direction, attack, stats, riposte: true);
                     ResetRiposte(mainHand);
 
                     break;
@@ -789,7 +726,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             case MeleeWeaponState.Idle:
                 {
                     TurnOffRiposte(mainHand);
-                    StartAttack(slot, player, mainHand, direction, attack, handle, stats, riposte: stats.CanRiposte && canRiposte);
+                    StartAttack(slot, player, mainHand, direction, attack, stats, riposte: stats.CanRiposte && canRiposte);
                     ResetRiposte(mainHand);
                 }
                 break;
@@ -805,7 +742,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 
         return true;
     }
-    protected virtual void StartAttack(ItemSlot slot, EntityPlayer player, bool mainHand, AttackDirection direction, MeleeAttack attack, MeleeAttack? handle, StanceStats stats, bool riposte = false)
+    protected virtual void StartAttack(ItemSlot slot, EntityPlayer player, bool mainHand, AttackDirection direction, MeleeAttack attack, StanceStats stats, bool riposte = false)
     {
         if (mainHand)
         {
@@ -834,8 +771,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 
         MeleeAttackSystem.UpdateAttackStatus(player, MeleeAttackStatus.Start, mainHand);
 
-        attack.Start(player.Player);
-        handle?.Start(player.Player);
+        attack.Reset(player, slot);
         AnimationBehavior?.Play(
             mainHand,
             attackAnimation,
@@ -857,97 +793,19 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         {
             OffHandAttackCounter++;
         }
-        HandleHitTerrain = false;
 
         if (Settings.FlipDirectionAfterAttack)
         {
             PlayerActionsBehavior?.FlipDirectionToOpposite();
         }
     }
-    protected virtual void TryAttack(MeleeAttack attack, MeleeAttack? handle, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool hitTerrain, bool ignoreTerrainBehind)
+    protected virtual void TryAttack(MeleeAttack attack, StanceStats stats, ItemSlot slot, EntityPlayer player, bool mainHand, out bool stopAttack, bool ignoreTerrainBehind)
     {
-        hitTerrain = false;
         ItemStackMeleeWeaponStats stackStats = ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack);
 
-        bool handleAttacked = false;
+        attack.TryAttack(player, slot, mainHand, stackStats, out List<SingleCollisionData> collisions, out stopAttack, ignoreTerrainBehind);
 
-        if (handle != null)
-        {
-            handleAttacked = handle.Attack(
-                        player.Player,
-                        slot,
-                        mainHand,
-                        out IEnumerable<(Block block, Vector3d point)> handleTerrainCollision,
-                        out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> handleEntitiesCollision,
-                        stackStats);
-
-            if (handleTerrainCollision.Any() && !handleAttacked)
-            {
-                if (Settings.DebugHitParticles)
-                {
-                    foreach ((_, Vector3d point) in handleTerrainCollision)
-                    {
-                        Vec3d pos8 = new(point.X, point.Y, point.Z);
-                        player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 255, 125, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
-                    }
-                }
-
-                hitTerrain = true;
-
-                if (ignoreTerrainBehind)
-                {
-                    Vector3d playerPosition = player.Pos.XYZ.ToOpenTK();
-                    Vector3d eyesPosition = player.LocalEyePos.ToOpenTK() + playerPosition;
-                    Vector3d viewDirection = player.Pos.GetViewVector().ToVec3d().ToOpenTK();
-
-                    double eyesProjection = Vector3d.Dot(viewDirection, eyesPosition);
-
-                    foreach ((_, Vector3d point) in handleTerrainCollision)
-                    {
-                        double hitProjection = Vector3d.Dot(viewDirection, point);
-
-                        if (hitProjection < eyesProjection)
-                        {
-                            hitTerrain = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (hitTerrain)
-                {
-                    if (!HandleHitTerrain)
-                    {
-                        if (stats.HandleHitSound != null)
-                        {
-                            SoundsSystem.Play(stats.HandleHitSound);
-                        }
-                        HandleHitTerrain = true;
-                    }
-
-                    return;
-                }
-            }
-
-            if (Settings.DebugHitParticles && handleEntitiesCollision.Any() && handleAttacked)
-            {
-                foreach ((_, Vector3d point) in handleEntitiesCollision)
-                {
-                    Vec3d pos8 = new(point.X, point.Y, point.Z);
-                    player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(125, 125, 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
-                }
-            }
-        }
-
-        bool attacked = attack.Attack(
-            player.Player,
-            slot,
-            mainHand,
-            out IEnumerable<(Block block, Vector3d point)> terrainCollision,
-            out IEnumerable<(Vintagestory.API.Common.Entities.Entity entity, Vector3d point)> entitiesCollision,
-            stackStats);
-
-        if (Settings.DebugHitParticles && terrainCollision.Any() && !attacked)
+        /*if (Settings.DebugHitParticles && terrainCollision.Any() && !attacked)
         {
             foreach ((_, Vector3d point) in terrainCollision)
             {
@@ -963,33 +821,9 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
                 Vec3d pos8 = new(point.X, point.Y, point.Z);
                 player.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 0, 255, 125), pos8, pos8, new Vec3f(), new Vec3f(), 1, 0, 1.0f, EnumParticleModel.Cube);
             }
-        }
+        }*/
 
-        if (handle != null && !HandleHitTerrain && handleAttacked && !attacked)
-        {
-            if (stats.HandleHitSound != null)
-            {
-                SoundsSystem.Play(stats.HandleHitSound);
-            }
-            HandleHitTerrain = true;
-        }
-
-        if (handle != null)
-        {
-            handle.AddAttackedEntities(attack, player.EntityId);
-        }
-
-        if (terrainCollision.Any())
-        {
-            hitTerrain = true;
-        }
-
-        if (attacked && stats.AttackHitSound != null)
-        {
-            SoundsSystem.Play(stats.AttackHitSound);
-        }
-
-        if (attacked && Stats.AnimationStaggerOnHitDurationMs > 0)
+        if (collisions.Count > 0 && Stats.AnimationStaggerOnHitDurationMs > 0)
         {
             AnimationBehavior?.SetSpeedModifier(AttackImpactFunction);
             Api.World.AddCameraShake(Stats.ScreenShakeStrength);
@@ -1199,7 +1033,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 
         SetRiposte(mainHand, true);
     }
-    
+
     protected virtual void SetRiposte(bool mainHand, bool value)
     {
         if (mainHand)
@@ -1287,7 +1121,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         return true;
     }
 
-    [ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
+    /*[ActionEventHandler(EnumEntityAction.LeftMouseDown, ActionState.Active)]
     protected virtual bool Bash(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
     {
         if (!Active) return false;
@@ -1516,7 +1350,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
         }
 
         SetSpeedPenalty(mainHand, player);
-    }
+    }*/
 
     [ActionEventHandler(EnumEntityAction.RightMouseDown, ActionState.Active)]
     protected virtual bool Aim(ItemSlot slot, EntityPlayer player, ref int state, ActionEventData eventData, bool mainHand, AttackDirection direction)
@@ -1801,8 +1635,8 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             MeleeWeaponStance.MainHand => riposte ? OneHandedRiposte : OneHandedAttack ?? DirectionalOneHandedAttacks?.GetValueOrDefault(direction),
             MeleeWeaponStance.OffHand => riposte ? OffHandRiposte : OffHandAttack ?? DirectionalOffHandAttacks?.GetValueOrDefault(direction),
             MeleeWeaponStance.TwoHanded => riposte ? TwoHandedRiposte : TwoHandedAttack ?? DirectionalTwoHandedAttacks?.GetValueOrDefault(direction),
-            MeleeWeaponStance.MainHandDualWield => riposte ? OneHandedRiposte : DirectionalMainHandDualWieldAttacks.Any() ? DirectionalMainHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : MainHandDualWieldHandleAttacks[dualWieldKey],
-            MeleeWeaponStance.OffHandDualWield => riposte ? OffHandRiposte : DirectionalOffHandDualWieldAttacks.Any() ? DirectionalOffHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : OffHandDualWieldHandleAttacks[dualWieldKey],
+            MeleeWeaponStance.MainHandDualWield => riposte ? OneHandedRiposte : DirectionalMainHandDualWieldAttacks.Any() ? DirectionalMainHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : MainHandDualWieldAttacks[dualWieldKey],
+            MeleeWeaponStance.OffHandDualWield => riposte ? OffHandRiposte : DirectionalOffHandDualWieldAttacks.Any() ? DirectionalOffHandDualWieldAttacks[dualWieldKey]?.GetValueOrDefault(direction) : OffHandDualWieldAttacks[dualWieldKey],
             _ => OneHandedAttack,
         };
     }
@@ -1815,20 +1649,6 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
             MeleeWeaponStance.OffHand => OffHandBlockBash ?? DirectionalOffHandBlockBashes?.GetValueOrDefault(direction),
             MeleeWeaponStance.TwoHanded => TwoHandedBlockBash ?? DirectionalTwoHandedBlockBashes?.GetValueOrDefault(direction),
             _ => OneHandedBlockBash,
-        };
-    }
-    protected virtual MeleeAttack? GetStanceHandleAttack(EntityPlayer player, bool mainHand = true)
-    {
-        MeleeWeaponStance stance = GetStance<MeleeWeaponStance>(mainHand);
-        string dualWieldKey = GetDualWieldKey(player, mainHand);
-        return stance switch
-        {
-            MeleeWeaponStance.MainHand => OneHandedHandleAttack,
-            MeleeWeaponStance.OffHand => OffHandHandleAttack,
-            MeleeWeaponStance.TwoHanded => TwoHandedHandleAttack,
-            MeleeWeaponStance.MainHandDualWield => MainHandDualWieldHandleAttacks[dualWieldKey],
-            MeleeWeaponStance.OffHandDualWield => OffHandDualWieldHandleAttacks[dualWieldKey],
-            _ => OneHandedHandleAttack,
         };
     }
     protected virtual StanceStats? GetStanceStats(EntityPlayer player, bool mainHand = true)
@@ -2075,7 +1895,7 @@ public class MeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRestrictActio
 #if DEBUG
         int typeIndex = 0;
         int modeIndex = _modeIndex++;
-        foreach (MeleeDamageType damageType in attack.DamageTypes)
+        foreach (MeleeDamageStats damageType in attack.DamageStats)
         {
             DebugWindowManager.RegisterCollider(item, $"{type}{typeIndex++}-{modeIndex}", damageType);
         }
