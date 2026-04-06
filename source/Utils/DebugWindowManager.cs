@@ -53,7 +53,7 @@ public sealed class DebugWindowManager
             _colliders.Add(item, new());
         }
 
-        _colliders[item].Add(type, (value => collider.RelativeCollider = value, () => collider.RelativeCollider));
+        //_colliders[item].Add(type, (value => collider.RelativeCollider = value, () => collider.RelativeCollider));
     }
     public static void RegisterCollider(string item, string type, Action<LineSegmentCollider> setter, System.Func<LineSegmentCollider> getter)
     {

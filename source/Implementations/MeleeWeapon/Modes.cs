@@ -17,7 +17,15 @@ public class MeleeWeaponClientModesCollection
 
         if (item.Attributes.KeyExists("Modes"))
         {
-            Modes = item.Attributes.AsObject<MeleeWeaponModeCollectionStats>().Modes;
+            MeleeWeaponModeCollectionStats? stats = item.Attributes.AsObject<MeleeWeaponModeCollectionStats>();
+            Modes = stats.Modes;
+            foreach (MeleeWeaponModeStats mode in Modes.Values)
+            {
+                foreach ((string code, MeleeSystems.MeleeDamageStatsJson template) in stats.DamageStatTemplates)
+                {
+                    mode.DamageStatTemplates.TryAdd(code, template);
+                }
+            }
         }
         else
         {

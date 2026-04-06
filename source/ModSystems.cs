@@ -143,7 +143,7 @@ public partial class CombatOverhaulSystem : ModSystem
         api.RegisterItemClass("CombatOverhaul:Bow", typeof(BowItem));
         api.RegisterItemClass("CombatOverhaul:Sling", typeof(SlingItem));
         api.RegisterItemClass("CombatOverhaul:MeleeWeapon", typeof(MeleeWeapon));
-        api.RegisterItemClass("CombatOverhaul:StanceBasedMeleeWeapon", typeof(StanceBasedMeleeWeapon));
+        //api.RegisterItemClass("CombatOverhaul:StanceBasedMeleeWeapon", typeof(StanceBasedMeleeWeapon));
         api.RegisterItemClass("CombatOverhaul:VanillaShield", typeof(VanillaShield));
         api.RegisterItemClass("CombatOverhaul:WearableArmor", typeof(ItemWearableArmor));
         api.RegisterItemClass("CombatOverhaul:WearableFueledLightSource", typeof(WearableFueledLightSource));
@@ -189,7 +189,6 @@ public partial class CombatOverhaulSystem : ModSystem
     {
         _clientApi = api;
 
-        ClientProjectileSystem = new(api, api.ModLoader.GetModSystem<EntityPartitioning>());
         ActionListener = new(api);
         DirectionCursorRenderer = new(api, Settings);
         ReticleRenderer = new(api);
@@ -355,7 +354,6 @@ public partial class CombatOverhaulSystem : ModSystem
     }
     public void ToggleWearableItem(IServerPlayer player, TogglePacket packet) => ToggleWearableItem(player, packet.HotKeyCode);
 
-    public ProjectileSystemClient? ClientProjectileSystem { get; private set; }
     public ProjectileSystemServer? ServerProjectileSystem { get; private set; }
     public ActionListener? ActionListener { get; private set; }
     public DirectionCursorRenderer? DirectionCursorRenderer { get; private set; }

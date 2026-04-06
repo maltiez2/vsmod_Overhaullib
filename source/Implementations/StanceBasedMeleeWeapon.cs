@@ -13,7 +13,9 @@ using Vintagestory.API.Server;
 
 namespace CombatOverhaul.Implementations;
 
-public enum StanceBasedMeleeWeaponState
+// Will decide what to do with it later
+
+/*public enum StanceBasedMeleeWeaponState
 {
     Idle,
     WindUp,
@@ -667,9 +669,9 @@ public class StanceBasedMeleeWeaponClient : IClientWeaponLogic, IOnGameTick, IRe
     {
         TimeSpan totalDuration = TimeSpan.FromMilliseconds(Stats.AnimationStaggerOnHitDurationMs);
 
-        /*double multiplier = duration / totalDuration;
+        *//*double multiplier = duration / totalDuration;
         multiplier = Math.Pow(multiplier, 3);
-        delta = delta * multiplier;*/
+        delta = delta * multiplier;*//*
 
         delta = TimeSpan.Zero;
 
@@ -763,7 +765,7 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasMeleeWeaponActi
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
     }
 
-    /*public override WorldInteraction?[]? GetHeldInteractionHelp(ItemSlot inSlot)
+    *//*public override WorldInteraction?[]? GetHeldInteractionHelp(ItemSlot inSlot)
     {
         WorldInteraction?[]? interactionHelp = base.GetHeldInteractionHelp(inSlot);
 
@@ -773,7 +775,7 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasMeleeWeaponActi
         }
 
         return interactionHelp?.Append(AltForInteractions);
-    }*/
+    }*//*
 
     public void BlockCallback(IServerPlayer player, ItemSlot slot, bool mainHand, float damageBlocked, int attackTier, int blockTier)
     {
@@ -785,4 +787,4 @@ public class StanceBasedMeleeWeapon : Item, IHasWeaponLogic, IHasMeleeWeaponActi
 
     protected WorldInteraction? AltForInteractions;
     protected WorldInteraction? ChangeGripInteraction;
-}
+}*/

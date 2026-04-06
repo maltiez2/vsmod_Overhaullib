@@ -12,15 +12,19 @@ namespace CombatOverhaul.DamageSystems;
 
 public sealed class EntityDamageModelJson
 {
-    public float TorsoDamageMultiplier { get; set; } = 1.0f;
-    public float LimbsDamageMultiplier { get; set; } = 0.5f;
-    public float HeadDamageMultiplier { get; set; } = 1.5f;
-    public float CriticalDamageMultiplier { get; set; } = 2.0f;
-    public float ResistantDamageMultiplier { get; set; } = 0.0f;
+    public float? TorsoDamageMultiplier { get; set; } = null;
+    public float? LimbsDamageMultiplier { get; set; } = null;
+    public float? HeadDamageMultiplier { get; set; } = null;
+    public float? CriticalDamageMultiplier { get; set; } = null;
+    public float? ResistantDamageMultiplier { get; set; } = null;
+
+
+    public Dictionary<string, float> Multipliers { get; set; } = [];
     public Dictionary<string, float> DefaultResists { get; set; } = [];
     public Dictionary<string, Dictionary<string, float>> ResistsForColliders { get; set; } = [];
     public Dictionary<string, SoundEffectData> HitSounds { get; set; } = [];
     public Dictionary<string, string> HitParticles { get; set; } = [];
+    public List<string> ResistantColliders { get; set; } = [];
     public bool ScaleParticlesCountWithDamage { get; set; } = true;
 }
 
@@ -37,7 +41,7 @@ public interface IEntityDamageModel
     event OnEntityReceiveDamageDelegate? OnReceiveDamage;
 }
 
-public delegate void OnEntityReceiveDamageDelegate(ref float damage, DamageSource damageSource, ColliderTypes damageZone, string? collider);
+public delegate void OnEntityReceiveDamageDelegate(ref float damage, DamageSource damageSource, int colliderType, string colliderTypeName, string? collider);
 
 public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageModel
 {
@@ -50,46 +54,18 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
     public event OnEntityReceiveDamageDelegate? OnReceiveDamage;
 
     public override string PropertyName() => "EntityDamageModel";
-    public Dictionary<ColliderTypes, float> DamageMultipliers { get; private set; } = new Dictionary<ColliderTypes, float>()
-    {
-        { ColliderTypes.Torso, 1.0f },
-        { ColliderTypes.Arm, 1.0f },
-        { ColliderTypes.Leg, 1.0f },
-        { ColliderTypes.Head, 1.0f },
-        { ColliderTypes.Critical, 1.0f },
-        { ColliderTypes.Resistant, 0.0f }
-    };
+    public Dictionary<int, float> DamageMultipliers { get; private set; } = [];
     public DamageResistData Resists { get; set; } = new();
-    public Dictionary<ColliderTypes, DamageResistData> ResistsForColliders { get; private set; } = [];
-    public Dictionary<ColliderTypes, SoundEffectData> HitSounds { get; private set; } = [];
-    public Dictionary<ColliderTypes, string> HitParticles { get; private set; } = [];
+    public Dictionary<int, DamageResistData> ResistsForColliders { get; private set; } = [];
+    public Dictionary<int, SoundEffectData> HitSounds { get; private set; } = [];
+    public Dictionary<int, string> HitParticles { get; private set; } = [];
+    public HashSet<int> ResistantColliders { get; private set; } = [];
+    public List<string> ColliderTypeNames { get; private set; } = [];
     public bool ScaleParticlesCountWithDamage { get; private set; } = true;
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
-        if (attributes.KeyExists("damageModel"))
-        {
-            EntityDamageModelJson stats = attributes["damageModel"].AsObject<EntityDamageModelJson>();
-
-            Resists = new(stats.DefaultResists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value));
-
-            ResistsForColliders = stats.ResistsForColliders
-                .ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => new DamageResistData(entry.Value.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value)));
-
-            DamageMultipliers = new Dictionary<ColliderTypes, float>()
-            {
-                { ColliderTypes.Torso, stats.TorsoDamageMultiplier },
-                { ColliderTypes.Arm, stats.LimbsDamageMultiplier },
-                { ColliderTypes.Leg, stats.LimbsDamageMultiplier },
-                { ColliderTypes.Head, stats.HeadDamageMultiplier },
-                { ColliderTypes.Critical, stats.CriticalDamageMultiplier },
-                { ColliderTypes.Resistant, stats.ResistantDamageMultiplier }
-            };
-
-            HitSounds = stats.HitSounds.ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => entry.Value);
-            HitParticles = stats.HitParticles.ToDictionary(entry => Enum.Parse<ColliderTypes>(entry.Key), entry => entry.Value);
-            ScaleParticlesCountWithDamage = stats.ScaleParticlesCountWithDamage;
-        }
+        _stats = attributes["damageModel"]?.AsObject<EntityDamageModelJson>() ?? attributes.AsObject<EntityDamageModelJson>() ?? new();
     }
     public override void GetInfoText(StringBuilder infotext)
     {
@@ -135,24 +111,63 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
         if (_colliders == null)
         {
             LoggerUtil.Warn(entity.Api, this, $"Entity '{entity.Code}' does not have colliders behavior");
+            return;
         }
+
+        Dictionary<string, int> colliderTypeNamesToIndex = _colliders.ColliderTypeNames.ToDictionary(name => name, name => _colliders.ColliderTypeNames.IndexOf(name));
+
+        Resists = new(_stats.DefaultResists.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value));
+
+        ResistsForColliders = _stats.ResistsForColliders
+            .ToDictionary(entry => colliderTypeNamesToIndex[entry.Key], entry => new DamageResistData(entry.Value.ToDictionary(entry => Enum.Parse<EnumDamageType>(entry.Key), entry => entry.Value)));
+
+        DamageMultipliers = _stats.Multipliers.ToDictionary(entry => colliderTypeNamesToIndex[entry.Key], entry => entry.Value);
+
+        if (_stats.TorsoDamageMultiplier.HasValue)
+        {
+            DamageMultipliers[colliderTypeNamesToIndex["Torso"]] = _stats.TorsoDamageMultiplier.Value;
+        }
+        if (_stats.LimbsDamageMultiplier.HasValue)
+        {
+            DamageMultipliers[colliderTypeNamesToIndex["Limbs"]] = _stats.LimbsDamageMultiplier.Value;
+        }
+        if (_stats.HeadDamageMultiplier.HasValue)
+        {
+            DamageMultipliers[colliderTypeNamesToIndex["Head"]] = _stats.HeadDamageMultiplier.Value;
+        }
+        if (_stats.CriticalDamageMultiplier.HasValue)
+        {
+            DamageMultipliers[colliderTypeNamesToIndex["Critical"]] = _stats.CriticalDamageMultiplier.Value;
+        }
+        if (_stats.ResistantDamageMultiplier.HasValue)
+        {
+            DamageMultipliers[colliderTypeNamesToIndex["Resistant"]] = _stats.ResistantDamageMultiplier.Value;
+            _stats.ResistantColliders.Add("Resistant");
+        }
+
+        HitSounds = _stats.HitSounds.ToDictionary(entry => colliderTypeNamesToIndex[entry.Key], entry => entry.Value);
+        HitParticles = _stats.HitParticles.ToDictionary(entry => colliderTypeNamesToIndex[entry.Key], entry => entry.Value);
+        ScaleParticlesCountWithDamage = _stats.ScaleParticlesCountWithDamage;
+        ResistantColliders = _stats.ResistantColliders.Select(name => colliderTypeNamesToIndex[name]).ToHashSet();
     }
 
     private CollidersEntityBehavior? _colliders;
     private readonly CombatOverhaulAnimationsSystem _animationsSystem;
     private readonly CombatOverhaulSystem _system;
+    private EntityDamageModelJson _stats = new();
 
     private float OnReceiveDamageHandler(float damage, DamageSource damageSource)
     {
-        ColliderTypes colliderType = ColliderTypes.Torso;
+        int colliderType = 0;
         string? collider = null;
         Vector3d position = new();
 
         if (_colliders != null && damageSource is ILocationalDamage locationalDamageSource)
         {
-            if (_colliders.CollidersTypes.ContainsKey(locationalDamageSource.Collider))
+            ShapeElementCollider? colliderElement = _colliders.Colliders.Find(collider => collider.ShapeElementName == locationalDamageSource.Collider);
+            if (colliderElement != null)
             {
-                colliderType = _colliders.CollidersTypes[locationalDamageSource.Collider];
+                colliderType = colliderElement.ColliderType;
             }
             collider = locationalDamageSource.Collider;
             float multiplier = DamageMultipliers[colliderType];
@@ -192,21 +207,8 @@ public sealed class EntityDamageModelBehavior : EntityBehavior, IEntityDamageMod
             _animationsSystem.ParticleEffectsManager?.Spawn(particlesEffect, position, Vector3.Zero, intensity);
         }
 
-        OnReceiveDamage?.Invoke(ref damage, damageSource, colliderType, collider);
+        OnReceiveDamage?.Invoke(ref damage, damageSource, colliderType, ColliderTypeNames[colliderType], collider);
 
         return damage;
     }
-
-    /*private void SpawnSecondChanceParticles()
-    {
-        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
-        Vintagestory.API.MathTools.Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
-        effectsManager?.Spawn("combatoverhaul:second-chance", new(position.X, position.Y, position.Z), new(), 1);
-    }
-    private void SpawnGracePeriodPArticles()
-    {
-        ParticleEffectsManager? effectsManager = entity.Api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>()?.ParticleEffectsManager;
-        Vintagestory.API.MathTools.Vec3f position = (entity.Pos.XYZ + entity.LocalEyePos * 0.5).ToVec3f();
-        effectsManager?.Spawn("combatoverhaul:grace-period", new(position.X, position.Y, position.Z), new(), 1);
-    }*/
 }

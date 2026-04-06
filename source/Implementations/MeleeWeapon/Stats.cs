@@ -70,6 +70,7 @@ public class ThrowWeaponStats
 
 public class MeleeWeaponStats : WeaponStats
 {
+    public Dictionary<string, MeleeDamageStatsJson> DamageStatTemplates { get; set; } = [];
     public StanceStats? OneHandedStance { get; set; } = null;
     public StanceStats? TwoHandedStance { get; set; } = null;
     public StanceStats? OffHandStance { get; set; } = null;
@@ -90,6 +91,7 @@ public class MeleeWeaponModeStats : MeleeWeaponStats
 
 public class MeleeWeaponModeCollectionStats
 {
+    public Dictionary<string, MeleeDamageStatsJson> DamageStatTemplates { get; set; } = [];
     public Dictionary<string, MeleeWeaponModeStats> Modes { get; set; } = [];
 }
 

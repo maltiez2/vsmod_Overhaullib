@@ -115,10 +115,10 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
             entity.GetBehavior<EntityBehaviorHealth>().onDamaged += OnReceiveDamageHandler;
         }
 
-        if (entity.Api.ModLoader.IsModEnabled(CollidersEntityBehavior.PlayerModelLibId))
+        /*if (entity.Api.ModLoader.IsModEnabled(CollidersEntityBehavior.PlayerModelLibId))
         {
             SubscribeOnModelChange();
-        }
+        }*/
     }
 
     public override void OnGameTick(float deltaTime)

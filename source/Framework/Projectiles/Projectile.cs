@@ -1,19 +1,13 @@
 ﻿using CollidersLib;
+using CollidersLib.Projectiles;
 using CombatOverhaul.DamageSystems;
-using CombatOverhaul.Implementations;
 using CombatOverhaul.Utils;
 using OpenTK.Mathematics;
 using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Config;
-using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using Vintagestory.GameContent;
 
 namespace CombatOverhaul.RangedSystems;
 
@@ -28,69 +22,146 @@ public sealed class ProjectileServer
 
         _system = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().ServerProjectileSystem ?? throw new Exception();
         _settings = _api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
+        _collidersBehavior = projectile.GetBehavior<ProjectileColliderServerBehavior>() ?? throw new Exception();
+        _physicsBehavior = projectile.GetBehavior<ProjectilePhysicsBehavior>() ?? throw new Exception();
 
         _entity = projectile;
         _entity.ClearCallback = clearCallback;
-    }
 
-    public int PacketVersion { get; set; } = 0;
-
-    public void OnCollision(ProjectileCollisionPacket packet)
-    {
-        Entity receiver = _api.World.GetEntityById(packet.ReceiverEntity);
-
-        if (receiver == null) return;
-
-        float initialPenetrationStrength = _entity.PenetrationStrength;
-        _entity.PenetrationStrength = Math.Max(0, _entity.PenetrationStrength - packet.PenetrationStrengthLoss);
-
-        Vector3d collisionPoint = new(packet.CollisionPoint[0], packet.CollisionPoint[1], packet.CollisionPoint[2]);
-
-        //receiver.World.SpawnParticles(1, ColorUtil.ColorFromRgba(0, 255, 0, 255), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new(collisionPoint.X, collisionPoint.Y, collisionPoint.Z), new Vec3f(), new Vec3f(), 3, 0, 1, EnumParticleModel.Cube);
-
-        if (_entity.PenetrationStrength == 0)
-        {
-            _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
-            _entity.ServerPos.Motion.X = receiver.ServerPos.Motion.X;
-            _entity.ServerPos.Motion.Y = receiver.ServerPos.Motion.Y;
-            _entity.ServerPos.Motion.Z = receiver.ServerPos.Motion.Z;
-        }
-        else
-        {
-            _entity.ServerPos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
-            float speedReduction = _entity.PenetrationStrength / initialPenetrationStrength;
-            _entity.ServerPos.Motion.X *= speedReduction;
-            _entity.ServerPos.Motion.Y *= speedReduction;
-            _entity.ServerPos.Motion.Z *= speedReduction;
-        }
-
-        bool hit = Attack(_shooter, receiver, collisionPoint, packet.Collider, packet.RelativeSpeed);
-
-        if (hit) PlaySound(_shooter);
-
-        _entity.OnCollisionWithEntity(receiver, packet.Collider);
-
-        
-    }
-
-    public void TryCollide()
-    {
-        _system.TryCollide(_entity);
+        _owner = ((_shooter as EntityPlayer)?.Player as IServerPlayer) ?? (_api.World.AllOnlinePlayers[0] as IServerPlayer) ?? throw new Exception(); // @TODO fix this mess
+        _collidersBehavior.OnCollision += OnCollision;
+        _collidersBehavior.ToggleCollisions(_owner, true);
     }
 
     public const string DamageTierPlayerStatPrefix = "rangedDamageTierBonus";
 
+    private readonly ProjectileColliderServerBehavior _collidersBehavior;
+    private readonly ProjectilePhysicsBehavior _physicsBehavior;
     private readonly ProjectileStats _stats;
     private readonly ProjectileSpawnStats _spawnStats;
-    internal readonly ProjectileEntity _entity;
+    private readonly ProjectileEntity _entity;
     private readonly Entity _shooter;
+    private readonly IServerPlayer _owner;
     private readonly ICoreAPI _api;
     private readonly ProjectileSystemServer _system;
     private readonly Settings _settings;
+    private readonly HashSet<long> _entitiesHit = [];
+    private bool _collisionsWithEntityActive = true;
 
-    private bool Attack(Entity attacker, Entity target, Vector3d position, string collider, double relativeSpeed)
+
+    private void OnCollision(Dictionary<Entity, EntityWithSphereIntersectionData[]> entityCollisions, List<TerrainWithShpereIntersectionData> terrainCollisions)
     {
-        if (relativeSpeed < _stats.SpeedThreshold) return false;
+        List<Entity> entitiesToRemove = entityCollisions.Keys.Where(entity => _entitiesHit.Contains(entity.EntityId)).ToList();
+        foreach (Entity entity in entitiesToRemove)
+        {
+            entityCollisions.Remove(entity);
+        }
+
+        if (entityCollisions.Count > 0 && terrainCollisions.Count > 0)
+        {
+            Entity target = GetFirstEntityHit(entityCollisions, out double entityHitTime);
+            TerrainWithShpereIntersectionData terrain = GetFirstTerrainHit(terrainCollisions, out double terrainHitTime);
+
+            if (entityHitTime <= terrainHitTime)
+            {
+                OnCollisionWithEntity(target, entityCollisions[target]);
+            }
+            else
+            {
+                OnCollisionWithTerrain(terrain);
+            }
+        }
+        else if (terrainCollisions.Count > 0)
+        {
+            TerrainWithShpereIntersectionData terrain = GetFirstTerrainHit(terrainCollisions, out _);
+            OnCollisionWithTerrain(terrain);
+        }
+        else if (entityCollisions.Count > 0)
+        {
+            Entity target = GetFirstEntityHit(entityCollisions, out _);
+            OnCollisionWithEntity(target, entityCollisions[target]);
+        }
+    }
+    private void OnCollisionWithEntity(Entity target, EntityWithSphereIntersectionData[] collisions)
+    {
+        if (!_collisionsWithEntityActive)
+        {
+            return;
+        }
+
+        EntityWithSphereIntersectionData collisionData = SelectCollision(target, collisions);
+
+        //float initialPenetrationStrength = _entity.PenetrationStrength;
+        //_entity.PenetrationStrength = Math.Max(0, _entity.PenetrationStrength - packet.PenetrationStrengthLoss);
+
+        Vector3d collisionPoint = collisionData.IntersectionPoint;
+
+        _entity.Pos.SetPos(new Vec3d(collisionPoint.X, collisionPoint.Y, collisionPoint.Z));
+        _entity.Pos.Motion.X = target.Pos.Motion.X;
+        _entity.Pos.Motion.Y = target.Pos.Motion.Y;
+        _entity.Pos.Motion.Z = target.Pos.Motion.Z;
+
+        bool hit = Attack(_shooter, target, collisionData);
+
+        if (hit)
+        {
+            PlaySound(_shooter);
+        }
+
+        _entitiesHit.Add(target.EntityId);
+        _entity.OnCollisionWithEntity(target, collisionData);
+        _collisionsWithEntityActive = false;
+
+        _collidersBehavior.ResetCollisionsPosition(collisionData.IntersectionPoint);
+    }
+    private void OnCollisionWithTerrain(TerrainWithShpereIntersectionData collision)
+    {
+        _physicsBehavior.OnCollisionWithTerrain(collision);
+        _collidersBehavior.ResetCollisionsPosition(collision.IntersectionPoint);
+        _collisionsWithEntityActive = false;
+
+        //_entity.OnCollisionWithTerrain(collision);
+    }
+
+
+    private EntityWithSphereIntersectionData SelectCollision(Entity target, EntityWithSphereIntersectionData[] collisions)
+    {
+        return collisions[0]; // @TODO fix
+    }
+    private Entity GetFirstEntityHit(Dictionary<Entity, EntityWithSphereIntersectionData[]> entityCollisions, out double minTime)
+    {
+        minTime = double.MaxValue;
+        Entity earliestHit = entityCollisions.Keys.First();
+        foreach ((Entity traget, EntityWithSphereIntersectionData[] collisions) in entityCollisions)
+        {
+            double earliestCollision = collisions.Min(collision => collision.PositionInTime);
+            if (earliestCollision < minTime)
+            {
+                minTime = earliestCollision;
+                earliestHit = traget;
+            }
+        }
+
+        return earliestHit;
+    }
+    private TerrainWithShpereIntersectionData GetFirstTerrainHit(List<TerrainWithShpereIntersectionData> terrainCollisions, out double minTime)
+    {
+        minTime = double.MaxValue;
+        TerrainWithShpereIntersectionData earliestHit = terrainCollisions[0];
+        foreach (TerrainWithShpereIntersectionData hit in terrainCollisions)
+        {
+            if (hit.PositionInTime < minTime)
+            {
+                minTime = hit.PositionInTime;
+                earliestHit = hit;
+            }
+        }
+
+        return earliestHit;
+    }
+    private bool Attack(Entity attacker, Entity target, EntityWithSphereIntersectionData collisionData)
+    {
+        //if (relativeSpeed < _stats.SpeedThreshold) return false;
         if (!target.Alive) return false;
 
         string targetName = target.GetName();
@@ -99,13 +170,13 @@ public sealed class ProjectileServer
         string damageTierStat = DamageTierPlayerStatPrefix + _stats.DamageStats.DamageType.ToString();
         float statValue = attacker.Stats.GetBlended(damageTierStat) - 1;
         float damage = _stats.DamageStats.Damage * _spawnStats.DamageMultiplier;
-        
+
         if (_settings.RangedWeaponsDamageSupport)
         {
             float rangedWeaponsDamageStat = Math.Max(0, attacker.Stats.GetBlended("rangedWeaponsDamage"));
             damage *= rangedWeaponsDamageStat;
         }
-        
+
         int damageTierBonus = _stats.DamageTierBonus + (int)statValue;
         DamageData damageData = new(
             Enum.Parse<EnumDamageType>(_stats.DamageStats.DamageType),
@@ -121,8 +192,8 @@ public sealed class ProjectileServer
             SourceEntity = _entity,
             CauseEntity = attacker,
             Type = damageData.DamageType,
-            Position = position,
-            Collider = collider,
+            Position = collisionData.IntersectionPoint,
+            Collider = collisionData.EntityCollider?.ShapeElementName ?? "",
             DamageTypeData = damageData,
             DamageTier = damageData.Tier,
             KnockbackStrength = _stats.Knockback,
@@ -136,7 +207,7 @@ public sealed class ProjectileServer
 
         bool received = damageReceived || damage <= 0;
 
-        if (_settings.PrintRangeHits && collider != "")
+        /*if (_settings.PrintRangeHits && collisionData.EntityCollider?.ShapeElementName != "")
         {
             CollidersEntityBehavior? colliders = target.GetBehavior<CollidersEntityBehavior>();
             ColliderTypes ColliderType = colliders?.CollidersTypes[collider] ?? ColliderTypes.Torso;
@@ -144,7 +215,7 @@ public sealed class ProjectileServer
             float damageReceivedValue = damageReceived ? target.WatchedAttributes.GetFloat("onHurt") : 0;
             string damageLogMessage = Lang.Get("combatoverhaul:damagelog-dealt-damage-with-projectile", Lang.Get($"combatoverhaul:entity-damage-zone-{ColliderType}"), targetName, $"{damageReceivedValue:F2}", projectileName);
             ((attacker as EntityPlayer)?.Player as IServerPlayer)?.SendMessage(GlobalConstants.DamageLogChatGroup, damageLogMessage, EnumChatType.Notification);
-        }
+        }*/
 
         return received;
     }
@@ -201,7 +272,7 @@ public class ProjectileEntity : Entity
     public override bool ApplyGravity => !Stuck;
     public override bool IsInteractable => IsInteractableValue;
     public virtual bool IsInteractableValue { get; set; } = false;
-    
+
     public static event Action<ProjectileEntity, EntityAgent, ItemSlot, Vec3d, EnumInteractMode>? OnInteracted;
 
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
@@ -237,7 +308,7 @@ public class ProjectileEntity : Entity
         base.OnGameTick(dt);
         if (ShouldDespawn) return;
 
-        
+
 
         if (Api.Side == EnumAppSide.Server && Stuck && !Collided)
         {
@@ -262,7 +333,7 @@ public class ProjectileEntity : Entity
         //BeforeCollided = false;
         MotionBeforeCollide.Set(SidedPos.Motion.X, SidedPos.Motion.Y, SidedPos.Motion.Z);
 
-        
+
     }
     public override bool CanCollect(Entity byEntity)
     {
@@ -338,12 +409,25 @@ public class ProjectileEntity : Entity
         }
     }
 
-    public void OnCollisionWithEntity(Entity target, string collider)
+    public virtual void OnCollisionWithEntity(Entity target, EntityWithSphereIntersectionData collisionData)
     {
         WatchedAttributes.MarkAllDirty();
         if (DurabilityDamageOnImpact != 0)
         {
             ProjectileStack?.Item?.DamageItem(Api.World, target, new DummySlot(ProjectileStack), DurabilityDamageOnImpact);
+            if (ProjectileStack?.Item?.GetRemainingDurability(ProjectileStack) <= 0)
+            {
+                Die();
+            }
+        }
+        TryDestroyOnCollision();
+    }
+    public virtual void OnCollisionWithTerrain(TerrainWithShpereIntersectionData collisionData)
+    {
+        WatchedAttributes.MarkAllDirty();
+        if (DurabilityDamageOnImpact != 0)
+        {
+            ProjectileStack?.Item?.DamageItem(Api.World, Api.World.GetEntityById(OwnerId), new DummySlot(ProjectileStack), DurabilityDamageOnImpact); // @TODO ownder might not be online at this point
             if (ProjectileStack?.Item?.GetRemainingDurability(ProjectileStack) <= 0)
             {
                 Die();
@@ -376,13 +460,8 @@ public class ProjectileEntity : Entity
     {
         if (ShouldDespawn || !Alive) return;
 
-        if (!Stuck && ServerProjectile != null)
-        {
-            ServerProjectile.TryCollide();
-        }
-
-        PreviousPosition = SidedPos.XYZ.Clone();
-        PreviousVelocity = SidedPos.Motion.Clone();
+        PreviousPosition = Pos.XYZ.Clone();
+        PreviousVelocity = Pos.Motion.Clone();
     }
     protected void OnTerrainCollision(EntityPos pos, double impactSpeed)
     {
@@ -409,211 +488,5 @@ public class ProjectileEntity : Entity
             World.PlaySoundAt(new AssetLocation("sounds/effect/toolbreak"), this, null, randomizePitch: true, volume: 0.5f);
             Die();
         }
-    }
-}
-
-public class ProjectileBehavior : CollectibleBehavior
-{
-    public ProjectileStats? Stats { get; private set; }
-
-    public ProjectileBehavior(CollectibleObject collObj) : base(collObj)
-    {
-    }
-
-    public override void Initialize(JsonObject properties)
-    {
-        base.Initialize(properties);
-
-        Stats = properties["stats"].AsObject<ProjectileStats>();
-    }
-
-    public ProjectileStats GetStats(ItemStack stack)
-    {
-        ItemStackProjectileStats stackStats = ItemStackProjectileStats.FromItemStack(stack);
-
-        ProjectileStats stats = Stats.Clone();
-        stats.DamageStats.Damage *= stackStats.DamageMultiplier;
-        stats.DamageTierBonus += stackStats.DamageTierBonus;
-        stats.DropChance = Math.Max(0, Math.Min(1, stats.DropChance * stackStats.DropChanceMultiplier));
-        stats.Knockback *= stackStats.KnockbackMultiplier;
-        stats.PenetrationBonus = Math.Max(0, stackStats.PenetrationBonus + stats.PenetrationBonus);
-        stats.AdditionalDurabilityCost = Math.Max(0, stackStats.AdditionalDurabilityCost + stats.AdditionalDurabilityCost);
-
-        return stats;
-    }
-
-    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
-    {
-        if (Stats != null)
-        {
-            ItemStackMeleeWeaponStats weaponStackStats = ItemStackMeleeWeaponStats.FromItemStack(inSlot.Itemstack);
-            ItemStackProjectileStats projectileStackStats = ItemStackProjectileStats.FromItemStack(inSlot.Itemstack);
-
-            dsc.AppendLine(Lang.Get(
-                "combatoverhaul:iteminfo-projectile",
-                $"{Stats.DamageStats.Damage * weaponStackStats.DamageMultiplier * projectileStackStats.DamageMultiplier:F1}",
-                Lang.Get($"combatoverhaul:damage-type-{Stats.DamageStats.DamageType}"),
-                $"{(1 - Stats.DropChance * projectileStackStats.DropChanceMultiplier) * 100:F1}"));
-
-            if (Stats.DamageTierBonus != 0)
-            {
-                dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-bonus-damagetier", Stats.DamageTierBonus + weaponStackStats.DamageTierBonus + projectileStackStats.DamageTierBonus));
-            }
-
-            if (Stats.AdditionalDurabilityCost != 0)
-            {
-                dsc.AppendLine(Lang.Get("combatoverhaul:iteminfo-projectile-durability-cost", Stats.AdditionalDurabilityCost));
-            }
-        }
-
-        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
-    }
-}
-
-public class ProjectilePhysicsBehaviorConfig
-{
-    public double ColliderRadius { get; set; } = 0;
-    public bool CanRicochet { get; set; } = true;
-    public float MinSpeedToRicochet { get; set; } = 0.5f;
-    public float RicochetSpeedFactor { get; set; } = 0.5f;
-    public float RicochetNormalSpeedFactor { get; set; } = 0.5f;
-    public float MaxRicochetAngleDeg { get; set; } = 5;
-}
-
-public class ProjectilePhysicsBehavior : EntityBehaviorPassivePhysics
-{
-    public ProjectilePhysicsBehavior(Entity entity) : base(entity)
-    {
-        ModSettings = entity.Api.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings;
-    }
-
-    public override void Initialize(EntityProperties properties, JsonObject attributes)
-    {
-        base.Initialize(properties, attributes);
-
-        Config = attributes.AsObject<ProjectilePhysicsBehaviorConfig>();
-
-        EntityBehaviorPassivePhysics_airDragValue ??= typeof(EntityBehaviorPassivePhysics).GetField("airDragValue", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        EntityBehaviorPassivePhysics_airDragValue?.SetValue(this, 1);
-    }
-
-    public bool Stuck { get; set; } = false;
-
-    public ProjectilePhysicsBehaviorConfig Config { get; set; } = new();
-
-    protected BlockPos MinPos = new(0);
-    protected BlockPos MaxPos = new(0);
-    protected BlockPos PosBuffer = new(0);
-    protected Cuboidd EntityBox = new();
-    protected Settings ModSettings;
-
-    protected static FieldInfo? EntityBehaviorPassivePhysics_airDragValue = typeof(EntityBehaviorPassivePhysics).GetField("airDragValue", BindingFlags.NonPublic | BindingFlags.Instance);
-
-    protected override void applyCollision(EntityPos pos, float dtFactor)
-    {
-        Vector3d CurrentPosition = new(pos.X, pos.Y, pos.Z);
-
-        if (CurrentPosition.LengthSquared == 0) return;
-
-        Vector3d PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
-        Vector3d NextPosition = CurrentPosition + PositionDelta;
-
-        if (ModSettings.DebugProjectilesTrailsParticles)
-        {
-            if (pos.Motion.Length() > 0.1)
-            {
-                entity.Api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new(CurrentPosition.X, CurrentPosition.Y, CurrentPosition.Z), new Vec3f(), new Vec3f(), 0.1f, 0, 0.7f, EnumParticleModel.Cube);
-            }
-        }
-
-        //CuboidAABBCollider._api?.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 100, 100, 125), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new(NextPosition.X, NextPosition.Y, NextPosition.Z), new Vec3f(), new Vec3f(), 3, 0, 0.7f, EnumParticleModel.Cube);
-
-        bool collided = CuboidAABBCollider.CollideWithTerrain(entity.Api.World.BlockAccessor, NextPosition, CurrentPosition, Config.ColliderRadius, out Vector3d intersection, out Vector3d normal, out BlockFacing? facing, out Block? block, out BlockPos? blockPosition);
-
-        if (collided)
-        {
-            Angle angle = Angle.BetweenVectors(PositionDelta, normal);
-            float angleDeg = Math.Abs(angle.Degrees);
-
-            if ((angleDeg > 90 - Config.MaxRicochetAngleDeg) && (angleDeg < 90 + Config.MaxRicochetAngleDeg) && (pos.Motion.Length() > Config.MinSpeedToRicochet))
-            {
-                switch (facing.Index)
-                {
-                    case 0: // North / South
-                    case 2:
-                        pos.Motion.Z *= -Config.RicochetNormalSpeedFactor;
-                        break;
-
-                    case 1: // East / West
-                    case 3:
-                        pos.Motion.X *= -Config.RicochetNormalSpeedFactor;
-                        break;
-
-                    case 4: // Up / Down
-                    case 5:
-                        pos.Motion.Y *= -Config.RicochetNormalSpeedFactor;
-                        break;
-                }
-
-                PositionDelta = new(pos.Motion.X * dtFactor, pos.Motion.Y * dtFactor, pos.Motion.Z * dtFactor);
-                NextPosition = intersection + PositionDelta * (1 - (CurrentPosition - intersection).Length / (CurrentPosition - NextPosition).Length);
-
-                switch (facing.Index)
-                {
-                    case 2: // North / South
-                        NextPosition.Z = Math.Max(intersection.Z + Config.ColliderRadius, NextPosition.Z);
-                        break;
-                    case 0:
-                        NextPosition.Z = Math.Min(intersection.Z - Config.ColliderRadius, NextPosition.Z);
-                        break;
-
-                    case 1: // East / West
-                        NextPosition.X = Math.Max(intersection.X + Config.ColliderRadius, NextPosition.X);
-                        break;
-                    case 3:
-                        NextPosition.X = Math.Min(intersection.X - Config.ColliderRadius, NextPosition.X);
-                        break;
-
-                    case 4: // Up / Down
-                        NextPosition.Y = Math.Max(intersection.Y + Config.ColliderRadius, NextPosition.Y);
-                        break;
-                    case 5:
-                        NextPosition.Y = Math.Min(intersection.Y - Config.ColliderRadius, NextPosition.Y);
-                        break;
-                }
-
-                newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
-                entity.CollidedHorizontally = false;
-                entity.CollidedVertically = false;
-                (entity as ProjectileEntity)?.SetRotation();
-                pos.Motion *= Config.RicochetSpeedFactor;
-
-                entity.Api.World.PlaySoundAt(block?.Sounds?.Hit.Location ?? block?.Sounds?.ByTool?.Values?.FirstOrDefault()?.Hit.Location ?? block?.Sounds?.Break.Location ?? new AssetLocation("game:sounds/player/destruct"), intersection.X, intersection.Y, intersection.Z);
-
-                return;
-            }
-
-            newPos.Set(intersection.X, intersection.Y, intersection.Z);
-            entity.WatchedAttributes.SetBool("stuck", true);
-            entity.CollidedHorizontally = true;
-            entity.CollidedVertically = true;
-
-            block?.OnEntityCollide(entity.Api.World, entity, blockPosition, facing, pos.Motion, true);
-
-            pos.Motion *= 0;
-#if DEBUG
-            //entity.Api.World.SpawnParticles(1, ColorUtil.ColorFromRgba(255, 255, 255, 50), new(newPos.X, newPos.Y, newPos.Z), new(newPos.X, newPos.Y, newPos.Z), new Vec3f(), new Vec3f(), 3, 0, 1.5f, EnumParticleModel.Cube);
-#endif
-        }
-        else
-        {
-            entity.CollidedHorizontally = false;
-            entity.CollidedVertically = false;
-
-            newPos.Set(NextPosition.X, NextPosition.Y, NextPosition.Z);
-        }
-
-        
     }
 }
