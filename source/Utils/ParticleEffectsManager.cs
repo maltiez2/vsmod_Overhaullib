@@ -268,7 +268,7 @@ public static class ParticleEditor
         if (!ImGui.CollapsingHeader($"Color evolve:##{id}")) return;
         ImGui.Indent();
 
-        EvolvingNatFloat? opacity = particleProperties.OpacityEvolve;
+        /*EvolvingNatFloat? opacity = particleProperties.OpacityEvolve;
         EvolvingNatFloatEditorNullable(id, "Opacity", ref opacity);
         particleProperties.OpacityEvolve = opacity;
 
@@ -282,7 +282,7 @@ public static class ParticleEditor
 
         EvolvingNatFloat? blue = particleProperties.BlueEvolve;
         EvolvingNatFloatEditorNullable(id, "Blue", ref blue);
-        particleProperties.BlueEvolve = blue;
+        particleProperties.BlueEvolve = blue;*/
 
         ImGui.Unindent();
     }
@@ -342,9 +342,9 @@ public static class ParticleEditor
         NatFloatEditor(id, "Size", ref size);
         particleProperties.Size = size;
 
-        EvolvingNatFloat? sizeEvolve = particleProperties.SizeEvolve;
+        /*EvolvingNatFloat? sizeEvolve = particleProperties.SizeEvolve;
         EvolvingNatFloatEditorNullable(id, "Size evolve", ref sizeEvolve);
-        particleProperties.SizeEvolve = sizeEvolve;
+        particleProperties.SizeEvolve = sizeEvolve;*/
 
         ImGui.Unindent();
     }
@@ -535,7 +535,7 @@ public static class ParticleEditor
     };
     private static void EvolvingNatFloatEditorNullable(string id, string label, ref EvolvingNatFloat? value)
     {
-        bool enabled = value != null;
+        /*bool enabled = value != null;
 
         ImGui.Checkbox($"{label}##{id}", ref enabled);
 
@@ -554,7 +554,7 @@ public static class ParticleEditor
 
         EnumTransformFunction newTransform = (EnumTransformFunction)currentModel;
 
-        value = new(newTransform, currentFactor);
+        value = new(newTransform, currentFactor);*/
     }
     private static void EvolvingNatFloatEditor(string id, string label, ref EvolvingNatFloat value)
     {

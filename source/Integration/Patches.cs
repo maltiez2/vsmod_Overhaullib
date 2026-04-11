@@ -55,11 +55,6 @@ internal static class HarmonyPatches
                 typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all),
                 prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BagInventory_SaveSlotIntoBag)))
             );
-
-        new Harmony(harmonyId).Patch(
-                typeof(BehaviorHealingItem).GetMethod("OnHeldInteractStart", AccessTools.all),
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatches), nameof(BehaviorHealingItem_OnHeldInteractStart)))
-            );
     }
 
     public static void Unpatch(string harmonyId, ICoreAPI api)
@@ -69,7 +64,6 @@ internal static class HarmonyPatches
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("ReloadBagInventory", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(EntityPlayer).GetProperty("LightHsv", AccessTools.all)?.GetAccessors()[0], HarmonyPatchType.Postfix, harmonyId);
         new Harmony(harmonyId).Unpatch(typeof(BagInventory).GetMethod("SaveSlotIntoBag", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
-        new Harmony(harmonyId).Unpatch(typeof(BehaviorHealingItem).GetMethod("OnHeldInteractStart", AccessTools.all), HarmonyPatchType.Prefix, harmonyId);
 
         if (!api.ModLoader.IsModEnabled("svanaxfdc"))
         {

@@ -245,4 +245,7 @@ public class WearableAttachment : Item, IContainedMeshSource, IAttachableToEntit
 
         return attributeAttachableToEntity;
     }
+
+    public MeshData GenMesh(ItemSlot slot, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos) => GenMesh(slot.Itemstack, targetAtlas, atBlockPos);
+    public string GetMeshCacheKey(ItemSlot slot) => GetMeshCacheKey(slot.Itemstack);
 }

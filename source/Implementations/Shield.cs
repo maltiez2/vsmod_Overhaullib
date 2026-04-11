@@ -24,7 +24,7 @@ public class VanillaShield : MeleeWeapon, IContainedMeshSource
         base.OnLoaded(api);
 
         _clientAPI = api as ICoreClientAPI;
-        _durabilityGains = Attributes["durabilityGains"].AsObject<Dictionary<string, Dictionary<string, int>>>();
+        _durabilityGains = Attributes["durabilityGains"].AsObject<Dictionary<string, Dictionary<string, int>>>() ?? [];
 
         AddAllTypesToCreativeInventory();
     }
@@ -287,11 +287,14 @@ public class VanillaShield : MeleeWeapon, IContainedMeshSource
         return Code.ToShortString() + "-" + wood + "-" + metal + "-" + color + "-" + deco;
     }
 
-    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
         base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
 
         GeneralUtils.MarkItemStack(outputSlot);
         outputSlot.MarkDirty();
     }
+
+    public MeshData GenMesh(ItemSlot slot, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos) => GenMesh(slot.Itemstack, targetAtlas, atBlockPos);
+    public string GetMeshCacheKey(ItemSlot slot) => throw new NotImplementedException();
 }

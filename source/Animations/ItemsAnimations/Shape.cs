@@ -7,19 +7,53 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 
-namespace CombatOverhaul.Animations;
+namespace CombatOverhaul;
 
 public class ClientItemAnimator : ClientAnimator
 {
-    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, Vintagestory.API.Common.Animation[] animations, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, animations, onAnimationStoppedListener, onShouldPlaySoundListener)
+    public ClientItemAnimator(
+        WalkSpeedSupplierDelegate walkSpeedSupplier,
+        Vintagestory.API.Common.Animation[] animations,
+        Action<string> onAnimationStoppedListener = null,
+        Action<string, AnimationSound> onShouldPlaySoundListener = null) : base(
+            walkSpeedSupplier,
+            animations,
+            onAnimationStoppedListener,
+            onShouldPlaySoundListener)
     {
     }
 
-    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, Vintagestory.API.Common.Animation[] animations, ShapeElement[] rootElements, Dictionary<int, AnimationJoint> jointsById, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, animations, rootElements, jointsById, onAnimationStoppedListener, onShouldPlaySoundListener)
+    public ClientItemAnimator(
+        WalkSpeedSupplierDelegate walkSpeedSupplier,
+        List<ElementPose> rootPoses,
+        Vintagestory.API.Common.Animation[] animations,
+        ShapeElement[] rootElements,
+        Dictionary<int, AnimationJoint> jointsById,
+        Action<string> onAnimationStoppedListener = null,
+        Action<string, AnimationSound> onShouldPlaySoundListener = null) : base(
+            walkSpeedSupplier,
+            rootPoses,
+            animations,
+            rootElements,
+            jointsById,
+            onAnimationStoppedListener,
+            onShouldPlaySoundListener)
     {
     }
 
-    public ClientItemAnimator(WalkSpeedSupplierDelegate walkSpeedSupplier, List<ElementPose> rootPoses, Vintagestory.API.Common.Animation[] animations, ShapeElement[] rootElements, Dictionary<int, AnimationJoint> jointsById, Action<string> onAnimationStoppedListener = null, Action<AnimationSound> onShouldPlaySoundListener = null) : base(walkSpeedSupplier, rootPoses, animations, rootElements, jointsById, onAnimationStoppedListener, onShouldPlaySoundListener)
+    public ClientItemAnimator(
+        WalkSpeedSupplierDelegate walkSpeedSupplier,
+        Vintagestory.API.Common.Animation[] animations,
+        ShapeElement[] rootElements,
+        Dictionary<int, AnimationJoint> jointsById,
+        Action<string> onAnimationStoppedListener = null,
+        Action<string, AnimationSound> onShouldPlaySoundListener = null) : base(
+            walkSpeedSupplier,
+            animations,
+            rootElements,
+            jointsById,
+            onAnimationStoppedListener,
+            onShouldPlaySoundListener)
     {
     }
 }
@@ -37,13 +71,13 @@ public sealed class AnimatableShape : ITexPositionSource, IDisposable
         shapeLocation = shapeLocation.WithPathAppendixOnce(".json").WithPathPrefixOnce("shapes/");
 
         Shape? currentShape = Shape.TryGet(api, shapeLocation);
-        currentShape?.ResolveReferences(api.Logger, cacheKey);
+        currentShape?.ResolveReferences(api.Logger, shapePath);
 
         if (currentShape == null) return null;
 
         AnimatableShape shape = new(api, cacheKey, currentShape, item);
 
-        shape.Shape.ResolveReferences(api.Logger, "creating new animatable shape");
+        shape.Shape.ResolveReferences(api.Logger, shapePath);
 
         return shape;
     }

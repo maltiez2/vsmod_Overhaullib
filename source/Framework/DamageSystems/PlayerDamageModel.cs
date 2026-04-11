@@ -383,7 +383,7 @@ public sealed class PlayerDamageModelBehavior : EntityBehavior
 
         CurrentDamageBlock.Callback.Invoke(initialDamage - damage, damageTier, blockTier);
 
-        if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new(CurrentDamageBlock.Sound), entity);
+        if (CurrentDamageBlock.Sound != null) entity.Api.World.PlaySoundAt(new SoundAttributes(CurrentDamageBlock.Sound, true), entity);
     }
     private void ApplyArmorResists(DamageSource damageSource, DamageZone zone, ref float damage, out string damageLogMessage, out EnumDamageType damageType)
     {

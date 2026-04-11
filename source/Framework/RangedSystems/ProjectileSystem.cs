@@ -507,7 +507,6 @@ public sealed class ProjectileSystemServer
             vanillaProjectile.DamageStackOnImpact = stats.DurabilityDamage > 0;
             vanillaProjectile.Weight = entity.Properties.Weight;
             vanillaProjectile.IgnoreInvFrames = true;
-            vanillaProjectile.NonCollectible = !stats.CanBeCollected;
 
             vanillaProjectile.PreInitialize();
         }

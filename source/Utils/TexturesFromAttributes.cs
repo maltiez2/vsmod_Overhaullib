@@ -152,6 +152,9 @@ public class TextureFromAttributes : CollectibleBehavior, IContainedMeshSource
 
         return stackJson;
     }
+
+    public MeshData GenMesh(ItemSlot slot, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos) => GenMesh(slot.Itemstack, targetAtlas, atBlockPos);
+    public string GetMeshCacheKey(ItemSlot slot) => GetMeshCacheKey(slot.Itemstack);
 }
 
 
@@ -373,4 +376,7 @@ public class TexturesFromAttributes : CollectibleBehavior, IContainedMeshSource
 
         return stackJson;
     }
+
+    public MeshData GenMesh(ItemSlot slot, ITextureAtlasAPI targetAtlas, BlockPos atBlockPos) => GenMesh(slot.Itemstack, targetAtlas, atBlockPos);
+    public string GetMeshCacheKey(ItemSlot slot) => GetMeshCacheKey(slot.Itemstack);
 }

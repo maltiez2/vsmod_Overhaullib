@@ -1,5 +1,4 @@
-﻿using CombatOverhaul.Entities;
-using HarmonyLib;
+﻿using HarmonyLib;
 using System.Reflection;
 using System.Reflection.Emit;
 

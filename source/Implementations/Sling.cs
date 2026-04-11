@@ -656,7 +656,7 @@ public class SlingItem : Item, IHasWeaponLogic, IHasRangedWeaponLogic, IHasMoveA
         }
     }
 
-    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] allInputslots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
         base.OnCreatedByCrafting(allInputslots, outputSlot, byRecipe);
 

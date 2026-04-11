@@ -12,7 +12,7 @@ using Vintagestory.GameContent;
 
 namespace CombatOverhaul.Armor;
 
-public class EntityCOArmorStand : EntityHumanoid
+/*public class EntityCOArmorStand : EntityHumanoid
 {
     EntityBehaviorArmorStandInventory invbh;
     float fireDamage;
@@ -331,4 +331,4 @@ public class ArmorStandArmorInventory : InventoryBase
     {
         // Don't drop contents on death
     }
-}
+}*/

@@ -42,13 +42,9 @@ public class ItemSlotBagContentWithWildcardMatch : ItemSlotBagContent, IHasSlotB
             bool matchWithDomain = WildcardUtil.Match(Config.CanHoldWildcards, sourceSlot.Itemstack.Collectible.Code.ToString());
 
             bool matchWithTags = false;
-            if (sourceSlot.Itemstack?.Item != null && Config.CanHoldItemTags.Length != 0)
+            if (sourceSlot.Itemstack?.Item != null && !Config.CanHoldTags.IsEmpty)
             {
-                matchWithTags = ItemTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Item.Tags, Config.CanHoldItemTags);
-            }
-            if (sourceSlot.Itemstack?.Block != null && Config.CanHoldBlockTags.Length != 0 && !matchWithTags)
-            {
-                matchWithTags = BlockTagRule.ContainsAllFromAtLeastOne(sourceSlot.Itemstack.Block.Tags, Config.CanHoldBlockTags);
+                matchWithTags = Config.CanHoldTags.Matches(sourceSlot.Itemstack.Item.Tags);
             }
 
             return matchWithoutDomain || matchWithDomain || matchWithTags;

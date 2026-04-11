@@ -439,8 +439,8 @@ public class ArmorInventory : InventoryCharacter
     internal static readonly int _gearSlotsCount = GearSlotTypes.Count;
     internal static readonly int _gearSlotsLastIndex = _armorSlotsLastIndex + _gearSlotsCount;
     internal static readonly int _totalSlotsNumber = _clothesSlotsCount + _clothesArmorSlots + _moddedArmorSlotsCount + _gearSlotsCount;
-    internal static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackPacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
-    internal static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackPacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
+    internal static readonly FieldInfo? _backpackBagInventory = typeof(InventoryPlayerBackpacks).GetField("bagInv", BindingFlags.NonPublic | BindingFlags.Instance);
+    internal static readonly FieldInfo? _backpackBagSlots = typeof(InventoryPlayerBackpacks).GetField("bagSlots", BindingFlags.NonPublic | BindingFlags.Instance);
     internal readonly ICoreAPI _api;
     internal static bool _disableVanillaArmorSlots;
     internal bool _clearedArmorSlots = false;
@@ -618,16 +618,16 @@ public class ArmorInventory : InventoryCharacter
         }
     }
 
-    private InventoryPlayerBackPacks? GetBackpackInventory()
+    private InventoryPlayerBackpacks? GetBackpackInventory()
     {
-        return Player?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackPacks;
+        return Player?.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) as InventoryPlayerBackpacks;
     }
 
     private void ReloadBagInventory()
     {
         
 
-        InventoryPlayerBackPacks? backpack = GetBackpackInventory();
+        InventoryPlayerBackpacks? backpack = GetBackpackInventory();
         if (backpack == null) return;
 
         BagInventory? bag = (BagInventory?)_backpackBagInventory?.GetValue(backpack);

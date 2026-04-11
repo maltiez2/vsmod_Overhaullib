@@ -60,7 +60,7 @@ public class ItemWearableArmor : ItemWearable
             LoggerUtil.Error(api, this, $"Error on equipping '{code}' that occupies {armorType}:\n{exception}");
         }
     }
-    public override void OnCreatedByCrafting(ItemSlot[] inSlots, ItemSlot outputSlot, GridRecipe byRecipe)
+    public override void OnCreatedByCrafting(ItemSlot[] inSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
     {
         int newDurability = 0;
 
@@ -90,7 +90,7 @@ public class ItemWearableArmor : ItemWearable
             outputSlot.Itemstack.Attributes.SetInt("durability", newDurability);
         }
     }
-    public override bool ConsumeCraftingIngredients(ItemSlot[] inSlots, ItemSlot outputSlot, GridRecipe recipe)
+    public override bool ConsumeCraftingIngredients(ItemSlot[] inSlots, ItemSlot outputSlot, IRecipeBase recipe)
     {
         // Consume as much materials in the input grid as needed
         if (recipe.Name.Path.Contains("repair"))
@@ -140,11 +140,7 @@ public class ItemWearableArmor : ItemWearable
     }
     protected virtual void CalculateRepairValueProperly(ItemSlot[] inSlots, ItemSlot outputSlot, out float repairValue, out int matCostPerMatType)
     {
-        int origMatCount = GetOrigMatCount(inSlots, outputSlot);
-        if (origMatCount == 0)
-        {
-            origMatCount = Attributes["materialCount"].AsInt(1);
-        }
+        int origMatCount = Attributes["materialCount"].AsInt(1);
 
         ItemSlot? armorSlot = inSlots.FirstOrDefault(slot => slot.Itemstack?.Collectible is ItemWearable);
         int curDur = outputSlot.Itemstack.Collectible.GetRemainingDurability(armorSlot.Itemstack);
@@ -157,7 +153,7 @@ public class ItemWearableArmor : ItemWearable
         // Divide missing durability by repair per item = items needed for full repair 
         int fullRepairMatCount = (int)Math.Max(1, Math.Round((maxDur - curDur) / repairDurabilityPerItem));
         // Limit repair value to smallest stack size of all repair mats
-        int minMatStackSize = GetInputRepairCount(inSlots);
+        int minMatStackSize = 1;
         // Divide the cost amongst all mats
         int matTypeCount = GetRepairMatTypeCount(inSlots);
 
@@ -221,7 +217,7 @@ public class ItemHelmetWithVisor : ItemWearableArmor
             renderinfo.DamageEffect = Math.Max(0, 1 - (float)GetRemainingDurability(itemstack) / GetMaxDurability(itemstack) * 1.1f);
         }
     }
-    public override string GetMeshCacheKey(ItemStack itemstack)
+    public string GetMeshCacheKey(ItemStack itemstack)
     {
         if (Opened(itemstack))
         {
